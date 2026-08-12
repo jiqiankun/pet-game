@@ -117,9 +117,9 @@ pet-game/
 
 ## 开发进度
 
-当前阶段：**阶段 0（工程脚手架与构建部署流水线）— 已完成**
+当前阶段：**阶段 2（玩家存档基础与新游戏开局）— 已完成**
 
-已完成阶段：阶段 0
+已完成阶段：阶段 0、阶段 1、阶段 2
 
 详细的阶段划分与进度跟踪见 [`AGENTS.md`](AGENTS.md) §6「当前阶段状态」。
 
@@ -131,6 +131,30 @@ pet-game/
 - 启动脚本 `start.bat` / `start.sh`
 - 外部配置示例 `config-example/game/system.yml`
 - 单元测试（ApiResponse 结构验证、HealthController 接口验证）
+
+### 阶段 1 完成内容
+
+- 游戏配置体系：9 种属性定义与克制关系（五行环 + 副链 + 光暗互克）、系统规则配置（克制倍率、暴击参数、等级上限、队伍数量、资质范围等）
+- 配置加载机制：JAR 内部默认配置 + 外部配置目录同 ID 覆盖（`GameConfigLoader`）
+- 启动校验：ID 重复、引用不存在、非法概率/倍率/等级等严重错误时启动失败（`GameConfigValidator`）
+- 统一配置注册中心：`GameConfigRegistry` 提供克制倍率查询、属性索引等运行时能力
+- 配置查询 API：`/api/game/config/elements`、`/api/game/config/advantage`、`/api/game/config/system`
+- 统一随机工具 `GameRandom`（支持固定种子，可复现完整随机流程）
+- 配置目录骨架：`resources/game-config/`（system.yml、elements.yml + pets/skills/bosses/items/drops/shops/quests 子目录）
+- 单元测试（GameRandom 种子可复现/范围/边界、配置校验 8 种错误场景、克制倍率查询 10 种关系）
+
+### 阶段 2 完成内容
+
+- 玩家存档数据模型：player / player_pet / player_pet_skill / player_team / player_team_member / player_inventory / game_setting 七张表（Flyway V2 迁移）
+- 新游戏流程：名称 + 预设形象 + 初始宠物三选一（烬牙兽/汐月灵/藤梦鹿），配置驱动，初始宠物资质全 A
+- Bootstrap 聚合接口 `GET /api/game/bootstrap`：一次返回首页所需核心状态
+- 存档状态检查 `GET /api/game/save-status`、新游戏创建 `POST /api/game/new-game`、手动保存 `POST /api/game/save`
+- 初始宠物配置 `initial-pets.yml`（含初始金币、经验池、地图 ID）
+- 前端新游戏页面（名称输入 + 形象选择 + 宠物三选一 + 创建流程）
+- 前端首页骨架（玩家状态卡片 + 当前队伍 + 快捷操作）
+- 前端游戏 Store（存档状态、Bootstrap 加载、新游戏创建、手动保存）
+- 自动跳转：无存档时自动进入新游戏流程
+- 单元测试（初始宠物配置校验 7 种场景）
 
 ---
 

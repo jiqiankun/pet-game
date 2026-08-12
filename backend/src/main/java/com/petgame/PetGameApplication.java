@@ -1,5 +1,6 @@
 package com.petgame;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 前端构建产物打入 Spring Boot 静态资源，输出单个可执行 JAR。
  */
 @SpringBootApplication
+@MapperScan("com.petgame.**.mapper")
 public class PetGameApplication {
 
     public static void main(String[] args) {

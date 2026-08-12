@@ -1,0 +1,47 @@
+# ============================================================
+# 宠物精灵游戏 - 属性体系配置
+# ============================================================
+# 定义 9 种宠物属性及其克制关系。
+# 克制关系按需求文档 §6：
+#   五行环：金→木→土→水→火→金
+#   副链：金→风→雷→水
+#   互克：光⇄暗
+# ============================================================
+
+configVersion: 1
+
+elements:
+  - id: METAL
+    name: 金
+  - id: WOOD
+    name: 木
+  - id: WATER
+    name: 水
+  - id: FIRE
+    name: 火
+  - id: EARTH
+    name: 土
+  - id: WIND
+    name: 风
+  - id: THUNDER
+    name: 雷
+  - id: LIGHT
+    name: 光
+  - id: DARK
+    name: 暗
+
+# 克制关系（单向声明）
+advantages:
+  # 五行环
+  - { attacker: METAL, defender: WOOD }
+  - { attacker: WOOD,  defender: EARTH }
+  - { attacker: EARTH, defender: WATER }
+  - { attacker: WATER, defender: FIRE }
+  - { attacker: FIRE,  defender: METAL }
+  # 副链
+  - { attacker: METAL,   defender: WIND }
+  - { attacker: WIND,    defender: THUNDER }
+  - { attacker: THUNDER, defender: WATER }
+  # 互克（两条）
+  - { attacker: LIGHT, defender: DARK }
+  - { attacker: DARK,  defender: LIGHT }

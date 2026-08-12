@@ -1,0 +1,74 @@
+# ============================================================
+# 宠物精灵游戏 - 初始宠物配置
+# ============================================================
+# 定义新游戏三选一的初始宠物选项。
+# 初始宠物综合资质至少 A（各项 >= 80）。
+# 初始宠物自带「初始伙伴」纪念标记，不加属性。
+# ============================================================
+
+configVersion: 1
+
+initialGold: 500
+initialExpPool: 0
+initialMapId: MAP_START_VILLAGE
+
+initialPets:
+  - speciesId: PET_FIRE_001
+    name: 烬牙兽
+    element: FIRE
+    description: 火系·物理爆发方向
+    baseHp: 85
+    baseStrength: 95
+    baseSpirit: 60
+    baseDefense: 70
+    baseResistance: 55
+    baseSpeed: 80
+    aptitudeHp: 85
+    aptitudeStrength: 90
+    aptitudeSpirit: 80
+    aptitudeDefense: 85
+    aptitudeResistance: 80
+    aptitudeSpeed: 85
+    skills:
+      - { skillId: SKILL_FIRE_CLAW, slot: 1 }
+      - { skillId: SKILL_TACKLE, slot: 2 }
+
+  - speciesId: PET_WATER_001
+    name: 汐月灵
+    element: WATER
+    description: 水系·治疗净化方向
+    baseHp: 90
+    baseStrength: 55
+    baseSpirit: 90
+    baseDefense: 75
+    baseResistance: 85
+    baseSpeed: 65
+    aptitudeHp: 90
+    aptitudeStrength: 80
+    aptitudeSpirit: 90
+    aptitudeDefense: 85
+    aptitudeResistance: 85
+    aptitudeSpeed: 80
+    skills:
+      - { skillId: SKILL_WATER_PULSE, slot: 1 }
+      - { skillId: SKILL_HEAL_LIGHT, slot: 2 }
+
+  - speciesId: PET_WOOD_001
+    name: 藤梦鹿
+    element: WOOD
+    description: 木系·缠绕控制方向
+    baseHp: 88
+    baseStrength: 65
+    baseSpirit: 80
+    baseDefense: 80
+    baseResistance: 80
+    baseSpeed: 75
+    aptitudeHp: 88
+    aptitudeStrength: 82
+    aptitudeSpirit: 85
+    aptitudeDefense: 85
+    aptitudeResistance: 82
+    aptitudeSpeed: 83
+    skills:
+      - { skillId: SKILL_VINE_WHIP, slot: 1 }
+      - { skillId: SKILL_ENTANGLE, slot: 2 }
