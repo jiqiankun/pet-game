@@ -1,0 +1,62 @@
+# ============================================================
+# 宠物精灵游戏 - 应用配置
+# ============================================================
+
+server:
+  address: 127.0.0.1
+  port: 8080
+
+spring:
+  application:
+    name: pet-game
+
+  # ---- 数据源 ----
+  datasource:
+    url: jdbc:mysql://localhost:3306/pet_game?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # ---- Flyway 数据库迁移 ----
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+
+  # ---- 静态资源 (前端构建产物) ----
+  web:
+    resources:
+      static-locations: classpath:/static/
+
+# ---- MyBatis-Plus ----
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# ---- 日志 ----
+logging:
+  level:
+    root: INFO
+    com.petgame: DEBUG
+    org.flywaydb: INFO
+  file:
+    name: ./data/logs/pet-game.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+
+# ============================================================
+# 游戏配置
+# ============================================================
+game:
+  version: 1.0.0
+  save-version: 1
+  config-version: 1
+  config-dir: ./config/game
+  developer-mode: false

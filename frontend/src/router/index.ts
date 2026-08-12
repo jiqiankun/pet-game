@@ -1,0 +1,66 @@
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    name: 'Home',
+    component: () => import('../views/Home/HomeView.vue'),
+  },
+  {
+    path: '/explore',
+    name: 'Explore',
+    component: () => import('../views/Explore/ExploreView.vue'),
+  },
+  {
+    path: '/pets',
+    name: 'Pets',
+    component: () => import('../views/Pet/PetView.vue'),
+  },
+  {
+    path: '/team',
+    name: 'Team',
+    component: () => import('../views/Team/TeamView.vue'),
+  },
+  {
+    path: '/pokedex',
+    name: 'Pokedex',
+    component: () => import('../views/Pokedex/PokedexView.vue'),
+  },
+  {
+    path: '/boss',
+    name: 'Boss',
+    component: () => import('../views/Boss/BossView.vue'),
+  },
+  {
+    path: '/inventory',
+    name: 'Inventory',
+    component: () => import('../views/Inventory/InventoryView.vue'),
+  },
+  {
+    path: '/quest',
+    name: 'Quest',
+    component: () => import('../views/Quest/QuestView.vue'),
+  },
+  {
+    path: '/achievement',
+    name: 'Achievement',
+    component: () => import('../views/Achievement/AchievementView.vue'),
+  },
+  {
+    path: '/statistics',
+    name: 'Statistics',
+    component: () => import('../views/Statistics/StatisticsView.vue'),
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('../views/Settings/SettingsView.vue'),
+  },
+]
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes,
+})
+
+export default router
