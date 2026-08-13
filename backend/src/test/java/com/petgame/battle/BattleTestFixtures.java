@@ -54,13 +54,13 @@ public final class BattleTestFixtures {
         StatusEffectConfig burn = new StatusEffectConfig();
         burn.setId("BURN");
         burn.setName("灼烧");
-        burn.setCategory("DOT");
+        burn.setCategory("CONTINUOUS");
         burn.setDefaultDuration(2);
         burn.setDotPercent(0.06);
         StatusEffectConfig silence = new StatusEffectConfig();
         silence.setId("SILENCE");
         silence.setName("沉默");
-        silence.setCategory("CONTROL");
+        silence.setCategory("SPECIAL_CONTROL");
         silence.setDefaultDuration(2);
         silence.setSilence(true);
         StatusEffectConfig taunt = new StatusEffectConfig();
@@ -75,7 +75,7 @@ public final class BattleTestFixtures {
         PassiveSkillConfig unyielding = new PassiveSkillConfig();
         unyielding.setId("PASSIVE_UNYIELDING");
         unyielding.setName("不屈");
-        unyielding.setTrigger("ON_HIT_TAKEN");
+        unyielding.setTrigger("AFTER_TAKE_DAMAGE");
         unyielding.setEffectType("SURVIVE_LETHAL");
         unyielding.setMaxTriggerPerBattle(1);
         withPassives.setPassives(List.of(unyielding));
@@ -155,6 +155,40 @@ public final class BattleTestFixtures {
         ctx.setPlayerSide(player);
         ctx.setEnemySide(enemy);
         return ctx;
+    }
+
+    // ---- REV-020 测试扩展：向夹具 registry 追加技能/状态 ----
+
+    /** 构建公开主动技能（无冷却、必中、不蓄力）。 */
+    public static SkillConfig pubSkill(String id, String element, String effectType, String target,
+                                       double baseValue, Map<String, Double> scaling) {
+        return skill(id, element, effectType, target, baseValue, scaling, 0, 1.0, 0);
+    }
+
+    /** 向 registry 追加技能定义（反射写入 skillIndex）。 */
+    public static void addSkill(GameConfigRegistry registry, SkillConfig cfg) {
+        try {
+            Field field = GameConfigRegistry.class.getDeclaredField("skillIndex");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            Map<String, SkillConfig> index = (Map<String, SkillConfig>) field.get(registry);
+            index.put(cfg.getId(), cfg);
+        } catch (Exception e) {
+            throw new IllegalStateException("追加测试技能失败: " + cfg.getId(), e);
+        }
+    }
+
+    /** 向 registry 追加状态定义（反射写入 statusIndex）。 */
+    public static void addStatus(GameConfigRegistry registry, StatusEffectConfig cfg) {
+        try {
+            Field field = GameConfigRegistry.class.getDeclaredField("statusIndex");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            Map<String, StatusEffectConfig> index = (Map<String, StatusEffectConfig>) field.get(registry);
+            index.put(cfg.getId(), cfg);
+        } catch (Exception e) {
+            throw new IllegalStateException("追加测试状态失败: " + cfg.getId(), e);
+        }
     }
 
     // ---- 内部辅助 ----

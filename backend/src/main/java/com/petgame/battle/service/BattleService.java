@@ -255,6 +255,47 @@ public class BattleService {
         return result;
     }
 
+    /**
+     * 开发者模式临时补充技能（REV-014）：为存档内全部宠物学会指定技能（来源记 SKILL_BOOK）。
+     * 留生一击正式获取途径（商店/教学赠书）属阶段 9/10，本入口仅供阶段 5 验收与存量存档补充。
+     *
+     * @return 实际学会该技能的宠物数量
+     */
+    @Transactional
+    public int devGrantSkill(String skillId) {
+        PlayerEntity player = requirePlayer();
+        if (skillId == null || registry.getSkill(skillId) == null) {
+            throw new BusinessException("INVALID_SKILL", "技能不存在: " + skillId);
+        }
+        List<PlayerPetEntity> pets = playerPetMapper.selectList(
+                new LambdaQueryWrapper<PlayerPetEntity>()
+                        .eq(PlayerPetEntity::getSaveId, player.getSaveId()));
+        int granted = 0;
+        for (PlayerPetEntity pet : pets) {
+            Long exists = playerPetSkillMapper.selectCount(
+                    new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                            .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                            .eq(PlayerPetSkillEntity::getSkillId, skillId));
+            if (exists != null && exists > 0) {
+                continue;
+            }
+            // 槽位未满 4 个时自动装备，否则仅入库（REV-011 同款规则）
+            int equippedCount = Math.toIntExact(playerPetSkillMapper.selectCount(
+                    new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                            .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                            .isNotNull(PlayerPetSkillEntity::getSlot)));
+            PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
+            petSkill.setPetId(pet.getId());
+            petSkill.setSkillId(skillId);
+            petSkill.setSourceType("SKILL_BOOK");
+            petSkill.setSlot(equippedCount < 4 ? equippedCount + 1 : null);
+            playerPetSkillMapper.insert(petSkill);
+            granted++;
+        }
+        log.info("开发者补充技能：skillId={}，学会宠物数 {}", skillId, granted);
+        return granted;
+    }
+
     /** 查询玩家背包中的捕捉球存量。 */
     private List<PlayerInventoryEntity> loadCaptureBalls(String saveId) {
         List<PlayerInventoryEntity> all = playerInventoryMapper.selectList(
@@ -712,9 +753,12 @@ public class BattleService {
                 unit.getSkillIds().add(ps.getSkillId());
             }
         }
-        // 被动技能按种族配置自动生效（不进 player_pet_skill 表）
-        for (String passiveId : species.getPassives()) {
-            PassiveSkillConfig passive = registry.getPassive(passiveId);
+        // 被动技能按种族配置自动生效（不进 player_pet_skill 表）；REV-012：仅加载已解锁被动
+        for (PetSpeciesConfig.SpeciesPassiveSlot passiveSlot : species.getPassives()) {
+            if (passiveSlot.getUnlockLevel() > pet.getLevel()) {
+                continue;
+            }
+            PassiveSkillConfig passive = registry.getPassive(passiveSlot.getPassiveId());
             if (passive != null) {
                 unit.getPassives().add(passive);
             }
@@ -804,7 +848,9 @@ public class BattleService {
                     status.getStatusId(),
                     config != null ? config.getName() : status.getStatusId(),
                     config != null ? config.getCategory() : "DEBUFF",
-                    status.getRemainingTurns()));
+                    status.getRemainingTurns(),
+                    Math.max(1, status.getStack()),
+                    config != null && config.isCaptureStun()));
         }
         return snapshot;
     }

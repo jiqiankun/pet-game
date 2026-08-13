@@ -184,6 +184,24 @@ function rarityClass(rarity: string): string {
 function slotLabel(slot: number | null): string {
   return slot ? `槽${slot}` : '未装备'
 }
+
+/** 当前已装备的主动技能数（REV-017）。 */
+function equippedCount(): number {
+  if (!detail.value) return 0
+  return detail.value.learnedSkills.filter(s => s.slot != null).length
+}
+
+/** 被动来源标识（REV-017）。 */
+function sourceLabel(source: string): string {
+  if (source === 'BOOK') return '📖技能书'
+  if (source === 'SPECIAL') return '✨特殊'
+  return '自身'
+}
+
+/** 解锁技能显示名（REV-013：优先名称，兼容旧数据）。 */
+function u2label(s: { skillId: string; name?: string }): string {
+  return s.name || s.skillId
+}
 </script>
 
 <template>
@@ -326,8 +344,13 @@ function slotLabel(slot: number | null): string {
                 <p class="preview-info">所需经验：{{ preview.expRequired }}（{{ preview.expPoolSufficient ? '经验充足' : '经验不足' }}）</p>
                 <p class="preview-info">获得点数：{{ preview.pointsGained }}</p>
                 <div v-if="preview.skillsUnlocked.length" class="preview-skills">
-                  <span>解锁技能：</span>
-                  <span v-for="s in preview.skillsUnlocked" :key="s.skillId" class="unlock-tag">{{ s.skillId }} (Lv.{{ s.unlockLevel }})</span>
+                  <span>新解锁主动技能：</span>
+                  <span v-for="s in preview.skillsUnlocked.filter(u => u.skillType !== 'PASSIVE')" :key="s.skillId" class="unlock-tag">{{ u2label(s) }} (Lv.{{ s.unlockLevel }})</span>
+                  <span v-if="!preview.skillsUnlocked.some(u => u.skillType !== 'PASSIVE')" class="empty-text">无</span>
+                </div>
+                <div v-if="preview.skillsUnlocked.some(u => u.skillType === 'PASSIVE')" class="preview-skills">
+                  <span>新解锁被动技能（自动生效）：</span>
+                  <span v-for="s in preview.skillsUnlocked.filter(u => u.skillType === 'PASSIVE')" :key="s.skillId" class="unlock-tag passive">{{ u2label(s) }} (Lv.{{ s.unlockLevel }})</span>
                 </div>
               </div>
             </div>
@@ -348,11 +371,17 @@ function slotLabel(slot: number | null): string {
             </div>
           </div>
 
-          <!-- 技能标签 -->
+          <!-- 技能标签（REV-017：自身主动 / 被动 两区；技能书区属阶段 10） -->
           <div v-if="activeTab === 'skills'" class="tab-content">
-            <!-- 装备槽位 -->
+            <!-- 新技能提示（REV-011） -->
+            <div v-if="detail.newlyLearnedSkillNames && detail.newlyLearnedSkillNames.length" class="battle-notice">
+              已学习新的主动技能：{{ detail.newlyLearnedSkillNames.join('、') }}
+              <template v-if="detail.skillEquipOverflow">，槽位已满，请调整战斗技能。</template>
+            </div>
+
+            <!-- 自身主动技能 -->
             <div class="skill-slots">
-              <h4>装备槽位（1~4）</h4>
+              <h4>自身主动技能（已掌握 {{ detail.learnedSkills.length }} / {{ detail.totalInnateActiveSkills ?? detail.learnedSkills.length }} · 装备 {{ equippedCount() }} / 4）</h4>
               <div class="slot-grid">
                 <div v-for="slot in 4" :key="slot" class="slot-card">
                   <div class="slot-header">槽 {{ slot }}</div>
@@ -365,16 +394,17 @@ function slotLabel(slot: number | null): string {
               </div>
             </div>
 
-            <!-- 已学习技能 -->
+            <!-- 已学习技能库（主动） -->
             <div class="skill-list-section">
-              <h4>已学习技能</h4>
+              <h4>技能库（非战斗状态可自由装配/替换）</h4>
               <div v-if="detail.learnedSkills.length === 0" class="empty-text">暂无已学习技能</div>
               <div v-for="skill in detail.learnedSkills" :key="skill.skillId" class="skill-card">
                 <div class="skill-info">
-                  <span class="skill-name">{{ skill.name }}</span>
+                  <span class="skill-name">{{ skill.name }}<span v-if="skill.signature" class="skill-type">★特色</span></span>
                   <span class="skill-element">{{ skill.element }}</span>
                   <span class="skill-type">{{ skill.damageType }} / {{ skill.effectType }}</span>
                   <span v-if="skill.cooldown > 0" class="skill-cd">CD {{ skill.cooldown }}</span>
+                  <span v-if="skill.sourceType === 'SKILL_BOOK'" class="skill-type">📖技能书</span>
                   <span class="skill-slot-tag" :class="{ equipped: skill.slot }">{{ slotLabel(skill.slot) }}</span>
                 </div>
                 <div v-if="!skill.slot" class="skill-equip-row">
@@ -383,7 +413,21 @@ function slotLabel(slot: number | null): string {
               </div>
             </div>
 
-            <!-- 待解锁技能 -->
+            <!-- 被动技能（全部自动生效，无携带上限） -->
+            <div class="skill-list-section">
+              <h4>被动技能（全部自动生效 · 无携带上限）</h4>
+              <div v-if="!detail.passives || detail.passives.length === 0" class="empty-text">暂无被动技能</div>
+              <div v-for="p in detail.passives" :key="p.passiveId" class="skill-card" :class="{ locked: !p.unlocked }">
+                <div class="skill-info">
+                  <span class="skill-name">{{ p.name }}<span v-if="p.signature" class="skill-type">★特色</span></span>
+                  <span class="skill-type">{{ sourceLabel(p.source) }}</span>
+                  <span v-if="p.unlocked" class="skill-slot-tag equipped">已生效</span>
+                  <span v-else class="unlock-level">Lv.{{ p.unlockLevel }} 解锁</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 待解锁技能（主动） -->
             <div v-if="detail.availableSkills.length > 0" class="skill-list-section">
               <h4>待解锁技能</h4>
               <div v-for="skill in detail.availableSkills" :key="skill.skillId" class="skill-card locked">
@@ -393,6 +437,12 @@ function slotLabel(slot: number | null): string {
                   <span class="unlock-level">Lv.{{ skill.unlockLevel }} 解锁</span>
                 </div>
               </div>
+            </div>
+
+            <!-- 技能书主动技能区（阶段 10 技能书系统上线后启用） -->
+            <div class="skill-list-section">
+              <h4>技能书主动技能（学习 0 / 10 · 携带 0 / 2）</h4>
+              <div class="empty-text">技能书系统尚未开放（阶段 10）</div>
             </div>
           </div>
 

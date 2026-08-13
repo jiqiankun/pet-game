@@ -68,6 +68,36 @@ public class BattleContext {
     /** 本场战斗全部事件序列。 */
     private List<BattleEvent> events = new ArrayList<>();
 
+    // ---- 新机制运行时数据（REV-006/REV-009）----
+
+    /** 延迟效果队列（DelayedEffect 效果类型注册，达到回合时触发）。 */
+    private List<DelayedEffect> delayedEffects = new ArrayList<>();
+
+    /** 当前被动触发深度（防无限递归，达到上限后不再嵌套触发）。 */
+    private int passiveDepth = 0;
+
+    /** 被动触发深度上限（技术方案 §78：防止 被动A→被动B→被动A 无限递归）。 */
+    public static final int MAX_PASSIVE_DEPTH = 4;
+
+    /**
+     * 延迟效果记录（REV-006 DELAYED）。
+     */
+    @Data
+    public static class DelayedEffect {
+        /** 触发回合号。 */
+        private int triggerRound;
+        /** 释放者单位 ID。 */
+        private String casterId;
+        /** 目标单位 ID。 */
+        private String targetId;
+        /** 延迟执行的附加效果配置。 */
+        private com.petgame.config.model.SkillConfig.SkillEffectConfig effect;
+        /** 效果基础值（注册时预计算）。 */
+        private double baseValue;
+        /** 来源技能 ID（事件展示用）。 */
+        private String skillId;
+    }
+
     public BattleContext(String battleId, long randomSeed) {
         this.battleId = battleId;
         this.randomSeed = randomSeed;

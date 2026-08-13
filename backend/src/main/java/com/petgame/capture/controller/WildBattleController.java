@@ -63,11 +63,30 @@ public class WildBattleController {
         return ApiResponse.success(battleService.devRefillCaptureBalls());
     }
 
+    /**
+     * 开发者模式临时补充技能（REV-014）：为全部宠物学会指定技能（如留生一击）。
+     * 仅开发者模式可用；正式获取途径属阶段 9/10。
+     */
+    @PostMapping("/dev/grant-skill")
+    public ApiResponse<Map<String, Object>> devGrantSkill(@RequestBody GrantSkillRequest request) {
+        if (!gameProperties.isDeveloperMode()) {
+            return ApiResponse.error("FORBIDDEN", "开发者模式未开启，禁止调用");
+        }
+        int granted = battleService.devGrantSkill(request.getSkillId());
+        return ApiResponse.success(Map.of("skillId", request.getSkillId(), "grantedPets", granted));
+    }
+
     @Data
     public static class StartWildBattleRequest {
         /** 刷新组 ID（默认 ENCOUNTER_GENERAL）。 */
         private String groupId;
         /** 随机种子（可选，固定种子可复现遭遇）。 */
         private Long seed;
+    }
+
+    @Data
+    public static class GrantSkillRequest {
+        /** 技能 ID（如 SKILL_LEAVE_AT_ONE_HP）。 */
+        private String skillId;
     }
 }

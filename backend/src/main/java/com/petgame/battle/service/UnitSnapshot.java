@@ -52,7 +52,7 @@ public class UnitSnapshot {
     private List<StatusView> statuses = new ArrayList<>();
 
     /**
-     * 状态展示视图。
+     * 状态展示视图（REV-015：含叠层与震慑标识）。
      */
     @Data
     @AllArgsConstructor
@@ -61,5 +61,9 @@ public class UnitSnapshot {
         private String name;
         private String category;
         private int remainingTurns;
+        /** 当前层数（叠层状态，默认 1）。 */
+        private int stack;
+        /** 是否捕获震慑（安全捕捉窗口标识，需求 §142）。 */
+        private boolean captureStun;
     }
 }

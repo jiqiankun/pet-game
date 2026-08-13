@@ -3,12 +3,17 @@
  * 前端只提交行动意图，不计算任何战斗结果。
  */
 
-/** 单位携带状态的展示视图。 */
+/** 单位携带状态的展示视图（REV-015：五类模型 + 叠层 + 震慑）。 */
 export interface UnitStatusView {
   statusId: string
   name: string
-  category: 'DOT' | 'CONTROL' | 'DEBUFF' | 'BUFF' | string
+  /** CONTINUOUS / BUFF / DEBUFF / SPECIAL_CONTROL / MARK。 */
+  category: 'CONTINUOUS' | 'BUFF' | 'DEBUFF' | 'SPECIAL_CONTROL' | 'MARK' | string
   remainingTurns: number
+  /** 当前层数（叠层状态，默认 1）。 */
+  stack?: number
+  /** 是否捕获震慑（安全捕捉窗口，需求 §142）。 */
+  captureStun?: boolean
 }
 
 /** 战斗单位快照。 */

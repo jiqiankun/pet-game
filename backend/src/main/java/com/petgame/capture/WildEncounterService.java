@@ -162,8 +162,12 @@ public class WildEncounterService {
             }
         }
         unit.getSkillIds().addAll(extraSkills);
-        for (String passiveId : species.getPassives()) {
-            PassiveSkillConfig passive = registry.getPassive(passiveId);
+        // REV-012：野生单位仅携带其等级已解锁的被动
+        for (PetSpeciesConfig.SpeciesPassiveSlot passiveSlot : species.getPassives()) {
+            if (passiveSlot.getUnlockLevel() > level) {
+                continue;
+            }
+            PassiveSkillConfig passive = registry.getPassive(passiveSlot.getPassiveId());
             if (passive != null) {
                 unit.getPassives().add(passive);
             }

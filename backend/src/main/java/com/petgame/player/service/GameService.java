@@ -163,6 +163,7 @@ public class GameService {
         playerPetMapper.insert(pet);
 
         // 2.1 学习初始技能（unlockLevel <= 初始等级的种族技能），按配置槽位装备
+        int equippedSlots = 0;
         for (PetSpeciesConfig.SpeciesSkillSlot skillSlot : species.getSkills()) {
             if (skillSlot.getUnlockLevel() > STARTER_LEVEL) {
                 continue;
@@ -173,6 +174,28 @@ public class GameService {
             petSkill.setSourceType("LEVEL_UP");
             petSkill.setSlot(skillSlot.getSlot());
             playerPetSkillMapper.insert(petSkill);
+            if (skillSlot.getSlot() != null) {
+                equippedSlots = Math.max(equippedSlots, skillSlot.getSlot());
+            }
+        }
+
+        // 2.1.1 新游戏赠送技能（REV-014：留生一击等，来源记 SKILL_BOOK；
+        //        阶段 5 临时获取途径，商店/教学赠书属阶段 9/10；槽位未满时自动装备）
+        if (initialPets.getGrantSkills() != null) {
+            for (String grantSkillId : initialPets.getGrantSkills()) {
+                if (configRegistry.getSkill(grantSkillId) == null) {
+                    continue;
+                }
+                PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
+                petSkill.setPetId(pet.getId());
+                petSkill.setSkillId(grantSkillId);
+                petSkill.setSourceType("SKILL_BOOK");
+                petSkill.setSlot(equippedSlots < 4 ? equippedSlots + 1 : null);
+                if (equippedSlots < 4) {
+                    equippedSlots++;
+                }
+                playerPetSkillMapper.insert(petSkill);
+            }
         }
 
         // 2.2 发放初始道具（阶段 5：新游戏赠送三档捕捉球）

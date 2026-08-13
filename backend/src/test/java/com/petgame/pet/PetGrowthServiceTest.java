@@ -374,4 +374,25 @@ class PetGrowthServiceTest {
         assertEquals(50, preview.getToLevel());
         assertTrue(preview.getExpRequired() > 0);
     }
+
+    // ==================== REV-019：解锁区分主动/被动 + 跨多级一次全显 ====================
+
+    @Test
+    void skillsUnlockedBetween_includesPassivesWithType() {
+        PetSpeciesConfig species = species("SPEC_P", "COMMON", 50,
+                List.of(skillSlot("SKILL_A", 1), skillSlot("SKILL_B", 10)));
+        PetSpeciesConfig.SpeciesPassiveSlot passive = new PetSpeciesConfig.SpeciesPassiveSlot();
+        passive.setPassiveId("PASSIVE_X");
+        passive.setUnlockLevel(15);
+        species.setPassives(List.of(passive));
+        PetGrowthService svc = service(List.of(species));
+
+        // 跨多级（1→20）：主动 SKILL_B(10) + 被动 PASSIVE_X(15) 一次全部返回
+        List<PetGrowthService.UnlockedSkill> unlocked = svc.skillsUnlockedBetween(species, 1, 20);
+        assertEquals(2, unlocked.size(), "跨多级应一次返回全部新技能（需求 §17/§150）");
+        assertEquals("SKILL_B", unlocked.get(0).getSkillId());
+        assertEquals("ACTIVE", unlocked.get(0).getSkillType());
+        assertEquals("PASSIVE_X", unlocked.get(1).getSkillId());
+        assertEquals("PASSIVE", unlocked.get(1).getSkillType(), "预览必须区分主动/被动（REV-013）");
+    }
 }

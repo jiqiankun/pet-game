@@ -32,6 +32,12 @@ public class InitialPetsConfig {
     /** 初始道具（阶段 5：新游戏赠送三档捕捉球，用户裁决）。 */
     private List<InitialItemEntry> initialItems = new ArrayList<>();
 
+    /**
+     * 新游戏赠送技能（REV-014，需求 §142.6）：初始宠物免费学会的技能 ID 列表（来源记为 SKILL_BOOK）。
+     * 阶段 5 临时验收手段：留生一击正式获取途径（商店/教学赠书）属阶段 9/10。
+     */
+    private List<String> grantSkills = new ArrayList<>();
+
     /** 初始宠物选项列表（三选一）。 */
     private List<InitialPetOption> initialPets = new ArrayList<>();
 

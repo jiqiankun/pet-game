@@ -88,6 +88,20 @@ public class BattleUnit {
     /** 最后一次受到伤害的来源单位 ID（用于击败被动）。 */
     private String lastDamageSourceId;
 
+    // ---- 新机制运行时字段（REV-006/REV-009）----
+
+    /** 行动顺序干预加成（仅当前回合有效，回合结束清零；不修改基础速度）。 */
+    private double actionOrderBoost = 0;
+
+    /** 濒死保护次数（PROTECT_FROM_DEFEAT 效果附加，致死时保留 1HP 并消耗）。 */
+    private int protectCharges = 0;
+
+    /** 本回合已触发过的 oncePerTurn 被动 ID 集合（每回合开始清空）。 */
+    private java.util.Set<String> passiveTurnMarks = new java.util.HashSet<>();
+
+    /** 本行动已触发过的 oncePerAction 被动 ID 集合（每次行动开始清空）。 */
+    private java.util.Set<String> passiveActionMarks = new java.util.HashSet<>();
+
     // ---- 技能与被动 ----
 
     /** 技能 ID 列表。 */

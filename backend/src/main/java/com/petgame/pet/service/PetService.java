@@ -77,6 +77,8 @@ public class PetService {
         detail.setPanelStats(growthService.computePanelStats(pet, species));
         detail.setLearnedSkills(loadLearnedSkills(pet.getId(), species));
         detail.setAvailableSkills(loadAvailableSkills(species, pet.getLevel()));
+        detail.setPassives(loadPassives(species, pet.getLevel()));
+        detail.setTotalInnateActiveSkills(species.getSkills() != null ? species.getSkills().size() : 0);
         detail.setExpPool(player.getExpPool());
         detail.setFreePointsAvailable(growthService.freePointsAvailable(pet, species));
         detail.setAllocatedFreePoints(growthService.consumedFreePoints(pet));
@@ -163,29 +165,50 @@ public class PetService {
         // currentHp 保持不变（若已倒下 currentHp=0，升级后仍为 0，需要恢复道具）
         playerPetMapper.updateById(pet);
 
-        // 3. 自动学习新解锁的种族技能（默认不装备）
+        // 3. 自动学习新解锁技能（REV-013：主动写表、被动不写表随等级自动生效；
+        //    REV-011：槽位未满 4 个自动装备，已满 4/4 仅入库不覆盖并提示）
         List<PetGrowthService.UnlockedSkill> unlocked =
                 growthService.skillsUnlockedBetween(species, currentLevel, targetLevel);
+        int equippedCount = Math.toIntExact(playerPetSkillMapper.selectCount(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .isNotNull(PlayerPetSkillEntity::getSlot)));
+        List<String> newActiveNames = new ArrayList<>();
+        boolean overflow = false;
         for (PetGrowthService.UnlockedSkill skill : unlocked) {
+            if (!"ACTIVE".equals(skill.getSkillType())) {
+                continue; // 被动解锁后自动生效，无需玩家额外配置
+            }
             // 避免重复插入
             Long exists = playerPetSkillMapper.selectCount(
                     new LambdaQueryWrapper<PlayerPetSkillEntity>()
                             .eq(PlayerPetSkillEntity::getPetId, pet.getId())
                             .eq(PlayerPetSkillEntity::getSkillId, skill.getSkillId()));
-            if (exists == null || exists == 0) {
-                PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
-                petSkill.setPetId(pet.getId());
-                petSkill.setSkillId(skill.getSkillId());
-                petSkill.setSourceType("LEVEL_UP");
-                petSkill.setSlot(null);
-                playerPetSkillMapper.insert(petSkill);
+            if (exists != null && exists > 0) {
+                continue;
             }
+            PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
+            petSkill.setPetId(pet.getId());
+            petSkill.setSkillId(skill.getSkillId());
+            petSkill.setSourceType("LEVEL_UP");
+            if (equippedCount < 4) {
+                petSkill.setSlot(equippedCount + 1);
+                equippedCount++;
+            } else {
+                petSkill.setSlot(null);
+                overflow = true;
+            }
+            playerPetSkillMapper.insert(petSkill);
+            newActiveNames.add(skill.getName());
         }
 
         log.info("宠物升级：petId={} {}→{}，消耗经验 {}，新解锁技能 {} 个",
                 petId, currentLevel, targetLevel, expRequired, unlocked.size());
 
-        return getPetDetail(petId);
+        PetDetail detail = getPetDetail(petId);
+        detail.setNewlyLearnedSkillNames(newActiveNames);
+        detail.setSkillEquipOverflow(overflow);
+        return detail;
     }
 
     /**
@@ -415,7 +438,7 @@ public class PetService {
         return player;
     }
 
-    /** 加载宠物已学技能视图（含槽位与技能配置摘要）。 */
+    /** 加载宠物已学技能视图（含槽位、技能类型与技能配置摘要）。 */
     private List<PetDetail.LearnedSkillView> loadLearnedSkills(Long petId,
                                                                   PetSpeciesConfig species) {
         List<PlayerPetSkillEntity> records = playerPetSkillMapper.selectList(
@@ -436,10 +459,42 @@ public class PetService {
             view.setCooldown(skill.getCooldown());
             view.setSlot(rec.getSlot());
             view.setSourceType(rec.getSourceType());
+            view.setSkillType(skill.getSkillType());
+            view.setSignature(isSignatureSkill(species, rec.getSkillId()));
             views.add(view);
         }
         views.sort(Comparator.nullsLast(
                 Comparator.comparing(PetDetail.LearnedSkillView::getSlot)));
+        return views;
+    }
+
+    /** 判定技能是否为种族配置中的特色/专属技能（REV-016）。 */
+    private boolean isSignatureSkill(PetSpeciesConfig species, String skillId) {
+        if (species.getSkills() == null) {
+            return false;
+        }
+        return species.getSkills().stream()
+                .anyMatch(s -> skillId.equals(s.getSkillId()) && s.isSignature());
+    }
+
+    /** 加载被动技能视图（REV-016：含解锁状态，全部自动生效）。 */
+    private List<PetDetail.PassiveSkillView> loadPassives(PetSpeciesConfig species, int level) {
+        List<PetDetail.PassiveSkillView> views = new ArrayList<>();
+        for (PetSpeciesConfig.SpeciesPassiveSlot slot : species.getPassives()) {
+            com.petgame.config.model.PassiveSkillConfig passive = registry.getPassive(slot.getPassiveId());
+            if (passive == null) {
+                continue;
+            }
+            PetDetail.PassiveSkillView view = new PetDetail.PassiveSkillView();
+            view.setPassiveId(passive.getId());
+            view.setName(passive.getName());
+            view.setUnlockLevel(slot.getUnlockLevel());
+            view.setUnlocked(slot.getUnlockLevel() <= level);
+            view.setSource("INNATE");
+            view.setSignature(slot.isSignature());
+            views.add(view);
+        }
+        views.sort(Comparator.comparingInt(PetDetail.PassiveSkillView::getUnlockLevel));
         return views;
     }
 

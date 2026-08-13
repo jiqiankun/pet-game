@@ -1,35 +1,70 @@
 # ============================================================
-# 宠物精灵游戏 - 状态体系配置（阶段 3）
+# 宠物精灵游戏 - 状态体系配置（阶段 3，修订 REV-002/REV-008）
 # ============================================================
 # 状态效果全部配置化，引擎按字段统一解释。
-# 类别：DOT（持续伤害）/ CONTROL（控制）/ DEBUFF（减益）/ BUFF（增益）。
-# 状态联动保持有限且配置化，不做复杂元素反应网络。
+# 五类模型（需求 §148.2 / 技术方案 §77）：
+#   CONTINUOUS      持续状态（灼烧、中毒、混乱、隐匿、狂暴、再生）
+#   BUFF            增益（攻击/防御/速度提升、嘲讽、援护、反击架势）
+#   DEBUFF          减益（致盲、浸湿、破甲、诅咒、禁疗）
+#   SPECIAL_CONTROL 特殊控制（麻痹、缠绕、沉默、震慑）
+#   MARK            标记（猎杀印记、雷印，支持叠层）
+# 捕捉异常加成：默认 DEBUFF/SPECIAL_CONTROL/CONTINUOUS 计入，
+#   BUFF/MARK 不计入；震慑显式 captureBonus: false（需求 §142）。
 # ============================================================
 
 configVersion: 1
 
 statuses:
-  # ---------- DOT ----------
+  # ---------- CONTINUOUS（持续状态） ----------
 
   - id: BURN
     name: 灼烧
-    category: DOT
+    category: CONTINUOUS
     description: 每回合损失 6% 最大 HP。
     defaultDuration: 2
     dotPercent: 0.06
 
   - id: POISON
     name: 中毒
-    category: DOT
+    category: CONTINUOUS
     description: 每回合损失 5% 最大 HP。
     defaultDuration: 3
     dotPercent: 0.05
 
-  # ---------- CONTROL ----------
+  - id: CONFUSION
+    name: 混乱
+    category: CONTINUOUS
+    description: 敌我识别异常，单体技能可能随机改向其他合法存活单位；群体与自身技能不受影响。
+    defaultDuration: 2
+    confusion: true
+
+  - id: STEALTH
+    name: 隐匿
+    category: CONTINUOUS
+    description: 不能成为敌方单体主动技能目标，群体仍命中；主动攻击后解除。
+    defaultDuration: 2
+    stealth: true
+
+  - id: BERSERK
+    name: 狂暴
+    category: CONTINUOUS
+    description: 造成伤害提高 30%，但防御降低 30%（收益+代价，需求 §144.4）。
+    defaultDuration: 3
+    damageDealtPercent: 0.30
+    defensePercent: -0.30
+
+  - id: REGEN
+    name: 再生
+    category: CONTINUOUS
+    description: 每回合结束恢复 6% 最大 HP；属于治疗，受禁疗影响（需求 §144.3）。
+    defaultDuration: 3
+    healPercent: 0.06
+
+  # ---------- SPECIAL_CONTROL（特殊控制） ----------
 
   - id: PARALYSIS
     name: 麻痹
-    category: CONTROL
+    category: SPECIAL_CONTROL
     description: 35% 概率无法行动，速度降低 20%。
     defaultDuration: 2
     skipActionChance: 0.35
@@ -37,19 +72,29 @@ statuses:
 
   - id: ROOT
     name: 缠绕
-    category: CONTROL
+    category: SPECIAL_CONTROL
     description: 无法行动。
     defaultDuration: 1
     skipActionChance: 1.0
 
   - id: SILENCE
     name: 沉默
-    category: CONTROL
+    category: SPECIAL_CONTROL
     description: 无法使用主动技能。
     defaultDuration: 2
     silence: true
 
-  # ---------- DEBUFF ----------
+  - id: CAPTURE_STUN
+    name: 震慑
+    category: SPECIAL_CONTROL
+    description: 目标至少失去下一次主动行动，提供安全捕捉窗口；不提高捕获率（需求 §142）。
+    defaultDuration: 1
+    skipActionChance: 1.0
+    consumeOnSkip: true
+    captureStun: true
+    captureBonus: false
+
+  # ---------- DEBUFF（减益） ----------
 
   - id: BLIND
     name: 致盲
@@ -78,7 +123,14 @@ statuses:
     defaultDuration: 2
     damageTakenPercent: 0.20
 
-  # ---------- BUFF ----------
+  - id: HEAL_BLOCK
+    name: 禁疗
+    category: DEBUFF
+    description: 无法被治疗效果恢复 HP（需求 §145.7）。
+    defaultDuration: 2
+    healBlock: true
+
+  # ---------- BUFF（增益） ----------
 
   - id: ATK_UP
     name: 攻击提升
@@ -114,6 +166,34 @@ statuses:
     description: 替指定队友承担 50% 单体伤害。
     defaultDuration: 2
     guardTransferPercent: 0.50
+
+  - id: COUNTER
+    name: 反击
+    category: BUFF
+    description: 受到敌方直接单体技能伤害后反击攻击者；群攻/DOT 不触发，反击不触发反击（需求 §144.2）。
+    defaultDuration: 2
+    counterRate: 1.0
+    counterValue: 15
+    counterScaling: 0.60
+
+  # ---------- MARK（标记） ----------
+
+  - id: HUNT_MARK
+    name: 猎杀印记
+    category: MARK
+    description: 受到物理伤害提高 25%（需求 §144.6）。
+    defaultDuration: 2
+    physicalTakenPercent: 0.25
+
+  - id: THUNDER_MARK
+    name: 雷印
+    category: MARK
+    description: 可叠加标记，达到 3 层时触发一次雷属性伤害并清空层数（需求 §144.6）。
+    defaultDuration: 3
+    stack: true
+    maxStack: 3
+    stackTrigger: DAMAGE
+    stackTriggerValue: 40
 
 # ---------- 状态联动（有限、配置化） ----------
 

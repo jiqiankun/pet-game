@@ -51,8 +51,9 @@ class GameConfigPhase3LoadTest {
             species.getSkills().forEach(slot ->
                     assertNotNull(registry.getSkill(slot.getSkillId()),
                             "种族技能引用缺失: " + slot.getSkillId()));
-            species.getPassives().forEach(id ->
-                    assertNotNull(registry.getPassive(id), "种族被动引用缺失: " + id));
+            species.getPassives().forEach(slot ->
+                    assertNotNull(registry.getPassive(slot.getPassiveId()),
+                            "种族被动引用缺失: " + slot.getPassiveId()));
         }
         assertEquals(12, rarityCount.getOrDefault("COMMON", 0), "稀有度分布 COMMON=12");
         assertEquals(9, rarityCount.getOrDefault("RARE", 0), "稀有度分布 RARE=9");

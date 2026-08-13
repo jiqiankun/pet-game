@@ -71,6 +71,12 @@ public class BattleEngine {
         for (BattleUnit unit : ctx.getEnemySide().getActiveAliveUnits()) {
             passiveManager.trigger(ctx, "ON_ENTER", unit);
         }
+        // 开战被动（REV-009，技术方案 §78 BATTLE_START）
+        for (BattleSide side : List.of(ctx.getPlayerSide(), ctx.getEnemySide())) {
+            for (BattleUnit unit : side.getActiveAliveUnits()) {
+                passiveManager.trigger(ctx, "BATTLE_START", unit);
+            }
+        }
         // 开局倒下处理：0HP 单位立即倒下（含候补补位），若一方全灭则直接判负
         processDefeats(ctx);
         checkBattleEnd(ctx);
@@ -103,6 +109,17 @@ public class BattleEngine {
         orderEvent.put("order", order.stream().map(BattleUnit::getUnitId).toList());
         ctx.emit(orderEvent);
 
+        // 回合开始：清空 oncePerTurn 标记 + 行动标记，触发 TURN_START 被动（REV-009）
+        for (BattleSide side : List.of(ctx.getPlayerSide(), ctx.getEnemySide())) {
+            for (BattleUnit unit : side.getUnits()) {
+                unit.getPassiveTurnMarks().clear();
+                unit.getPassiveActionMarks().clear();
+            }
+        }
+        for (BattleUnit unit : order) {
+            passiveManager.trigger(ctx, "TURN_START", unit);
+        }
+
         // 3. 依次执行
         for (BattleUnit unit : order) {
             if (ctx.isFinished()) {
@@ -112,6 +129,9 @@ public class BattleEngine {
                 continue; // 本回合内已倒下或已换下
             }
             ctx.emit(BattleEvent.of(BattleEventType.ACTION_STARTED, round).source(unit.getUnitId()));
+            // 每次行动清空 oncePerAction 标记（REV-009）
+            unit.getPassiveActionMarks().clear();
+            passiveManager.trigger(ctx, "BEFORE_ACTION", unit);
 
             // 蓄力释放优先于新行动
             if (unit.getChargingSkillId() != null) {
@@ -120,11 +140,20 @@ public class BattleEngine {
                 continue;
             }
 
-            // 控制状态：概率跳过行动
+            // 控制状态：概率跳过行动；震慑等 consumeOnSkip 状态跳过时立即消耗（REV-008，需求 §142）
             StatusModifiers mod = StatusModifiers.of(unit, registry.getStatusIndex());
             if (ctx.getRandom().chance(mod.getSkipActionChance())) {
                 ctx.emit(BattleEvent.of(BattleEventType.ACTION_SKIPPED, round)
                         .source(unit.getUnitId()).put("reason", "CONTROL"));
+                for (StatusInstance status : new ArrayList<>(unit.getStatuses())) {
+                    StatusEffectConfig statusConfig = registry.getStatus(status.getStatusId());
+                    if (statusConfig != null && statusConfig.isConsumeOnSkip()) {
+                        unit.getStatuses().remove(status);
+                        ctx.emit(BattleEvent.of(BattleEventType.STATUS_EXPIRED, round)
+                                .target(unit.getUnitId()).status(status.getStatusId())
+                                .put("consumed", true));
+                    }
+                }
                 processAfterAction(ctx);
                 continue;
             }
@@ -161,7 +190,9 @@ public class BattleEngine {
         Map<String, Double> tieBreaker = new HashMap<>();
         for (BattleUnit unit : units) {
             StatusModifiers mod = StatusModifiers.of(unit, registry.getStatusIndex());
-            effectiveSpeed.put(unit.getUnitId(), unit.getSpeed() * mod.getSpeedMultiplier());
+            // 行动顺序干预加成仅作用当前回合（REV-007：不修改基础速度）
+            effectiveSpeed.put(unit.getUnitId(),
+                    unit.getSpeed() * mod.getSpeedMultiplier() + unit.getActionOrderBoost());
             tieBreaker.put(unit.getUnitId(), ctx.getRandom().nextDouble(0, 1));
         }
         units.sort((a, b) -> {
@@ -454,35 +485,270 @@ public class BattleEngine {
         List<BattleUnit> targets = resolveTargets(ctx, caster, skill, casterSide, enemySide, requestedTargetId);
         double baseValue = DamageCalculator.computeBaseValue(skill, caster);
         boolean singleTarget = "ENEMY_SINGLE".equals(skill.getTarget());
+        boolean leaveAtOneHp = hasEffectType(skill, "LEAVE_AT_ONE_HP");
+        boolean dealtDamage = false;
 
+        // 主效果（DAMAGE 记录实际损失与保护情况，供吸血/留生一击联动）
+        Map<String, DamageOutcome> outcomes = new HashMap<>();
         for (BattleUnit target : targets) {
             if (!target.isAlive()) {
                 continue;
             }
-            applyEffect(ctx, caster, target, skill, skill.getEffectType(), baseValue, singleTarget);
+            if ("DAMAGE".equalsIgnoreCase(skill.getEffectType())) {
+                outcomes.put(target.getUnitId(),
+                        applyDamage(ctx, caster, target, skill, baseValue, singleTarget, leaveAtOneHp, false));
+                dealtDamage = true;
+            } else {
+                applyEffect(ctx, caster, target, skill, skill.getEffectType(), baseValue, singleTarget, false);
+            }
         }
 
-        // 附加效果（多效果组合）
+        // 附加效果（Effect 组合框架，REV-006，技术方案 §76）
         for (SkillConfig.SkillEffectConfig effect : skill.getEffects()) {
+            if ("LEAVE_AT_ONE_HP".equalsIgnoreCase(effect.getType())) {
+                continue; // 已参与主伤害结算
+            }
             double effectBase = DamageCalculator.computeBaseValue(effect.getValue(), effect.getScaling(), caster);
             for (BattleUnit target : targets) {
-                if (!target.isAlive()) {
+                // onProtect：仅当留生一击保护实际触发时执行（需求 §142.3：普通命中未触发保护时不清除任何状态）
+                if (effect.isOnProtect()) {
+                    DamageOutcome oc = outcomes.get(target.getUnitId());
+                    if (oc == null || !oc.protectedToOneHp || !target.isAlive()) {
+                        continue;
+                    }
+                    // capturableOnly：仅可捕捉目标（Boss 不附加震慑，需求 §142.5）
+                    if (effect.isCapturableOnly() && target.getWildData() == null) {
+                        continue;
+                    }
+                } else if (!target.isAlive()) {
                     continue;
                 }
-                if ("APPLY_STATUS".equalsIgnoreCase(effect.getType())) {
-                    if (ctx.getRandom().chance(effect.getChance())) {
-                        applyStatus(ctx, caster, target, effect.getStatusId());
-                    }
-                } else {
-                    applyEffect(ctx, caster, target, skill, effect.getType(), effectBase, singleTarget);
+                if (!ctx.getRandom().chance(effect.getChance())) {
+                    continue;
+                }
+                applySkillEffect(ctx, caster, target, skill, effect, effectBase, singleTarget, outcomes);
+                if ("DAMAGE".equalsIgnoreCase(effect.getType())) {
+                    dealtDamage = true;
                 }
             }
         }
 
-        passiveManager.trigger(ctx, "ON_ATTACK", caster);
+        // 隐匿：主动攻击后解除（需求 §144.5）
+        if (dealtDamage) {
+            removeStealthOnAttack(ctx, caster);
+        }
+        passiveManager.trigger(ctx, "AFTER_SKILL", caster);
     }
 
-    /** 目标解析：群体=全部存活上场；单体=嘲讽重定向 + 合法性兜底。 */
+    /**
+     * 附加效果分发（REV-006）。
+     */
+    private void applySkillEffect(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
+                                  SkillConfig.SkillEffectConfig effect, double effectBase,
+                                  boolean singleTarget, Map<String, DamageOutcome> outcomes) {
+        String type = effect.getType() != null ? effect.getType().toUpperCase() : "";
+        switch (type) {
+            case "APPLY_STATUS", "STACK" -> applyStatus(ctx, caster, target, effect.getStatusId());
+            case "DAMAGE" -> applyDamage(ctx, caster, target, skill, effectBase, singleTarget, false, false);
+            case "HEAL" -> healUnit(ctx, caster, target, skill, (int) Math.round(effectBase));
+            case "SHIELD" -> {
+                int shield = (int) Math.round(effectBase);
+                target.setShield(target.getShield() + shield);
+                ctx.emit(BattleEvent.of(BattleEventType.SHIELD_CREATED, ctx.getCurrentRound())
+                        .source(caster.getUnitId()).target(target.getUnitId()).value(shield)
+                        .skill(skill.getId()));
+            }
+            case "LIFE_STEAL" -> applyLifeSteal(ctx, caster, target, skill, effect, outcomes);
+            case "REMOVE_STATUS" -> removeStatuses(ctx, caster, target, effect);
+            case "DISPEL" -> dispelBuffs(ctx, caster, target, false);
+            case "STEAL_BUFF" -> stealBuff(ctx, caster, target);
+            case "HP_PERCENT_EXCHANGE" -> exchangeHpPercent(ctx, caster, target);
+            case "SWITCH_PET" -> switchPetBySkill(ctx, caster);
+            case "CHANGE_ACTION_ORDER" -> {
+                // 行动顺序干预：仅作用当前回合，不修改基础速度（REV-007）
+                target.setActionOrderBoost(target.getActionOrderBoost() + effect.getValue());
+                ctx.emit(BattleEvent.of(BattleEventType.ACTION_ORDER_CHANGED, ctx.getCurrentRound())
+                        .source(caster.getUnitId()).target(target.getUnitId())
+                        .put("boost", effect.getValue()));
+            }
+            case "MODIFY_COOLDOWN" -> {
+                int delta = (int) Math.round(effect.getValue());
+                target.getCooldowns().replaceAll((k, v) -> Math.max(0, v + delta));
+            }
+            case "DELAYED" -> registerDelayed(ctx, caster, target, skill, effect, effectBase);
+            case "LIFE_COST" -> {
+                // 生命代价：按最大 HP 比例扣除，不致死（最低保留 1HP）
+                int cost = (int) Math.round(caster.getMaxHp() * effect.getPercent());
+                if (cost > 0) {
+                    caster.setCurrentHp(Math.max(1, caster.getCurrentHp() - cost));
+                    ctx.emit(BattleEvent.of(BattleEventType.DAMAGE, ctx.getCurrentRound())
+                            .source(caster.getUnitId()).target(caster.getUnitId())
+                            .value(cost).critical(false).skill(skill.getId())
+                            .put("lifeCost", true));
+                }
+            }
+            case "PROTECT_FROM_DEFEAT" -> target.setProtectCharges(target.getProtectCharges() + 1);
+            default -> log.warn("未实现的技能效果类型: {}（技能 {}）", type, skill.getId());
+        }
+    }
+
+    /**
+     * 吸血（REV-007，需求 §143）：按实际 HP 损失计算（护盾吸收/过量伤害不计）；
+     * DOT/反击/反射不走技能效果路径故默认不吸血；受禁疗影响。
+     */
+    private void applyLifeSteal(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
+                                SkillConfig.SkillEffectConfig effect, Map<String, DamageOutcome> outcomes) {
+        DamageOutcome oc = outcomes.get(target.getUnitId());
+        int actualLoss = oc != null ? oc.actualHpLoss : 0;
+        int heal = (int) Math.round(actualLoss * effect.getPercent());
+        if (heal <= 0 || isHealBlocked(caster)) {
+            return;
+        }
+        int healed = Math.min(heal, caster.getMaxHp() - caster.getCurrentHp());
+        caster.setCurrentHp(caster.getCurrentHp() + healed);
+        ctx.emit(BattleEvent.of(BattleEventType.LIFE_STEAL, ctx.getCurrentRound())
+                .source(caster.getUnitId()).target(target.getUnitId()).value(healed)
+                .skill(skill.getId()));
+    }
+
+    /** 移除状态（REV-006 REMOVE_STATUS）：dotOnly 仅移除持续伤害；categories 按类别过滤。 */
+    private void removeStatuses(BattleContext ctx, BattleUnit caster, BattleUnit target,
+                                SkillConfig.SkillEffectConfig effect) {
+        List<StatusInstance> toRemove = new ArrayList<>();
+        for (StatusInstance status : target.getStatuses()) {
+            StatusEffectConfig config = registry.getStatus(status.getStatusId());
+            if (config == null) {
+                continue;
+            }
+            if (effect.isDotOnly() && config.getDotPercent() > 0) {
+                toRemove.add(status);
+            } else if (effect.getCategories() != null && !effect.getCategories().isEmpty()
+                    && effect.getCategories().stream()
+                            .anyMatch(c -> c.equalsIgnoreCase(config.getCategory()))) {
+                toRemove.add(status);
+            }
+        }
+        for (StatusInstance status : toRemove) {
+            target.getStatuses().remove(status);
+            ctx.emit(BattleEvent.of(BattleEventType.STATUS_REMOVED, ctx.getCurrentRound())
+                    .source(caster.getUnitId()).target(target.getUnitId())
+                    .status(status.getStatusId()).put("removed", true));
+        }
+    }
+
+    /** 驱散（REV-006 DISPEL）：移除目标至多 max(1,value) 个可驱散 BUFF。 */
+    private void dispelBuffs(BattleContext ctx, BattleUnit caster, BattleUnit target, boolean stolen) {
+        int count = 1;
+        for (StatusInstance status : new ArrayList<>(target.getStatuses())) {
+            if (count <= 0) {
+                break;
+            }
+            StatusEffectConfig config = registry.getStatus(status.getStatusId());
+            if (config != null && "BUFF".equals(config.getCategory()) && config.isDispellable()) {
+                target.getStatuses().remove(status);
+                count--;
+                if (!stolen) {
+                    ctx.emit(BattleEvent.of(BattleEventType.STATUS_REMOVED, ctx.getCurrentRound())
+                            .source(caster.getUnitId()).target(target.getUnitId())
+                            .status(status.getStatusId()).put("dispelled", true));
+                }
+            }
+        }
+    }
+
+    /** 偷取 Buff（REV-006 STEAL_BUFF）：随机移除目标 1 个可偷取 Buff 并复制给自己。 */
+    private void stealBuff(BattleContext ctx, BattleUnit caster, BattleUnit target) {
+        List<StatusInstance> candidates = target.getStatuses().stream()
+                .filter(s -> {
+                    StatusEffectConfig c = registry.getStatus(s.getStatusId());
+                    return c != null && "BUFF".equals(c.getCategory()) && c.isDispellable();
+                }).toList();
+        if (candidates.isEmpty()) {
+            return;
+        }
+        StatusInstance stolenStatus = candidates.get(ctx.getRandom().nextInt(0, candidates.size() - 1));
+        target.getStatuses().remove(stolenStatus);
+        ctx.emit(BattleEvent.of(BattleEventType.BUFF_STOLEN, ctx.getCurrentRound())
+                .source(caster.getUnitId()).target(target.getUnitId())
+                .status(stolenStatus.getStatusId()));
+        applyStatus(ctx, caster, caster, stolenStatus.getStatusId());
+    }
+
+    /**
+     * HP 百分比交换（REV-007，需求 §147 命运天平）：非伤害，不触发暴击/吸血/反击/受击被动，
+     * 不受防御/护盾影响，不清除 DOT/不附加震慑；Boss（不可捕捉单位）受交换幅度上限约束。
+     */
+    private void exchangeHpPercent(BattleContext ctx, BattleUnit caster, BattleUnit target) {
+        if (!target.isAlive() || target.getMaxHp() <= 0 || caster.getMaxHp() <= 0) {
+            return;
+        }
+        double casterPct = (double) caster.getCurrentHp() / caster.getMaxHp();
+        double targetPct = (double) target.getCurrentHp() / target.getMaxHp();
+        double newCasterPct = targetPct;
+        double newTargetPct = casterPct;
+        // Boss（不可捕捉单位）交换幅度上限（配置化，默认 0.20）
+        if (target.getWildData() == null) {
+            double limit = registry.getSystemRules().getBossHpExchangeLimit();
+            double delta = targetPct - casterPct;
+            if (Math.abs(delta) > limit) {
+                double clamped = Math.signum(delta) * limit;
+                newCasterPct = casterPct + clamped;
+                newTargetPct = targetPct - clamped;
+            }
+        }
+        caster.setCurrentHp(Math.max(1, (int) Math.round(newCasterPct * caster.getMaxHp())));
+        target.setCurrentHp(Math.max(1, (int) Math.round(newTargetPct * target.getMaxHp())));
+        ctx.emit(BattleEvent.of(BattleEventType.HP_PERCENT_EXCHANGED, ctx.getCurrentRound())
+                .source(caster.getUnitId()).target(target.getUnitId())
+                .put("casterBefore", Math.round(casterPct * 100))
+                .put("targetBefore", Math.round(targetPct * 100)));
+    }
+
+    /** 换宠技能（REV-006 SWITCH_PET，需求 §146）：技能本身即本回合行动，后续换宠不额外消耗行动。 */
+    private void switchPetBySkill(BattleContext ctx, BattleUnit caster) {
+        BattleSide side = ctx.findSideOf(caster.getUnitId());
+        BattleUnit incoming = side.getBenchAliveUnits().stream().findFirst().orElse(null);
+        if (incoming == null) {
+            return;
+        }
+        int position = caster.getPosition();
+        ctx.emit(BattleEvent.of(BattleEventType.PET_FORCED_SWITCH, ctx.getCurrentRound())
+                .source(caster.getUnitId()).put("inId", incoming.getUnitId()).put("position", position));
+        caster.setActive(false);
+        caster.setPosition(-1);
+        passiveManager.trigger(ctx, "ON_EXIT", caster);
+        incoming.setActive(true);
+        incoming.setPosition(position);
+        passiveManager.trigger(ctx, "ON_ENTER", incoming);
+    }
+
+    /** 隐匿解除（主动攻击后，需求 §144.5）。 */
+    private void removeStealthOnAttack(BattleContext ctx, BattleUnit caster) {
+        for (StatusInstance status : new ArrayList<>(caster.getStatuses())) {
+            StatusEffectConfig config = registry.getStatus(status.getStatusId());
+            if (config != null && config.isStealth()) {
+                caster.getStatuses().remove(status);
+                ctx.emit(BattleEvent.of(BattleEventType.STATUS_REMOVED, ctx.getCurrentRound())
+                        .source(caster.getUnitId()).target(caster.getUnitId())
+                        .status(status.getStatusId()).put("stealthBroken", true));
+            }
+        }
+    }
+
+    /** 延迟效果注册（REV-006 DELAYED）。 */
+    private void registerDelayed(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
+                                 SkillConfig.SkillEffectConfig effect, double effectBase) {
+        BattleContext.DelayedEffect delayed = new BattleContext.DelayedEffect();
+        delayed.setTriggerRound(ctx.getCurrentRound() + Math.max(1, effect.getDelayRounds()));
+        delayed.setCasterId(caster.getUnitId());
+        delayed.setTargetId(target.getUnitId());
+        delayed.setEffect(effect);
+        delayed.setBaseValue(effectBase);
+        delayed.setSkillId(skill.getId());
+        ctx.getDelayedEffects().add(delayed);
+    }
+
+    /** 目标解析：群体=全部存活上场；单体=嘲讽重定向 + 混乱改向 + 隐匿排除 + 合法性兜底。 */
     private List<BattleUnit> resolveTargets(BattleContext ctx, BattleUnit caster, SkillConfig skill,
                                             BattleSide casterSide, BattleSide enemySide, String requestedTargetId) {
         return switch (skill.getTarget()) {
@@ -494,7 +760,9 @@ public class BattleEngine {
                 if (target == null || !target.isAlive() || !target.isActive()) {
                     yield List.of();
                 }
-                yield List.of(target);
+                // 混乱（REV-008，需求 §144.1）：单体治疗/Buff 也可能错误作用于其他合法单位
+                BattleUnit confused = maybeConfuseSingleTarget(ctx, caster, target);
+                yield confused == null ? List.of() : List.of(confused);
             }
             default -> { // ENEMY_SINGLE
                 // 嘲讽只影响单体技能目标
@@ -505,30 +773,70 @@ public class BattleEngine {
                     yield List.of(taunter);
                 }
                 BattleUnit target = enemySide.findUnit(requestedTargetId);
-                if (target == null || !target.isAlive() || !target.isActive()) {
-                    // 目标已失效（如蓄力期间倒下）：改选第一个存活上场单位
-                    yield enemySide.getActiveAliveUnits().stream().findFirst()
-                            .map(List::of).orElse(List.of());
+                // 隐匿（REV-008，需求 §144.5）：单体不可选中隐匿单位，改选非隐匿存活目标
+                if (target == null || !target.isAlive() || !target.isActive() || isStealthed(target)) {
+                    target = enemySide.getActiveAliveUnits().stream()
+                            .filter(u -> !isStealthed(u)).findFirst().orElse(null);
+                    if (target == null) {
+                        yield List.of();
+                    }
                 }
-                yield List.of(target);
+                BattleUnit confused = maybeConfuseSingleTarget(ctx, caster, target);
+                yield confused == null ? List.of() : List.of(confused);
             }
         };
     }
+    
+    /**
+     * 混乱（REV-008，需求 §144.1）：单体技能可能随机改向除施法者外的场上合法存活单位；
+     * 群体与自身技能不受影响。未混乱或无候选时返回原目标。
+     */
+    private BattleUnit maybeConfuseSingleTarget(BattleContext ctx, BattleUnit caster, BattleUnit original) {
+        StatusModifiers casterMod = StatusModifiers.of(caster, registry.getStatusIndex());
+        if (!casterMod.isConfused() || original == null) {
+            return original;
+        }
+        List<BattleUnit> pool = new ArrayList<>();
+        for (BattleSide side : List.of(ctx.getPlayerSide(), ctx.getEnemySide())) {
+            for (BattleUnit unit : side.getActiveAliveUnits()) {
+                if (!unit.getUnitId().equals(caster.getUnitId()) && !isStealthed(unit)) {
+                    pool.add(unit);
+                }
+            }
+        }
+        if (pool.isEmpty()) {
+            return original;
+        }
+        BattleUnit chosen = pool.get(ctx.getRandom().nextInt(0, pool.size() - 1));
+        if (!chosen.getUnitId().equals(original.getUnitId())) {
+            ctx.emit(BattleEvent.of(BattleEventType.CONFUSED_TARGET_CHANGED, ctx.getCurrentRound())
+                    .source(caster.getUnitId()).target(chosen.getUnitId())
+                    .put("originalTarget", original.getUnitId()));
+        }
+        return chosen;
+    }
+    
+    /** 隐匿判定（REV-008）。 */
+    private boolean isStealthed(BattleUnit unit) {
+        return StatusModifiers.of(unit, registry.getStatusIndex()).isStealthed();
+    }
 
-    private void applyEffect(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
-                             String effectType, double baseValue, boolean singleTarget) {
+    /**
+     * 效果分发（REV-006 Effect 组合框架，技术方案 §76）。
+     * 返回伤害类效果的实际 HP 损失结果（供吸血/留生一击联动使用）。
+     */
+    private DamageOutcome applyEffect(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
+                                      String effectType, double baseValue, boolean singleTarget,
+                                      boolean leaveAtOneHp) {
         if (effectType == null) {
-            return;
+            return null;
         }
         switch (effectType.toUpperCase()) {
-            case "DAMAGE" -> applyDamage(ctx, caster, target, skill, baseValue, singleTarget);
+            case "DAMAGE" -> {
+                return applyDamage(ctx, caster, target, skill, baseValue, singleTarget, leaveAtOneHp, false);
+            }
             case "HEAL" -> {
-                int heal = (int) Math.round(baseValue * healBonus(caster, skill));
-                int healed = Math.min(heal, target.getMaxHp() - target.getCurrentHp());
-                target.setCurrentHp(target.getCurrentHp() + healed);
-                ctx.emit(BattleEvent.of(BattleEventType.HEAL, ctx.getCurrentRound())
-                        .source(caster.getUnitId()).target(target.getUnitId()).value(healed)
-                        .skill(skill.getId()));
+                healUnit(ctx, caster, target, skill, (int) Math.round(baseValue * healBonus(caster, skill)));
             }
             case "SHIELD" -> {
                 int shield = (int) Math.round(baseValue * healBonus(caster, skill));
@@ -542,20 +850,50 @@ public class BattleEngine {
             }
             default -> log.warn("未知技能效果类型: {}", effectType);
         }
+        return null;
     }
 
-    /** 治疗/护盾的本属性加成（效果 ×1.20，治疗不暴击）。 */
-    private double healBonus(BattleUnit caster, SkillConfig skill) {
-        String element = skill.getElement();
-        if (element != null && !"NONE".equalsIgnoreCase(element)
-                && element.equalsIgnoreCase(caster.getElement())) {
-            return registry.getSystemRules().getSameElementBonus();
+    /** 治疗单位（REV-007：受禁疗影响；治疗不暴击）。 */
+    private void healUnit(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill, int heal) {
+        if (heal <= 0 || !target.isAlive()) {
+            return;
         }
-        return 1.0;
+        if (isHealBlocked(target)) {
+            return;
+        }
+        int healed = Math.min(heal, target.getMaxHp() - target.getCurrentHp());
+        target.setCurrentHp(target.getCurrentHp() + healed);
+        ctx.emit(BattleEvent.of(BattleEventType.HEAL, ctx.getCurrentRound())
+                .source(caster != null ? caster.getUnitId() : null)
+                .target(target.getUnitId()).value(healed)
+                .skill(skill != null ? skill.getId() : null));
+        passiveManager.trigger(ctx, "AFTER_HEAL", target);
     }
 
-    private void applyDamage(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
-                             double baseValue, boolean singleTarget) {
+    /** 禁疗判定（REV-008：HEAL_BLOCK 状态）。 */
+    private boolean isHealBlocked(BattleUnit unit) {
+        return unit.getStatuses().stream()
+                .map(s -> registry.getStatus(s.getStatusId()))
+                .anyMatch(c -> c != null && c.isHealBlock());
+    }
+
+    /** 技能是否携带指定类型附加效果。 */
+    private boolean hasEffectType(SkillConfig skill, String type) {
+        return skill.getEffects().stream()
+                .anyMatch(e -> type.equalsIgnoreCase(e.getType()));
+    }
+
+    /**
+     * 伤害结算与落实（REV-007 结算边界）。
+     * <ul>
+     *   <li>援护：单体伤害部分转移给援护者；</li>
+     *   <li>反击：直接单体技能伤害后目标可能反击（群攻/DOT/反击不触发，需求 §144.2）；</li>
+     *   <li>返回实际 HP 损失（护盾吸收/过量不计，吸血用，需求 §143）。</li>
+     * </ul>
+     */
+    private DamageOutcome applyDamage(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
+                                      double baseValue, boolean singleTarget, boolean leaveAtOneHp,
+                                      boolean fromCounter) {
         DamageCalculator.DamageResult result = damageCalculator.calculate(
                 caster, target, skill, baseValue, ctx.getRandom(), false);
 
@@ -568,7 +906,7 @@ public class BattleEngine {
                 int transferred = (int) Math.round(damage * guardMod.getGuardTransferPercent());
                 if (transferred > 0) {
                     damage -= transferred;
-                    dealDamageToUnit(ctx, caster, guard, transferred, skill);
+                    dealDamageToUnit(ctx, caster, guard, transferred, false, true);
                 }
             }
         }
@@ -585,21 +923,47 @@ public class BattleEngine {
         if (result.isCritical()) {
             ctx.emit(BattleEvent.of(BattleEventType.CRITICAL, ctx.getCurrentRound())
                     .source(caster.getUnitId()).target(target.getUnitId()).skill(skill.getId()));
-            passiveManager.trigger(ctx, "ON_CRIT", caster);
+            passiveManager.trigger(ctx, "ON_CRITICAL", caster);
         }
 
-        dealDamageToUnit(ctx, caster, target, damage, skill);
-        passiveManager.trigger(ctx, "ON_HIT_TAKEN", target);
+        passiveManager.trigger(ctx, "BEFORE_DAMAGE", target);
+        DamageOutcome outcome = dealDamageToUnit(ctx, caster, target, damage, leaveAtOneHp, fromCounter);
+        passiveManager.trigger(ctx, "AFTER_DAMAGE", caster);
+        if (target.isAlive()) {
+            passiveManager.trigger(ctx, "AFTER_TAKE_DAMAGE", target);
+        }
+
+        // 反击（REV-008，需求 §144.2）：直接单体技能伤害后触发；群攻/DOT 不走此路径；反击不触发反击
+        if (!fromCounter && singleTarget && target.isAlive()) {
+            maybeCounter(ctx, target, caster);
+        }
+        return outcome;
+    }
+
+    /** 反击判定与执行（REV-008）：反击伤害直接落实，不触发反击/吸血/受击被动链。 */
+    private void maybeCounter(BattleContext ctx, BattleUnit target, BattleUnit attacker) {
+        StatusModifiers mod = StatusModifiers.of(target, registry.getStatusIndex());
+        if (mod.getCounterRate() <= 0 || !ctx.getRandom().chance(mod.getCounterRate())) {
+            return;
+        }
+        int counterDamage = Math.max(1, (int) Math.round(
+                mod.getCounterValue() + mod.getCounterScaling() * target.getStrength()));
+        ctx.emit(BattleEvent.of(BattleEventType.COUNTER_TRIGGERED, ctx.getCurrentRound())
+                .source(target.getUnitId()).target(attacker.getUnitId()).value(counterDamage));
+        dealDamageToUnit(ctx, target, attacker, counterDamage, false, true);
     }
 
     /**
      * 伤害落实到单位：护盾先吸收（不再次套用防御计算）→ 扣 HP →
-     * 致命伤害触发不屈类被动 → 倒下判定。
+     * 留生一击保护（REV-007：暴击不可绕过，仅当前 HP>1 时触发）→ 濒死保护/不屈被动 → 倒下判定。
+     *
+     * @return 实际 HP 损失与保护触发情况（护盾吸收不计入实际损失）
      */
-    private void dealDamageToUnit(BattleContext ctx, BattleUnit source, BattleUnit target,
-                                  int damage, SkillConfig skill) {
+    private DamageOutcome dealDamageToUnit(BattleContext ctx, BattleUnit source, BattleUnit target,
+                                           int damage, boolean leaveAtOneHp, boolean fromCounter) {
+        DamageOutcome outcome = new DamageOutcome();
         if (damage <= 0 || !target.isAlive()) {
-            return;
+            return outcome;
         }
         target.setLastDamageSourceId(source != null ? source.getUnitId() : null);
 
@@ -608,18 +972,57 @@ public class BattleEngine {
             int absorbed = Math.min(target.getShield(), remaining);
             target.setShield(target.getShield() - absorbed);
             remaining -= absorbed;
-        }
-        if (remaining > 0) {
-            target.setCurrentHp(target.getCurrentHp() - remaining);
-        }
-
-        if (target.getCurrentHp() <= 0) {
-            if (passiveManager.consumeSurviveLethal(ctx, target)) {
-                target.setCurrentHp(1);
-            } else {
-                target.setCurrentHp(0);
+            if (target.getShield() <= 0 && absorbed > 0) {
+                ctx.emit(BattleEvent.of(BattleEventType.SHIELD_BROKEN, ctx.getCurrentRound())
+                        .source(source != null ? source.getUnitId() : null)
+                        .target(target.getUnitId()));
             }
         }
+
+        int hpBefore = target.getCurrentHp();
+        if (remaining > 0) {
+            // 留生一击（REV-007，需求 §142）：致死伤害保留 1HP，对一切目标生效（含 Boss，§142.5）；
+            // 暴击不可绕过（此处为最终落实阶段）；目标已 1HP 时不再触发（不无限刷新震慑）；
+            // 震慑是否附加由 onProtect + capturableOnly 效果层决定
+            boolean wouldKill = remaining >= hpBefore;
+            if (leaveAtOneHp && wouldKill && hpBefore > 1) {
+                target.setCurrentHp(1);
+                outcome.protectedToOneHp = true;
+            } else if (remaining >= hpBefore) {
+                // 濒死保护次数（PROTECT_FROM_DEFEAT）→ 不屈类被动 → 倒下
+                if (target.getProtectCharges() > 0) {
+                    target.setProtectCharges(target.getProtectCharges() - 1);
+                    target.setCurrentHp(1);
+                } else if (passiveManager.consumeSurviveLethal(ctx, target)) {
+                    target.setCurrentHp(1);
+                } else {
+                    target.setCurrentHp(0);
+                }
+            } else {
+                target.setCurrentHp(hpBefore - remaining);
+            }
+        }
+        // 实际 HP 损失 = 真实扣除的 HP（护盾吸收/过量伤害不计，吸血用，需求 §143）
+        outcome.actualHpLoss = Math.max(0, hpBefore - Math.max(0, target.getCurrentHp()));
+        return outcome;
+    }
+
+    /** 伤害落实结果（REV-007）。 */
+    private static class DamageOutcome {
+        /** 实际 HP 损失（不含护盾吸收与过量）。 */
+        int actualHpLoss;
+        /** 是否触发留生一击保护（致死被保留 1HP）。 */
+        boolean protectedToOneHp;
+    }
+
+    /** 治疗/护盾的本属性加成（效果 ×1.20，治疗不暴击）。 */
+    private double healBonus(BattleUnit caster, SkillConfig skill) {
+        String element = skill.getElement();
+        if (element != null && !"NONE".equalsIgnoreCase(element)
+                && element.equalsIgnoreCase(caster.getElement())) {
+            return registry.getSystemRules().getSameElementBonus();
+        }
+        return 1.0;
     }
 
     /** 查找目标的援护者（存活上场、援护目标指向本单位且仍携带援护状态）。 */
@@ -650,7 +1053,21 @@ public class BattleEngine {
                 .filter(s -> s.getStatusId().equals(statusId))
                 .findFirst().orElse(null);
         if (existing != null) {
+            // 再次附加只刷新到允许的最大持续时间（需求 §144.1/技术方案 §77）
             existing.setRemainingTurns(config.getDefaultDuration());
+            // 叠层（REV-002，需求 §144.6）：层数 +1，达到 maxStack 且 stackTrigger=DAMAGE 时触发并清空
+            if (config.isStack() && existing.getStack() < config.getMaxStack()) {
+                existing.setStack(existing.getStack() + 1);
+                ctx.emit(BattleEvent.of(BattleEventType.MARK_STACK_CHANGED, ctx.getCurrentRound())
+                        .source(source.getUnitId()).target(target.getUnitId())
+                        .status(statusId).put("stack", existing.getStack()));
+                if (existing.getStack() >= config.getMaxStack()
+                        && "DAMAGE".equals(config.getStackTrigger())) {
+                    target.getStatuses().remove(existing);
+                    int triggerDamage = Math.max(1, (int) Math.round(config.getStackTriggerValue()));
+                    dealDamageToUnit(ctx, source, target, triggerDamage, false, true);
+                }
+            }
         } else {
             target.getStatuses().add(new StatusInstance(statusId, config.getDefaultDuration(),
                     source.getUnitId()));
@@ -659,14 +1076,21 @@ public class BattleEngine {
         if (config.getGuardTransferPercent() > 0) {
             source.setGuardTargetId(target.getUnitId());
         }
+        // 震慑事件（REV-010，需求 §142：安全捕捉窗口）
+        if (config.isCaptureStun()) {
+            ctx.emit(BattleEvent.of(BattleEventType.STUNNED, ctx.getCurrentRound())
+                    .source(source.getUnitId()).target(target.getUnitId()).status(statusId));
+        }
         BattleEventType eventType = switch (config.getCategory()) {
             case "BUFF" -> BattleEventType.BUFF_APPLIED;
-            case "DOT", "CONTROL", "DEBUFF" -> BattleEventType.STATUS_APPLIED;
-            default -> BattleEventType.DEBUFF_APPLIED;
+            case "DEBUFF" -> BattleEventType.DEBUFF_APPLIED;
+            // CONTINUOUS / SPECIAL_CONTROL / MARK
+            default -> BattleEventType.STATUS_APPLIED;
         };
         ctx.emit(BattleEvent.of(eventType, ctx.getCurrentRound())
                 .source(source.getUnitId()).target(target.getUnitId())
                 .status(statusId).put("duration", config.getDefaultDuration()));
+        passiveManager.trigger(ctx, "ON_STATUS_APPLIED", target);
     }
 
     // ---- 倒下 / 补位 / 胜负 ----
@@ -710,8 +1134,12 @@ public class BattleEngine {
                 passiveManager.trigger(ctx, "ON_KILL", killer);
             }
         }
-        // 倒下被动（如余烬）
-        passiveManager.trigger(ctx, "ON_DEATH", unit);
+        // 倒下被动（如余烬，REV-009 命名 ON_DEFEAT）
+        passiveManager.trigger(ctx, "ON_DEFEAT", unit);
+        // 友方倒下被动（REV-009 ON_ALLY_DEFEAT）
+        for (BattleUnit ally : side.getActiveAliveUnits()) {
+            passiveManager.trigger(ctx, "ON_ALLY_DEFEAT", ally);
+        }
 
         // 候补补位：当前行动结算完成后进行，不消耗下一回合行动
         if (wasActive) {
@@ -743,6 +1171,12 @@ public class BattleEngine {
             ctx.setWinner(winner);
             ctx.emit(BattleEvent.of(BattleEventType.BATTLE_ENDED, ctx.getCurrentRound())
                     .put("winner", winner));
+            // 战斗结束被动（REV-009 BATTLE_END）
+            for (BattleSide side : List.of(ctx.getPlayerSide(), ctx.getEnemySide())) {
+                for (BattleUnit unit : side.getActiveAliveUnits()) {
+                    passiveManager.trigger(ctx, "BATTLE_END", unit);
+                }
+            }
         }
     }
 
@@ -775,6 +1209,17 @@ public class BattleEngine {
                         }
                     }
                 }
+                // 再生（REV-008，需求 §144.3）：回合结束恢复，属于治疗、受禁疗影响
+                StatusModifiers regenMod = StatusModifiers.of(unit, registry.getStatusIndex());
+                if (unit.isAlive() && regenMod.getHealPercent() > 0 && !isHealBlocked(unit)) {
+                    int regenHeal = (int) Math.round(unit.getMaxHp() * regenMod.getHealPercent());
+                    int healed = Math.min(regenHeal, unit.getMaxHp() - unit.getCurrentHp());
+                    if (healed > 0) {
+                        unit.setCurrentHp(unit.getCurrentHp() + healed);
+                        ctx.emit(BattleEvent.of(BattleEventType.HEAL, round)
+                                .target(unit.getUnitId()).value(healed).put("regen", true));
+                    }
+                }
                 // 持续时间递减
                 for (StatusInstance status : new ArrayList<>(unit.getStatuses())) {
                     status.setRemainingTurns(status.getRemainingTurns() - 1);
@@ -795,16 +1240,44 @@ public class BattleEngine {
                 }
                 // 技能冷却递减（每宠独立计算）
                 unit.getCooldowns().replaceAll((k, v) -> Math.max(0, v - 1));
+                // 行动顺序干预仅当前回合有效（REV-007）
+                unit.setActionOrderBoost(0);
+            }
+        }
+
+        // 延迟效果触发（REV-006 DELAYED）
+        for (BattleContext.DelayedEffect delayed : new ArrayList<>(ctx.getDelayedEffects())) {
+            if (delayed.getTriggerRound() > round) {
+                continue;
+            }
+            ctx.getDelayedEffects().remove(delayed);
+            BattleUnit dCaster = ctx.findUnit(delayed.getCasterId());
+            BattleUnit dTarget = ctx.findUnit(delayed.getTargetId());
+            if (dTarget == null || !dTarget.isAlive() || delayed.getEffect() == null) {
+                continue;
+            }
+            ctx.emit(BattleEvent.of(BattleEventType.DELAYED_EFFECT_TRIGGERED, round)
+                    .source(delayed.getCasterId()).target(delayed.getTargetId())
+                    .skill(delayed.getSkillId()));
+            String dType = delayed.getEffect().getType() != null
+                    ? delayed.getEffect().getType().toUpperCase() : "";
+            switch (dType) {
+                case "DAMAGE" -> dealDamageToUnit(ctx, dCaster, dTarget,
+                        Math.max(1, (int) Math.round(delayed.getBaseValue())), false, true);
+                case "HEAL" -> healUnit(ctx, dCaster, dTarget, null,
+                        (int) Math.round(delayed.getBaseValue()));
+                case "APPLY_STATUS" -> applyStatus(ctx, dCaster, dTarget, delayed.getEffect().getStatusId());
+                default -> log.warn("延迟效果不支持的内层类型: {}", dType);
             }
         }
 
         // DOT 导致的倒下统一处理
         processDefeats(ctx);
 
-        // 回合结束被动
+        // 回合结束被动（REV-009 命名 TURN_END）
         for (BattleSide side : List.of(ctx.getPlayerSide(), ctx.getEnemySide())) {
             for (BattleUnit unit : side.getActiveAliveUnits()) {
-                passiveManager.trigger(ctx, "ON_ROUND_END", unit);
+                passiveManager.trigger(ctx, "TURN_END", unit);
             }
         }
 

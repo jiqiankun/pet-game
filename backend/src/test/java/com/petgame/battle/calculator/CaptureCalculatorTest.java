@@ -80,21 +80,26 @@ class CaptureCalculatorTest {
     }
 
     @Test
-    void countStatusBonuses_onlyDebuffAndControl() {
+    void countStatusBonuses_byCaptureBonusRule() {
         Map<String, StatusEffectConfig> statusIndex = new HashMap<>();
-        statusIndex.put("BURN", status("BURN", "DOT"));
+        statusIndex.put("BURN", status("BURN", "CONTINUOUS"));
         statusIndex.put("WEAKEN", status("WEAKEN", "DEBUFF"));
-        statusIndex.put("STUN", status("STUN", "CONTROL"));
+        statusIndex.put("STUN", status("STUN", "SPECIAL_CONTROL"));
         statusIndex.put("ATK_UP", status("ATK_UP", "BUFF"));
+        // 震慑（REV-015，需求 §142）：显式不计入捕捉加成
+        StatusEffectConfig captureStun = status("CAPTURE_STUN", "SPECIAL_CONTROL");
+        captureStun.setCaptureBonus(false);
+        statusIndex.put("CAPTURE_STUN", captureStun);
 
         BattleUnit unit = new BattleUnit();
         unit.getStatuses().add(new StatusInstance("BURN", 2, null));
         unit.getStatuses().add(new StatusInstance("WEAKEN", 2, null));
         unit.getStatuses().add(new StatusInstance("STUN", 1, null));
         unit.getStatuses().add(new StatusInstance("ATK_UP", 3, null));
+        unit.getStatuses().add(new StatusInstance("CAPTURE_STUN", 1, null));
 
-        // 仅 DEBUFF/CONTROL 计入（BURN 是 DOT、ATK_UP 是 BUFF，不计）
-        assertEquals(2, CaptureCalculator.countCaptureBonusStatuses(unit, statusIndex));
+        // CONTINUOUS/DEBUFF/SPECIAL_CONTROL 计入（BURN/WEAKEN/STUN）；BUFF 与震慑不计
+        assertEquals(3, CaptureCalculator.countCaptureBonusStatuses(unit, statusIndex));
         assertEquals(0, CaptureCalculator.countCaptureBonusStatuses(null, statusIndex));
     }
 

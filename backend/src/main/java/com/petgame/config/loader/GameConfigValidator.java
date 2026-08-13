@@ -70,7 +70,7 @@ public class GameConfigValidator {
             validateSkills(skills, elements, statuses, errors);
         }
         if (initialPets != null) {
-            validateInitialPets(initialPets, pets, items, errors);
+            validateInitialPets(initialPets, pets, items, skills, errors);
         }
         if (pets != null) {
             validatePets(pets, skills, elements, system, errors);
@@ -276,13 +276,25 @@ public class GameConfigValidator {
     }
 
     private void validateInitialPets(InitialPetsConfig config, PetsConfig pets, ItemsConfig items,
-                                     List<String> errors) {
+                                     SkillsConfig skills, List<String> errors) {
         if (config.getInitialPets() == null || config.getInitialPets().isEmpty()) {
             errors.add("initialPets 列表不能为空");
             return;
         }
         if (config.getInitialPets().size() != 3) {
             errors.add("initialPets 必须恰好 3 个选项，当前: " + config.getInitialPets().size());
+        }
+        // REV-014：新游戏赠送技能引用校验
+        if (config.getGrantSkills() != null && skills != null) {
+            Set<String> validSkillIds = new HashSet<>();
+            for (SkillConfig skill : skills.getSkills()) {
+                validSkillIds.add(skill.getId());
+            }
+            for (String grantSkillId : config.getGrantSkills()) {
+                if (grantSkillId == null || !validSkillIds.contains(grantSkillId)) {
+                    errors.add("grantSkills 引用不存在的技能: " + grantSkillId);
+                }
+            }
         }
         Set<String> speciesIds = new HashSet<>();
         Set<String> validSpeciesIds = new HashSet<>();
@@ -372,10 +384,29 @@ public class GameConfigValidator {
             Set.of("ENEMY_SINGLE", "ENEMY_ALL", "ALLY_SINGLE", "ALLY_ALL", "SELF");
     private static final Set<String> VALID_DAMAGE_TYPES = Set.of("PHYSICAL", "MAGICAL", "NONE");
     private static final Set<String> VALID_SKILL_EFFECT_TYPES = Set.of("DAMAGE", "HEAL", "SHIELD", "NONE");
-    private static final Set<String> VALID_EFFECT_ITEM_TYPES = Set.of("APPLY_STATUS", "DAMAGE", "HEAL", "SHIELD");
-    private static final Set<String> VALID_STATUS_CATEGORIES = Set.of("DOT", "CONTROL", "DEBUFF", "BUFF");
-    private static final Set<String> VALID_PASSIVE_TRIGGERS = Set.of("ON_ENTER", "ON_EXIT", "ON_HIT_TAKEN",
-            "ON_ATTACK", "ON_CRIT", "ON_KILL", "ON_DEATH", "ON_ROUND_START", "ON_ROUND_END");
+    /** Effect 组合框架效果类型（REV-001/REV-006，技术方案 §76）。 */
+    private static final Set<String> VALID_EFFECT_ITEM_TYPES = Set.of(
+            "APPLY_STATUS", "DAMAGE", "HEAL", "SHIELD",
+            "LIFE_STEAL", "LEAVE_AT_ONE_HP", "REMOVE_STATUS", "DISPEL", "STEAL_BUFF",
+            "HP_PERCENT_EXCHANGE", "SWITCH_PET", "CHANGE_ACTION_ORDER", "MODIFY_COOLDOWN",
+            "DELAYED", "STACK", "LIFE_COST", "PROTECT_FROM_DEFEAT");
+    /** 状态五类模型（REV-002，需求 §148.2/技术方案 §77）。 */
+    private static final Set<String> VALID_STATUS_CATEGORIES =
+            Set.of("CONTINUOUS", "BUFF", "DEBUFF", "SPECIAL_CONTROL", "MARK");
+    /** 技能来源（REV-001，需求 §23）。 */
+    private static final Set<String> VALID_SKILL_SOURCES =
+            Set.of("INNATE", "BOOK", "EVOLUTION", "SPECIAL");
+    /** 技能类型（REV-001，需求 §23）。 */
+    private static final Set<String> VALID_SKILL_TYPES = Set.of("ACTIVE", "PASSIVE");
+    /** AI 语义标签（REV-001，需求 §67，阶段 10 消费）。 */
+    private static final Set<String> VALID_AI_TAGS = Set.of(
+            "DAMAGE", "HEAL", "CONTROL", "CAPTURE_ASSIST", "SURVIVAL", "FINISHER",
+            "SHIELD_BREAK", "DISPEL", "SWITCH", "ACTION_ORDER", "LIFE_STEAL");
+    /** 被动触发时机（REV-009，技术方案 §78 + ON_KILL 击败敌方时机）。 */
+    private static final Set<String> VALID_PASSIVE_TRIGGERS = Set.of(
+            "BATTLE_START", "TURN_START", "BEFORE_ACTION", "BEFORE_DAMAGE", "AFTER_DAMAGE",
+            "AFTER_TAKE_DAMAGE", "AFTER_HEAL", "AFTER_SKILL", "ON_CRITICAL", "ON_STATUS_APPLIED",
+            "ON_ENTER", "ON_EXIT", "ON_DEFEAT", "ON_KILL", "ON_ALLY_DEFEAT", "TURN_END", "BATTLE_END");
     private static final Set<String> VALID_PASSIVE_EFFECTS = Set.of("SURVIVE_LETHAL", "APPLY_STATUS_ALLY_ALL",
             "APPLY_STATUS_SELF", "DAMAGE_ENEMY_RANDOM", "HEAL_SELF");
     // 阶段 4：道具配置枚举
@@ -409,6 +440,29 @@ public class GameConfigValidator {
             }
             if (status.getGuardTransferPercent() < 0 || status.getGuardTransferPercent() > 1) {
                 errors.add("status " + status.getId() + " guardTransferPercent 必须在 [0, 1] 范围内");
+            }
+            // REV-002：叠层与新机制字段校验
+            if (status.isStack() && status.getMaxStack() < 2) {
+                errors.add("status " + status.getId() + " 可叠层状态 maxStack 必须 >= 2");
+            }
+            if (status.getMaxStack() < 1) {
+                errors.add("status " + status.getId() + " maxStack 必须 >= 1");
+            }
+            if (status.getStackTrigger() != null
+                    && !Set.of("NONE", "DAMAGE").contains(status.getStackTrigger())) {
+                errors.add("status " + status.getId() + " stackTrigger 非法: " + status.getStackTrigger());
+            }
+            if (status.getCounterRate() < 0 || status.getCounterRate() > 1) {
+                errors.add("status " + status.getId() + " counterRate 必须在 [0, 1] 范围内");
+            }
+            if (status.getHealPercent() < 0 || status.getHealPercent() > 1) {
+                errors.add("status " + status.getId() + " healPercent 必须在 [0, 1] 范围内");
+            }
+            if (status.getDotPercent() < 0 || status.getDotPercent() > 1) {
+                errors.add("status " + status.getId() + " dotPercent 必须在 [0, 1] 范围内");
+            }
+            if (status.isCaptureStun() && status.isCaptureBonus()) {
+                errors.add("status " + status.getId() + " 震慑状态不得计入捕捉加成（需求 §142）");
             }
         }
         for (StatusesConfig.StatusSynergyConfig synergy : statuses.getSynergies()) {
@@ -445,6 +499,33 @@ public class GameConfigValidator {
             if (!skillIds.add(skill.getId())) {
                 errors.add("skill ID 重复: " + skill.getId());
             }
+            // REV-001：来源/类型两维度、AI 标签、次数限制、maxOf
+            if (!VALID_SKILL_SOURCES.contains(skill.getSource())) {
+                errors.add("skill " + skill.getId() + " source 非法: " + skill.getSource());
+            }
+            if (!VALID_SKILL_TYPES.contains(skill.getSkillType())) {
+                errors.add("skill " + skill.getId() + " skillType 非法: " + skill.getSkillType());
+            }
+            if (skill.getMaxUsesPerBattle() < 0) {
+                errors.add("skill " + skill.getId() + " maxUsesPerBattle 必须 >= 0");
+            }
+            if (skill.getTags() != null) {
+                for (String tag : skill.getTags()) {
+                    if (tag == null || !VALID_AI_TAGS.contains(tag.toUpperCase())) {
+                        errors.add("skill " + skill.getId() + " AI 标签非法: " + tag);
+                    }
+                }
+            }
+            if (skill.getMaxOf() != null) {
+                for (String statKey : skill.getMaxOf()) {
+                    if (statKey == null || !VALID_STAT_KEYS.contains(statKey.toUpperCase())) {
+                        errors.add("skill " + skill.getId() + " maxOf 引用非法属性维度: " + statKey);
+                    }
+                }
+            }
+            if (skill.getMaxOfCoefficient() < 0) {
+                errors.add("skill " + skill.getId() + " maxOfCoefficient 必须 >= 0");
+            }
             if (skill.getElement() != null && !"NONE".equalsIgnoreCase(skill.getElement())
                     && !validElementIds.contains(skill.getElement())) {
                 errors.add("skill " + skill.getId() + " 引用不存在的属性: " + skill.getElement());
@@ -472,11 +553,33 @@ public class GameConfigValidator {
                 if (!VALID_EFFECT_ITEM_TYPES.contains(effect.getType())) {
                     errors.add("skill " + skill.getId() + " 附加效果 type 非法: " + effect.getType());
                 }
-                if ("APPLY_STATUS".equalsIgnoreCase(effect.getType()) && !statusIds.contains(effect.getStatusId())) {
+                String effectType = effect.getType() != null ? effect.getType().toUpperCase() : "";
+                if (("APPLY_STATUS".equals(effectType) || "STACK".equals(effectType))
+                        && (effect.getStatusId() == null || !statusIds.contains(effect.getStatusId()))) {
+                    errors.add("skill " + skill.getId() + " 附加效果引用不存在的状态: " + effect.getStatusId());
+                }
+                // REMOVE_STATUS：指定 statusId 时校验存在性；dotOnly/categories 模式可不指定 statusId
+                if ("REMOVE_STATUS".equals(effectType) && effect.getStatusId() != null
+                        && !statusIds.contains(effect.getStatusId())) {
                     errors.add("skill " + skill.getId() + " 附加效果引用不存在的状态: " + effect.getStatusId());
                 }
                 if (effect.getChance() < 0 || effect.getChance() > 1) {
                     errors.add("skill " + skill.getId() + " 附加效果 chance 必须在 [0, 1] 范围内");
+                }
+                if (("LIFE_STEAL".equals(effectType) || "HP_PERCENT_EXCHANGE".equals(effectType)
+                        || "LIFE_COST".equals(effectType))
+                        && (effect.getPercent() <= 0 || effect.getPercent() > 1)) {
+                    errors.add("skill " + skill.getId() + " 附加效果 percent 必须在 (0, 1] 范围内");
+                }
+                if (effect.getDelayRounds() < 0) {
+                    errors.add("skill " + skill.getId() + " 附加效果 delayRounds 必须 >= 0");
+                }
+                if (effect.getCategories() != null) {
+                    for (String category : effect.getCategories()) {
+                        if (category == null || !VALID_STATUS_CATEGORIES.contains(category.toUpperCase())) {
+                            errors.add("skill " + skill.getId() + " 附加效果 categories 非法: " + category);
+                        }
+                    }
                 }
                 validateScalingKeys(skill.getId(), effect.getScaling(), errors);
             }
@@ -578,10 +681,16 @@ public class GameConfigValidator {
                 errors.add("pet species " + species.getId() + " 未配置种族技能");
             } else {
                 Set<Integer> slots = new HashSet<>();
+                Set<String> speciesSkillIds = new HashSet<>();
                 for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
                     if (slot.getSkillId() == null || !skillIds.contains(slot.getSkillId())) {
                         errors.add("pet species " + species.getId()
                                 + " 引用不存在的技能: " + slot.getSkillId());
+                    }
+                    // REV-004：同种族内技能引用不得重复（技能共享是跨种族概念）
+                    if (slot.getSkillId() != null && !speciesSkillIds.add(slot.getSkillId())) {
+                        errors.add("pet species " + species.getId()
+                                + " 技能引用重复: " + slot.getSkillId());
                     }
                     if (slot.getSlot() != null && !slots.add(slot.getSlot())) {
                         errors.add("pet species " + species.getId() + " 技能槽位重复: " + slot.getSlot());
@@ -601,9 +710,21 @@ public class GameConfigValidator {
                     errors.add("pet species " + species.getId() + " rareSkills 引用不存在的技能: " + skillId);
                 }
             }
-            for (String passiveId : species.getPassives()) {
-                if (!passiveIds.contains(passiveId)) {
-                    errors.add("pet species " + species.getId() + " 引用不存在的被动: " + passiveId);
+            // REV-003：被动含解锁等级，校验引用与等级范围
+            Set<String> speciesPassiveIds = new HashSet<>();
+            for (PetSpeciesConfig.SpeciesPassiveSlot passiveSlot : species.getPassives()) {
+                if (passiveSlot.getPassiveId() == null || !passiveIds.contains(passiveSlot.getPassiveId())) {
+                    errors.add("pet species " + species.getId()
+                            + " 引用不存在的被动: " + passiveSlot.getPassiveId());
+                }
+                if (passiveSlot.getPassiveId() != null
+                        && !speciesPassiveIds.add(passiveSlot.getPassiveId())) {
+                    errors.add("pet species " + species.getId()
+                            + " 被动引用重复: " + passiveSlot.getPassiveId());
+                }
+                if (passiveSlot.getUnlockLevel() < 1 || passiveSlot.getUnlockLevel() > system.getLevelCap()) {
+                    errors.add("pet species " + species.getId() + " 被动 " + passiveSlot.getPassiveId()
+                            + " unlockLevel 必须在 [1, levelCap] 范围内");
                 }
             }
         }

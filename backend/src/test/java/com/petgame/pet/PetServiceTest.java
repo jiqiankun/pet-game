@@ -98,26 +98,50 @@ class PetServiceTest {
     }
 
     @Test
-    void levelUp_unlocksNewSkill_autoLearnsButDoesNotEquip() {
-        // Lv.9 → 10，解锁 SKILL_B
+    void levelUp_unlocksNewSkill_autoEquipsWhenSlotAvailable() {
+        // Lv.9 → 10，解锁 SKILL_B；REV-011：槽位未满时自动装备
         PlayerPetEntity pet = pet(9, 50, 100);
         PlayerEntity player = playerWithExp(10000);
 
         when(playerPetMapper.selectById(1L)).thenReturn(pet);
         when(playerMapper.selectOne(isNull())).thenReturn(player);
-        when(playerPetSkillMapper.selectCount(any())).thenReturn(0L);  // SKILL_B 未学习
+        // 依次：已装备数=0，SKILL_B 未学习=0
+        when(playerPetSkillMapper.selectCount(any())).thenReturn(0L, 0L);
         when(playerPetSkillMapper.selectList(any())).thenReturn(List.of());
         when(playerPetMapper.updateById(any(PlayerPetEntity.class))).thenReturn(1);
         when(playerMapper.updateById(any(PlayerEntity.class))).thenReturn(1);
 
-        petService.levelUp(1L, "ONE", null, null);
+        PetDetail detail = petService.levelUp(1L, "ONE", null, null);
 
         assertEquals(10, pet.getLevel());
-        // SKILL_B 自动学习（slot=null，默认不装备）
+        // SKILL_B 自动学习并自动装备到槽位 1（REV-011）
         verify(playerPetSkillMapper, times(1)).insert(argThat((PlayerPetSkillEntity s) ->
                 "SKILL_B".equals(s.getSkillId())
                         && "LEVEL_UP".equals(s.getSourceType())
-                        && s.getSlot() == null));
+                        && Integer.valueOf(1).equals(s.getSlot())));
+        assertFalse(detail.getSkillEquipOverflow(), "槽位未满不应提示溢出");
+    }
+
+    @Test
+    void levelUp_unlocksNewSkill_fullSlotsKeepsInLibraryWithoutOverwrite() {
+        // REV-011：已装备 4/4 时，新技能仅入库不覆盖，并提示玩家调整
+        PlayerPetEntity pet = pet(9, 50, 100);
+        PlayerEntity player = playerWithExp(10000);
+
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        // 依次：已装备数=4，SKILL_B 未学习=0
+        when(playerPetSkillMapper.selectCount(any())).thenReturn(4L, 0L);
+        when(playerPetSkillMapper.selectList(any())).thenReturn(List.of());
+        when(playerPetMapper.updateById(any(PlayerPetEntity.class))).thenReturn(1);
+        when(playerMapper.updateById(any(PlayerEntity.class))).thenReturn(1);
+
+        PetDetail detail = petService.levelUp(1L, "ONE", null, null);
+
+        verify(playerPetSkillMapper, times(1)).insert(argThat((PlayerPetSkillEntity s) ->
+                "SKILL_B".equals(s.getSkillId()) && s.getSlot() == null));
+        assertTrue(detail.getSkillEquipOverflow(), "槽位已满应提示前往技能页调整");
+        assertTrue(detail.getNewlyLearnedSkillNames().size() > 0, "应返回新学会技能名称供前端提示");
     }
 
     @Test

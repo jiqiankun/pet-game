@@ -15,10 +15,17 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * 被动技能框架（阶段 3）。
+ * 被动技能框架（阶段 3，修订 REV-009）。
  * <p>
  * 配置驱动：按 trigger + effectType 统一解释，不针对具体被动 ID 写分支。
- * 触发时机：登场/退场/受击/攻击/暴击/击败/倒下/回合开始/回合结束。
+ * <p>
+ * 触发时机（技术方案 §78，另保留 ON_KILL 击败敌方时机）：
+ * BATTLE_START / TURN_START / BEFORE_ACTION / BEFORE_DAMAGE / AFTER_DAMAGE /
+ * AFTER_TAKE_DAMAGE / AFTER_HEAL / AFTER_SKILL / ON_CRITICAL / ON_STATUS_APPLIED /
+ * ON_ENTER / ON_EXIT / ON_DEFEAT / ON_KILL / ON_ALLY_DEFEAT / TURN_END / BATTLE_END。
+ * <p>
+ * 防无限递归（技术方案 §78）：触发深度上限（{@link BattleContext#MAX_PASSIVE_DEPTH}）
+ * + 配置级 oncePerTurn / oncePerAction / maxTriggerPerBattle 限制。
  */
 public class PassiveManager {
 
@@ -34,36 +41,48 @@ public class PassiveManager {
      * 触发指定时机、指定单位的全部被动。
      *
      * @param ctx           战斗上下文
-     * @param triggerPoint  触发时机（ON_ENTER / ON_DEATH / ...）
+     * @param triggerPoint  触发时机（ON_ENTER / ON_DEFEAT / ...）
      * @param unit          被动持有单位
      */
     public void trigger(BattleContext ctx, String triggerPoint, BattleUnit unit) {
-        for (PassiveSkillConfig passive : unit.getPassives()) {
-            if (!triggerPoint.equals(passive.getTrigger())) {
-                continue;
+        if (unit == null || !unit.isAlive()) {
+            return;
+        }
+        // 触发深度上限：防止 被动A → 被动B → 被动A 无限递归
+        if (ctx.getPassiveDepth() >= BattleContext.MAX_PASSIVE_DEPTH) {
+            return;
+        }
+        ctx.setPassiveDepth(ctx.getPassiveDepth() + 1);
+        try {
+            for (PassiveSkillConfig passive : unit.getPassives()) {
+                if (!triggerPoint.equals(passive.getTrigger())) {
+                    continue;
+                }
+                // SURVIVE_LETHAL 由 consumeSurviveLethal 单独处理
+                if ("SURVIVE_LETHAL".equals(passive.getEffectType())) {
+                    continue;
+                }
+                if (!canTrigger(unit, passive)) {
+                    continue;
+                }
+                applyEffect(ctx, passive, unit);
+                unit.getPassiveTriggerCounts().merge(passive.getId(), 1, Integer::sum);
             }
-            // SURVIVE_LETHAL 由 consumeSurviveLethal 单独处理
-            if ("SURVIVE_LETHAL".equals(passive.getEffectType())) {
-                continue;
-            }
-            if (!canTrigger(unit, passive)) {
-                continue;
-            }
-            applyEffect(ctx, passive, unit);
-            unit.getPassiveTriggerCounts().merge(passive.getId(), 1, Integer::sum);
+        } finally {
+            ctx.setPassiveDepth(ctx.getPassiveDepth() - 1);
         }
     }
 
     /**
      * 致命伤害存活判定（不屈类被动）。
      * <p>
-     * 若单位持有未消耗的 ON_HIT_TAKEN + SURVIVE_LETHAL 被动，保留 1 点生命。
+     * 若单位持有未消耗的 AFTER_TAKE_DAMAGE + SURVIVE_LETHAL 被动，保留 1 点生命。
      *
      * @return true 表示触发存活（单位 HP 应设为 1）
      */
     public boolean consumeSurviveLethal(BattleContext ctx, BattleUnit unit) {
         for (PassiveSkillConfig passive : unit.getPassives()) {
-            if ("ON_HIT_TAKEN".equals(passive.getTrigger())
+            if ("AFTER_TAKE_DAMAGE".equals(passive.getTrigger())
                     && "SURVIVE_LETHAL".equals(passive.getEffectType())
                     && canTrigger(unit, passive)) {
                 unit.getPassiveTriggerCounts().merge(passive.getId(), 1, Integer::sum);
@@ -82,10 +101,16 @@ public class PassiveManager {
 
     private boolean canTrigger(BattleUnit unit, PassiveSkillConfig passive) {
         int max = passive.getMaxTriggerPerBattle();
-        if (max <= 0) {
-            return true;
+        if (max > 0 && unit.getPassiveTriggerCounts().getOrDefault(passive.getId(), 0) >= max) {
+            return false;
         }
-        return unit.getPassiveTriggerCounts().getOrDefault(passive.getId(), 0) < max;
+        if (passive.isOncePerTurn() && !unit.getPassiveTurnMarks().add(passive.getId())) {
+            return false;
+        }
+        if (passive.isOncePerAction() && !unit.getPassiveActionMarks().add(passive.getId())) {
+            return false;
+        }
+        return true;
     }
 
     private void applyEffect(BattleContext ctx, PassiveSkillConfig passive, BattleUnit unit) {
@@ -106,13 +131,14 @@ public class PassiveManager {
             }
             case "APPLY_STATUS_SELF" -> applyStatus(ctx, passive.getStatusId(), unit, unit);
             case "HEAL_SELF" -> {
-                if (unit.isAlive()) {
+                if (unit.isAlive() && !isHealBlocked(unit)) {
                     int heal = (int) Math.round(passive.getValue()
                             + passive.getSpiritScale() * unit.getSpirit());
                     int healed = Math.min(heal, unit.getMaxHp() - unit.getCurrentHp());
                     unit.setCurrentHp(unit.getCurrentHp() + healed);
                     ctx.emit(BattleEvent.of(BattleEventType.HEAL, ctx.getCurrentRound())
                             .source(unit.getUnitId()).target(unit.getUnitId()).value(healed));
+                    trigger(ctx, "AFTER_HEAL", unit);
                 }
             }
             case "DAMAGE_ENEMY_RANDOM" -> {
@@ -122,6 +148,7 @@ public class PassiveManager {
                     int damage = Math.max(1, (int) Math.round(passive.getValue()
                             + passive.getSpiritScale() * unit.getSpirit()));
                     target.setCurrentHp(Math.max(0, target.getCurrentHp() - damage));
+                    target.setLastDamageSourceId(unit.getUnitId());
                     ctx.emit(BattleEvent.of(BattleEventType.DAMAGE, ctx.getCurrentRound())
                             .source(unit.getUnitId()).target(target.getUnitId())
                             .value(damage).critical(false)
@@ -134,18 +161,36 @@ public class PassiveManager {
         }
     }
 
+    /** 禁疗判定（REV-008：再生/治疗类效果受禁疗影响）。 */
+    private boolean isHealBlocked(BattleUnit unit) {
+        for (StatusInstance status : unit.getStatuses()) {
+            StatusEffectConfig config = registry.getStatus(status.getStatusId());
+            if (config != null && config.isHealBlock()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void applyStatus(BattleContext ctx, String statusId, BattleUnit target, BattleUnit source) {
         StatusEffectConfig config = registry.getStatus(statusId);
         if (config == null) {
             log.warn("被动引用的状态不存在: {}", statusId);
             return;
         }
-        // 已存在同类状态时刷新持续时间
+        // 已存在同类状态时刷新持续时间（叠层状态层数 +1，REV-002）
         StatusInstance existing = target.getStatuses().stream()
                 .filter(s -> s.getStatusId().equals(statusId))
                 .findFirst().orElse(null);
         if (existing != null) {
             existing.setRemainingTurns(config.getDefaultDuration());
+            if (config.isStack() && existing.getStack() < config.getMaxStack()) {
+                existing.setStack(existing.getStack() + 1);
+                ctx.emit(BattleEvent.of(BattleEventType.MARK_STACK_CHANGED, ctx.getCurrentRound())
+                        .source(source != null ? source.getUnitId() : null)
+                        .target(target.getUnitId()).status(statusId)
+                        .put("stack", existing.getStack()));
+            }
         } else {
             target.getStatuses().add(new StatusInstance(statusId, config.getDefaultDuration(),
                     source != null ? source.getUnitId() : null));
@@ -156,5 +201,6 @@ public class PassiveManager {
                 .source(source != null ? source.getUnitId() : null)
                 .target(target.getUnitId())
                 .status(statusId));
+        trigger(ctx, "ON_STATUS_APPLIED", target);
     }
 }

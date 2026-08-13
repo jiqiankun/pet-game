@@ -31,6 +31,9 @@ public class StatusModifiers {
     /** 受到伤害乘数。 */
     private double damageTakenMultiplier = 1.0;
 
+    /** 受到物理伤害额外乘数（猎杀印记等标记，REV-002）。 */
+    private double physicalTakenMultiplier = 1.0;
+
     /** 命中惩罚合计（致盲等）。 */
     private double accuracyPenalty = 0.0;
 
@@ -46,6 +49,32 @@ public class StatusModifiers {
     /** 援护伤害转移比例（本单位为援护者时）。 */
     private double guardTransferPercent = 0.0;
 
+    // ---- 新机制聚合（REV-002/REV-008）----
+
+    /** 是否混乱（单体技能随机改目标）。 */
+    private boolean confused;
+
+    /** 是否隐匿（单体不可选中）。 */
+    private boolean stealthed;
+
+    /** 是否禁疗。 */
+    private boolean healBlocked;
+
+    /** 再生恢复合计（每回合结束恢复占最大 HP 比例，随层数累加）。 */
+    private double healPercent = 0.0;
+
+    /** 反击概率（取最大值）。 */
+    private double counterRate = 0.0;
+
+    /** 反击基础值（对应最大反击概率状态）。 */
+    private double counterValue = 0.0;
+
+    /** 反击力量系数（对应最大反击概率状态）。 */
+    private double counterScaling = 0.0;
+
+    /** 是否处于捕获震慑（安全捕捉窗口）。 */
+    private boolean captureStunned;
+
     /**
      * 聚合单位全部状态的修正。
      *
@@ -59,16 +88,29 @@ public class StatusModifiers {
             if (config == null) {
                 continue;
             }
-            mod.speedMultiplier += config.getSpeedPercent();
-            mod.defenseMultiplier += config.getDefensePercent();
-            mod.resistanceMultiplier += config.getResistancePercent();
-            mod.damageDealtMultiplier += config.getDamageDealtPercent();
-            mod.damageTakenMultiplier += config.getDamageTakenPercent();
-            mod.accuracyPenalty += config.getAccuracyPenalty();
+            // 可叠层状态的数值修正随层数放大（默认层数 1，不改变既有行为）
+            int stack = Math.max(1, instance.getStack());
+            mod.speedMultiplier += config.getSpeedPercent() * stack;
+            mod.defenseMultiplier += config.getDefensePercent() * stack;
+            mod.resistanceMultiplier += config.getResistancePercent() * stack;
+            mod.damageDealtMultiplier += config.getDamageDealtPercent() * stack;
+            mod.damageTakenMultiplier += config.getDamageTakenPercent() * stack;
+            mod.physicalTakenMultiplier += config.getPhysicalTakenPercent() * stack;
+            mod.accuracyPenalty += config.getAccuracyPenalty() * stack;
+            mod.healPercent += config.getHealPercent() * stack;
             mod.skipActionChance = Math.max(mod.skipActionChance, config.getSkipActionChance());
             mod.silenced |= config.isSilence();
             mod.taunt |= config.isTaunt();
+            mod.confused |= config.isConfusion();
+            mod.stealthed |= config.isStealth();
+            mod.healBlocked |= config.isHealBlock();
+            mod.captureStunned |= config.isCaptureStun();
             mod.guardTransferPercent = Math.max(mod.guardTransferPercent, config.getGuardTransferPercent());
+            if (config.getCounterRate() > mod.counterRate) {
+                mod.counterRate = config.getCounterRate();
+                mod.counterValue = config.getCounterValue();
+                mod.counterScaling = config.getCounterScaling();
+            }
         }
         // 乘数下限保护，避免配置叠加出负值
         mod.speedMultiplier = Math.max(0.1, mod.speedMultiplier);
@@ -76,6 +118,7 @@ public class StatusModifiers {
         mod.resistanceMultiplier = Math.max(0.1, mod.resistanceMultiplier);
         mod.damageDealtMultiplier = Math.max(0.1, mod.damageDealtMultiplier);
         mod.damageTakenMultiplier = Math.max(0.1, mod.damageTakenMultiplier);
+        mod.physicalTakenMultiplier = Math.max(0.1, mod.physicalTakenMultiplier);
         return mod;
     }
 }

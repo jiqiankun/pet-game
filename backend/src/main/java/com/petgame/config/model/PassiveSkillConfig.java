@@ -53,6 +53,12 @@ public class PassiveSkillConfig {
     /** 灵力系数（效果数值 = value + spiritScale × 灵力）。 */
     private double spiritScale = 0;
 
-    /** 每场战斗最大触发次数（0 = 不限）。 */
+    /** 每场战斗最大触发次数（0 = 不限，即 oncePerBattle 语义由 maxTriggerPerBattle=1 实现）。 */
     private int maxTriggerPerBattle = 0;
+
+    /** 每回合最多触发一次（REV-009 防递归，技术方案 §78）。 */
+    private boolean oncePerTurn = false;
+
+    /** 每次行动最多触发一次（REV-009 防递归，技术方案 §78）。 */
+    private boolean oncePerAction = false;
 }

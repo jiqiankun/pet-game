@@ -85,6 +85,44 @@ public enum BattleEventType {
     /** 行动被跳过（控制状态）。 */
     ACTION_SKIPPED,
 
+    // ---- 新增事件（REV-010，技术方案 §79）----
+
+    /** 吸血恢复。 */
+    LIFE_STEAL,
+
+    /** 状态被主动移除/驱散。 */
+    STATUS_REMOVED,
+
+    /** 捕获震慑附加（安全捕捉窗口）。 */
+    STUNNED,
+
+    /** 混乱导致目标改变。 */
+    CONFUSED_TARGET_CHANGED,
+
+    /** 反击触发。 */
+    COUNTER_TRIGGERED,
+
+    /** Buff 被偷取。 */
+    BUFF_STOLEN,
+
+    /** 护盾被击破。 */
+    SHIELD_BROKEN,
+
+    /** 行动顺序被干预。 */
+    ACTION_ORDER_CHANGED,
+
+    /** 宠物被强制换下/换宠技能触发。 */
+    PET_FORCED_SWITCH,
+
+    /** HP 百分比交换（命运天平类，非伤害）。 */
+    HP_PERCENT_EXCHANGED,
+
+    /** 延迟效果触发。 */
+    DELAYED_EFFECT_TRIGGERED,
+
+    /** 标记叠层变化。 */
+    MARK_STACK_CHANGED,
+
     /** 回合结束。 */
     TURN_ENDED,
 

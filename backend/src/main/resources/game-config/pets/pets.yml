@@ -50,7 +50,7 @@ species:
       - { skillId: SKILL_GOLDEN_GUARD, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_BLADE_STORM, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_UNYIELDING
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
 
   - id: PET_METAL_003
     name: 鎏刃灵
@@ -70,7 +70,7 @@ species:
       - { skillId: SKILL_ARMOR_CRUSH, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_BLADE_STORM, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_UNYIELDING
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
 
   # ========== 木（WOOD）==========
 
@@ -94,7 +94,7 @@ species:
     rareSkills:
       - SKILL_HEAL_SPORE
     passives:
-      - PASSIVE_TAILWIND
+      - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
 
   - id: PET_WOOD_002
     name: 青芽灵
@@ -116,7 +116,7 @@ species:
     rareSkills:
       - SKILL_POISON_STING
     passives:
-      - PASSIVE_REGENERATE
+      - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
 
   - id: PET_WOOD_003
     name: 森蚀灵
@@ -158,7 +158,7 @@ species:
     rareSkills:
       - SKILL_PURIFY
     passives:
-      - PASSIVE_UNYIELDING
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
 
   - id: PET_WATER_002
     name: 涟歌灵
@@ -198,7 +198,7 @@ species:
       - { skillId: SKILL_TIDAL_WAVE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_PURIFY, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_REGENERATE
+      - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
 
   # ========== 火（FIRE）==========
 
@@ -222,7 +222,7 @@ species:
     rareSkills:
       - SKILL_BLAZING_SPIRIT
     passives:
-      - PASSIVE_EMBER
+      - { passiveId: PASSIVE_EMBER, unlockLevel: 1 }
 
   - id: PET_FIRE_002
     name: 绯焰灵
@@ -242,7 +242,7 @@ species:
       - { skillId: SKILL_BLAZING_SPIRIT, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_EMBER
+      - { passiveId: PASSIVE_EMBER, unlockLevel: 1 }
 
   - id: PET_FIRE_003
     name: 赤曜兽
@@ -262,7 +262,7 @@ species:
       - { skillId: SKILL_BLAZING_SPIRIT, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_TAILWIND
+      - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
 
   # ========== 土（EARTH）==========
 
@@ -286,7 +286,7 @@ species:
     rareSkills:
       - SKILL_GUARD_ALLY
     passives:
-      - PASSIVE_UNYIELDING
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
 
   - id: PET_EARTH_002
     name: 岳灵
@@ -324,7 +324,7 @@ species:
       - { skillId: SKILL_HEADBUTT, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_EARTHQUAKE, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_UNYIELDING
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
 
   # ========== 风（WIND）==========
 
@@ -348,7 +348,7 @@ species:
     rareSkills:
       - SKILL_BATTLE_CRY
     passives:
-      - PASSIVE_TAILWIND
+      - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
 
   - id: PET_WIND_002
     name: 逐风灵
@@ -368,7 +368,7 @@ species:
       - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_QUICK_ATTACK, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_TAILWIND
+      - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
 
   - id: PET_WIND_003
     name: 空澜兽
@@ -388,7 +388,7 @@ species:
       - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_GUST_TRAP, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_TAILWIND
+      - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
 
   # ========== 雷（THUNDER）==========
 
@@ -466,7 +466,7 @@ species:
       - { skillId: SKILL_BATTLE_CRY, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_LIGHT_BURST, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_REGENERATE
+      - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
 
   - id: PET_LIGHT_002
     name: 曦鹿
@@ -486,7 +486,7 @@ species:
       - { skillId: SKILL_LIGHT_RADIANCE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_LIGHT_BURST, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_REGENERATE
+      - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
 
   - id: PET_LIGHT_003
     name: 辉星兽
@@ -506,7 +506,7 @@ species:
       - { skillId: SKILL_LIGHT_BURST, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
     passives:
-      - PASSIVE_UNYIELDING
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
 
   # ========== 暗（DARK）==========
 

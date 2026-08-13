@@ -57,6 +57,10 @@ export interface LearnedSkillView {
   /** 装备槽位 1~4，null 表示已学习但未装备。 */
   slot: number | null
   sourceType: string
+  /** 技能类型（REV-016）：ACTIVE / PASSIVE。 */
+  skillType?: string
+  /** 是否特色/专属技能（REV-016）。 */
+  signature?: boolean
 }
 
 /** 待解锁技能视图。 */
@@ -67,6 +71,18 @@ export interface AvailableSkillView {
   unlockLevel: number
 }
 
+/** 被动技能视图（REV-016：全部自动生效、无携带上限）。 */
+export interface PassiveSkillView {
+  passiveId: string
+  name: string
+  unlockLevel: number
+  /** 当前等级是否已解锁。 */
+  unlocked: boolean
+  /** 来源标识：INNATE 自身 / BOOK 技能书 / SPECIAL 特殊（预留）。 */
+  source: string
+  signature: boolean
+}
+
 /** 宠物详情（基础 / 属性 / 技能三标签一次返回）。 */
 export interface PetDetail {
   pet: PlayerPetEntity
@@ -74,6 +90,14 @@ export interface PetDetail {
   panelStats: PetPanelStats
   learnedSkills: LearnedSkillView[]
   availableSkills: AvailableSkillView[]
+  /** 被动技能列表（REV-016）。 */
+  passives: PassiveSkillView[]
+  /** 种族自身主动技能总数（展示「已掌握 X / N」）。 */
+  totalInnateActiveSkills: number
+  /** 本次操作新学会的主动技能名称。 */
+  newlyLearnedSkillNames: string[]
+  /** 新技能因槽位已满未能自动装备（REV-011 提示）。 */
+  skillEquipOverflow: boolean
   expPool: number
   /** 已消耗自由点数（按需求 §20 转换表折算：速度每点次 2 点，其余 1 点）。 */
   allocatedFreePoints: number
@@ -114,10 +138,13 @@ export interface PlayerPetEntity {
 
 // ==================== 升级预览 ====================
 
-/** 解锁技能信息。 */
+/** 解锁技能信息（REV-013：区分主动/被动）。 */
 export interface UnlockedSkill {
   skillId: string
   unlockLevel: number
+  /** ACTIVE（主动）/ PASSIVE（被动）。 */
+  skillType?: string
+  name?: string
 }
 
 /** 升级预览结果。 */

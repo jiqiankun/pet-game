@@ -232,20 +232,31 @@ public class PetGrowthService {
     // ==================== 技能解锁 ====================
 
     /**
-     * 返回 (fromLevel, toLevel] 区间新解锁的技能（需求 §23 等级解锁）。
+     * 返回 (fromLevel, toLevel] 区间新解锁的技能（需求 §23 等级解锁；
+     * REV-013：区分主动/被动，跨多级一次返回全部）。
      */
     public List<UnlockedSkill> skillsUnlockedBetween(PetSpeciesConfig species,
                                                       int fromLevel, int toLevel) {
         List<UnlockedSkill> unlocked = new ArrayList<>();
-        if (species.getSkills() == null) {
-            return unlocked;
-        }
-        for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
-            int ul = slot.getUnlockLevel();
-            if (ul > fromLevel && ul <= toLevel) {
-                unlocked.add(new UnlockedSkill(slot.getSkillId(), ul));
+        if (species.getSkills() != null) {
+            for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
+                int ul = slot.getUnlockLevel();
+                if (ul > fromLevel && ul <= toLevel) {
+                    var skill = registry.getSkill(slot.getSkillId());
+                    unlocked.add(new UnlockedSkill(slot.getSkillId(), ul, "ACTIVE",
+                            skill != null ? skill.getName() : slot.getSkillId()));
+                }
             }
         }
+        for (PetSpeciesConfig.SpeciesPassiveSlot passiveSlot : species.getPassives()) {
+            int ul = passiveSlot.getUnlockLevel();
+            if (ul > fromLevel && ul <= toLevel) {
+                var passive = registry.getPassive(passiveSlot.getPassiveId());
+                unlocked.add(new UnlockedSkill(passiveSlot.getPassiveId(), ul, "PASSIVE",
+                        passive != null ? passive.getName() : passiveSlot.getPassiveId()));
+            }
+        }
+        unlocked.sort(java.util.Comparator.comparingInt(UnlockedSkill::getUnlockLevel));
         return unlocked;
     }
 
@@ -299,13 +310,24 @@ public class PetGrowthService {
         return v == null ? 0 : v;
     }
 
-    /** 已解锁技能记录。 */
+    /** 已解锁技能记录（REV-013：含技能类型 ACTIVE/PASSIVE 与名称）。 */
     @lombok.Data
     @lombok.NoArgsConstructor
     @lombok.AllArgsConstructor
     public static class UnlockedSkill {
         private String skillId;
         private int unlockLevel;
+        /** 技能类型：ACTIVE（主动）/ PASSIVE（被动，解锁后自动生效）。 */
+        private String skillType;
+        /** 技能名称（供预览展示）。 */
+        private String name;
+
+        public UnlockedSkill(String skillId, int unlockLevel) {
+            this.skillId = skillId;
+            this.unlockLevel = unlockLevel;
+            this.skillType = "ACTIVE";
+            this.name = skillId;
+        }
     }
 
     /** 升级预览结果。 */

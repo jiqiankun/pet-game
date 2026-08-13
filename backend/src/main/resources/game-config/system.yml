@@ -110,3 +110,5 @@ wildRewardRarityMultiplier:
 
 # ---- Boss ----
 luckyExchangeCost: 100
+# HP 百分比交换（命运天平类，需求 §147）：Boss 单次交换幅度上限（百分点）
+bossHpExchangeLimit: 0.20

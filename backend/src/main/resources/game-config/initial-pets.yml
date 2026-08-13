@@ -20,6 +20,11 @@ initialItems:
   - { itemId: ITEM_POTION_SMALL, quantity: 10 }
   - { itemId: ITEM_REVIVE, quantity: 2 }
 
+# 新游戏赠送技能（REV-014，需求 §142.6）：留生一击为阶段 5 临时获取途径，
+# 正式获取（商店常驻低价/捕捉教学赠书）属阶段 9/10。
+grantSkills:
+  - SKILL_LEAVE_AT_ONE_HP
+
 initialPets:
   - speciesId: PET_FIRE_001
     aptitudeHp: 85

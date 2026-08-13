@@ -44,14 +44,14 @@ public class PetSpeciesConfig {
     private int baseResistance;
     private int baseSpeed;
 
-    /** 种族技能列表（等级解锁）。 */
+    /** 种族技能列表（等级解锁，同一 skillId 可被多种族引用——技能共享，需求 §149）。 */
     private List<SpeciesSkillSlot> skills = new ArrayList<>();
 
     /** 稀有技能池（野生遭遇低概率携带，需求「低概率稀有技能」）。 */
     private List<String> rareSkills = new ArrayList<>();
 
-    /** 被动技能 ID 列表。 */
-    private List<String> passives = new ArrayList<>();
+    /** 被动技能列表（含解锁等级，修订 REV-003：被动随升级解锁，需求 §150）。 */
+    private List<SpeciesPassiveSlot> passives = new ArrayList<>();
 
     /**
      * 种族技能槽位（与初始宠物技能槽位结构一致）。
@@ -64,5 +64,21 @@ public class PetSpeciesConfig {
         private Integer slot;
         /** 解锁等级，达到该等级自动学会。 */
         private int unlockLevel = 1;
+        /** 是否特色/专属技能（需求 §149.3：每宠至少 1 个特色主动，用于图鉴/展示标识）。 */
+        private boolean signature = false;
+    }
+
+    /**
+     * 种族被动技能槽位（修订 REV-003）。
+     */
+    @Data
+    @NoArgsConstructor
+    public static class SpeciesPassiveSlot {
+        /** 被动技能 ID（引用 passives 配置）。 */
+        private String passiveId;
+        /** 解锁等级，达到该等级自动生效（无需装备）。 */
+        private int unlockLevel = 1;
+        /** 是否特色/专属被动。 */
+        private boolean signature = false;
     }
 }

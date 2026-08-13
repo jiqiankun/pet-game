@@ -1,9 +1,13 @@
 # ============================================================
-# 宠物精灵游戏 - 技能配置（阶段 3 战斗引擎核心）
+# 宠物精灵游戏 - 技能配置（阶段 3 战斗引擎核心，修订 REV-001/REV-014）
 # ============================================================
 # 技能配置驱动：引擎不针对具体技能 ID 写分支。
-# 效果 = 基础值 + 多个属性系数；支持多效果组合与蓄力。
+# 效果 = 基础值 + 多个属性系数（支持 maxOf 取较高者）；支持多效果组合与蓄力。
 # element 允许 NONE（无属性：无克制、无本属性加成）。
+# 技能按「来源 × 类型」两维度建模（需求 §23）：
+#   source：INNATE（自身，默认）/ BOOK（技能书），省略时按默认值 INNATE；
+#   skillType：ACTIVE（主动，默认）/ PASSIVE（被动）。
+# 同一 skillId 可被多个宠物引用（技能共享，需求 §149），禁止复制定义。
 # ============================================================
 
 configVersion: 1
@@ -137,6 +141,31 @@ skills:
       - { type: APPLY_STATUS, statusId: POISON, chance: 0.40 }
 
   # ---------- 通用功能技能 ----------
+
+  # 留生一击（REV-014，需求 §142）：通用捕获辅助技能书技能。
+  # 致死伤害保留可捕捉目标 1HP（暴击不可绕过）；仅触发保护时清除 DOT
+  # 并对可捕捉目标附加震慑；Boss 正常受伤但不附加震慑。
+  # 阶段 5 临时获取：新游戏赠送 + 开发者补充；商店/教学赠书属阶段 9/10。
+  - id: SKILL_LEAVE_AT_ONE_HP
+    name: 留生一击
+    description: 致死伤害时保留可捕捉目标 1HP，触发保护时清除其持续伤害并附加震慑。
+    element: NONE
+    rarity: NORMAL
+    source: BOOK
+    skillType: ACTIVE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 50
+    maxOf: [STRENGTH, SPIRIT]
+    maxOfCoefficient: 1.0
+    cooldown: 0
+    accuracy: 1.0
+    tags: [CAPTURE_ASSIST, DAMAGE]
+    effects:
+      - { type: LEAVE_AT_ONE_HP }
+      - { type: REMOVE_STATUS, dotOnly: true, onProtect: true }
+      - { type: APPLY_STATUS, statusId: CAPTURE_STUN, onProtect: true, capturableOnly: true }
 
   - id: SKILL_ROCK_SHIELD
     name: 岩盾
@@ -643,7 +672,7 @@ passives:
   - id: PASSIVE_UNYIELDING
     name: 不屈
     description: 第一次受到致命伤害时保留 1 点生命。
-    trigger: ON_HIT_TAKEN
+    trigger: AFTER_TAKE_DAMAGE
     effectType: SURVIVE_LETHAL
     maxTriggerPerBattle: 1
 
@@ -657,7 +686,7 @@ passives:
   - id: PASSIVE_EMBER
     name: 余烬
     description: 倒下时对敌方随机目标造成火属性伤害。
-    trigger: ON_DEATH
+    trigger: ON_DEFEAT
     effectType: DAMAGE_ENEMY_RANDOM
     element: FIRE
     value: 10
@@ -666,6 +695,6 @@ passives:
   - id: PASSIVE_REGENERATE
     name: 再生
     description: 每回合结束时恢复少量生命。
-    trigger: ON_ROUND_END
+    trigger: TURN_END
     effectType: HEAL_SELF
     value: 8

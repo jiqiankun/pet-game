@@ -352,14 +352,18 @@ async function handleLeave() {
             </div>
             <div class="unit-hp">{{ unit.currentHp }} / {{ unit.maxHp }}</div>
             <div class="status-row">
-              <span v-for="status in unit.statuses" :key="status.statusId" class="status-tag">
-                {{ status.name }}({{ status.remainingTurns }})
+              <span v-for="status in unit.statuses" :key="status.statusId" class="status-tag" :class="{ 'capture-stun': status.captureStun }">
+                {{ status.name }}({{ status.remainingTurns }}){{ (status.stack ?? 1) > 1 ? ' ×' + status.stack : '' }}
               </span>
               <span v-if="unit.charging" class="status-tag charging">蓄力中</span>
               <span v-if="unit.defending" class="status-tag defending">防御</span>
               <span v-if="unit.captured" class="status-tag captured-tag">已捕捉</span>
               <span v-if="captureMode && unit.alive && unit.active && !unit.captured && captureRateText(unit)" class="capture-rate-tag">
                 捕捉率 {{ captureRateText(unit) }}
+              </span>
+              <!-- 安全捕捉窗口（REV-018，需求 §142：震慑仅提供安全窗口，不提高捕获率） -->
+              <span v-if="unit.statuses.some(s => s.captureStun)" class="status-tag safe-window">
+                💫 安全捕捉窗口
               </span>
             </div>
           </div>
@@ -390,8 +394,8 @@ async function handleLeave() {
             </div>
             <div class="unit-hp">{{ unit.currentHp }} / {{ unit.maxHp }}</div>
             <div class="status-row">
-              <span v-for="status in unit.statuses" :key="status.statusId" class="status-tag">
-                {{ status.name }}({{ status.remainingTurns }})
+              <span v-for="status in unit.statuses" :key="status.statusId" class="status-tag" :class="{ 'capture-stun': status.captureStun }">
+                {{ status.name }}({{ status.remainingTurns }}){{ (status.stack ?? 1) > 1 ? ' ×' + status.stack : '' }}
               </span>
               <span v-if="unit.charging" class="status-tag charging">蓄力中</span>
               <span v-if="unit.defending" class="status-tag defending">防御</span>
@@ -811,6 +815,8 @@ async function handleLeave() {
 
 .status-tag.charging { background-color: #fff3cd; color: #856404; }
 .status-tag.defending { background-color: #d1ecf1; color: #0c5460; }
+.status-tag.capture-stun { background-color: #e2d9f3; color: #4a2d7a; }
+.status-tag.safe-window { background-color: #d4edda; color: #155724; }
 
 .targeting-hint {
   background-color: #fff3cd;

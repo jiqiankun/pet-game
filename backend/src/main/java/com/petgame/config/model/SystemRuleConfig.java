@@ -167,4 +167,9 @@ public class SystemRuleConfig {
 
     /** Boss 幸运值兑换消耗（默认 100）。 */
     private int luckyExchangeCost = 100;
+
+    // ---- HP 百分比交换（REV-005，需求 §147 命运天平）----
+
+    /** Boss 受 HP 百分比交换的幅度上限（单次最多改变的百分点，默认 0.20 = 20 个百分点）。 */
+    private double bossHpExchangeLimit = 0.20;
 }

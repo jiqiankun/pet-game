@@ -34,11 +34,19 @@ public class DamageCalculator {
     }
 
     /**
-     * 技能基础值 = baseValue + Σ(属性系数 × 对应属性)。
-     * 支持多属性系数组合（如 0.8×力量 + 0.6×速度）。
+     * 技能基础值 = baseValue + Σ(属性系数 × 对应属性) + maxOfCoefficient × MAX(maxOf 各属性)。
+     * 支持多属性系数组合（如 0.8×力量 + 0.6×速度）与 maxOf 取高（技术方案 §25，留生一击等通用技能）。
      */
     public static double computeBaseValue(SkillConfig skill, BattleUnit caster) {
-        return computeBaseValue(skill.getBaseValue(), skill.getScaling(), caster);
+        double value = computeBaseValue(skill.getBaseValue(), skill.getScaling(), caster);
+        if (skill.getMaxOf() != null && !skill.getMaxOf().isEmpty() && skill.getMaxOfCoefficient() > 0) {
+            double maxStat = 0;
+            for (String statKey : skill.getMaxOf()) {
+                maxStat = Math.max(maxStat, getStat(caster, statKey));
+            }
+            value += skill.getMaxOfCoefficient() * maxStat;
+        }
+        return value;
     }
 
     /**
@@ -143,8 +151,11 @@ public class DamageCalculator {
         }
         result.synergyMultiplier = synergyMultiplier;
 
-        // 5. Buff / Debuff（含防御行动减伤）
+        // 5. Buff / Debuff（含防御行动减伤；物理伤害额外受标记类 physicalTaken 修正，REV-002）
         double buffMultiplier = attackerMod.getDamageDealtMultiplier() * defenderMod.getDamageTakenMultiplier();
+        if ("PHYSICAL".equalsIgnoreCase(skill.getDamageType())) {
+            buffMultiplier *= defenderMod.getPhysicalTakenMultiplier();
+        }
         if (defender.isDefending()) {
             buffMultiplier *= rules.getDefendDamageReduction();
         }

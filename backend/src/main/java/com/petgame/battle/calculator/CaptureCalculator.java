@@ -45,7 +45,9 @@ public final class CaptureCalculator {
     }
 
     /**
-     * 统计目标携带的异常状态数量（仅 DEBUFF/CONTROL 类计入捕捉加成）。
+     * 统计目标携带的异常状态数量（REV-015：按 captureBonus 判定）。
+     * 默认 DEBUFF/SPECIAL_CONTROL/CONTINUOUS 类计入；BUFF/MARK 不计入；
+     * 震慑显式不计入（需求 §142：震慑仅提供安全窗口，不提高捕获率）。
      */
     public static int countCaptureBonusStatuses(BattleUnit target,
                                                 Map<String, StatusEffectConfig> statusIndex) {
@@ -55,8 +57,7 @@ public final class CaptureCalculator {
         int count = 0;
         for (StatusInstance status : target.getStatuses()) {
             StatusEffectConfig config = statusIndex.get(status.getStatusId());
-            if (config != null && ("DEBUFF".equals(config.getCategory())
-                    || "CONTROL".equals(config.getCategory()))) {
+            if (config != null && config.isCaptureBonus()) {
                 count++;
             }
         }
