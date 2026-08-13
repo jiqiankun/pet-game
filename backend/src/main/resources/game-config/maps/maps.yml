@@ -1,0 +1,157 @@
+# ============================================================
+# 宠物精灵游戏 - 地图与区域配置（阶段 6）
+# ============================================================
+# 内容配置只声明区域元数据、出口连接、营地、采集点、宝箱与奖励。
+# 地图表现（地形/对象位置/野怪游荡点）由前端 Tiled JSON 承载；
+# 野怪内容与概率由 encounters/encounters.yml 的刷新组承载，
+# 区域仅声明「允许哪些刷新组在本区域发起遭遇」（数据分离原则）。
+# 玩家侧状态（区域解锁、营地激活、宝箱消耗、采集记录）存 MySQL，不落 YAML。
+# ============================================================
+
+configVersion: 1
+
+exploration:
+  # 战败轻度嘲讽式提示池（需求 §44：战败零惩罚，仅提示）
+  defeatMessages:
+    - "看来这支队伍还需要再磨合一下。"
+    - "胜败乃兵家常事，回营地休整后再来吧。"
+    - "宠物们气喘吁吁地看着你，眼神里写满了『下次一定』。"
+    - "撤退不丢人，丢人的是撤退后不回营地回血。"
+
+regions:
+  # ---------- 起始据点 ----------
+  - id: MAP_START_VILLAGE
+    name: 晨曦村
+    type: BASE
+    recommendedLevel: "1"
+    unlockType: AUTO
+    planned: false
+    mapFile: start_village
+    spawnObjectId: SPAWN_VILLAGE
+    encounterGroups: []
+    exits:
+      - exitId: EXIT_VILLAGE_TO_MEADOW
+        name: 前往青草原
+        targetMapId: MAP_AREA_MEADOW
+        entryObjectId: ENTRY_MEADOW_FROM_VILLAGE
+    camps:
+      # 起始据点营地：新游戏自动激活，作为最早的免费恢复点与传送锚点
+      - campId: CAMP_VILLAGE_1
+        name: 晨曦村营地
+        autoActivate: true
+    gathers: []
+    chests: []
+
+  # ---------- 初始区域 ----------
+  - id: MAP_AREA_MEADOW
+    name: 青草原
+    type: AREA
+    recommendedLevel: "3~8"
+    unlockType: AUTO
+    planned: false
+    mapFile: meadow
+    spawnObjectId: SPAWN_MEADOW
+    encounterGroups:
+      - ENCOUNTER_MEADOW
+    exits:
+      - exitId: EXIT_MEADOW_TO_VILLAGE
+        name: 返回晨曦村
+        targetMapId: MAP_START_VILLAGE
+        entryObjectId: ENTRY_VILLAGE_FROM_MEADOW
+      - exitId: EXIT_MEADOW_TO_FOREST
+        name: 前往翠树林
+        targetMapId: MAP_AREA_FOREST
+        entryObjectId: ENTRY_FOREST_FROM_MEADOW
+    camps:
+      - campId: CAMP_MEADOW_1
+        name: 青草原营地
+        autoActivate: false
+    gathers:
+      - gatherId: GATHER_MEADOW_1
+        name: 草药丛
+        rewards:
+          - { itemId: ITEM_POTION_SMALL, qtyMin: 1, qtyMax: 2 }
+        goldMin: 5
+        goldMax: 15
+      - gatherId: GATHER_MEADOW_2
+        name: 浆果丛
+        rewards:
+          - { itemId: ITEM_POTION_SMALL, qtyMin: 1, qtyMax: 1 }
+        goldMin: 3
+        goldMax: 10
+      - gatherId: GATHER_MEADOW_3
+        name: 矿石堆
+        rewards: []
+        goldMin: 20
+        goldMax: 40
+    chests:
+      - chestId: CHEST_MEADOW_HIDDEN_1
+        name: 草原隐藏宝箱
+        rewards:
+          - { itemId: ITEM_POTION_MEDIUM, qtyMin: 1, qtyMax: 2 }
+          - { itemId: ITEM_CAPTURE_BALL_NORMAL, qtyMin: 3, qtyMax: 5 }
+        goldMin: 50
+        goldMax: 80
+
+  # ---------- 森林区域 ----------
+  - id: MAP_AREA_FOREST
+    name: 翠树林
+    type: AREA
+    recommendedLevel: "8~15"
+    unlockType: AUTO
+    planned: false
+    mapFile: forest
+    spawnObjectId: SPAWN_FOREST
+    encounterGroups:
+      - ENCOUNTER_FOREST
+    exits:
+      - exitId: EXIT_FOREST_TO_MEADOW
+        name: 返回青草原
+        targetMapId: MAP_AREA_MEADOW
+        entryObjectId: ENTRY_MEADOW_FROM_FOREST
+    camps:
+      - campId: CAMP_FOREST_1
+        name: 翠树林营地
+        autoActivate: false
+    gathers:
+      - gatherId: GATHER_FOREST_1
+        name: 草药丛
+        rewards:
+          - { itemId: ITEM_POTION_MEDIUM, qtyMin: 1, qtyMax: 1 }
+        goldMin: 10
+        goldMax: 25
+      - gatherId: GATHER_FOREST_2
+        name: 蘑菇丛
+        rewards:
+          - { itemId: ITEM_POTION_SMALL, qtyMin: 1, qtyMax: 3 }
+        goldMin: 8
+        goldMax: 20
+    chests:
+      - chestId: CHEST_FOREST_HIDDEN_1
+        name: 森林隐藏宝箱
+        rewards:
+          - { itemId: ITEM_POTION_MEDIUM, qtyMin: 2, qtyMax: 3 }
+          - { itemId: ITEM_CAPTURE_BALL_GREAT, qtyMin: 2, qtyMax: 4 }
+          - { itemId: ITEM_REVIVE, qtyMin: 1, qtyMax: 1 }
+        goldMin: 100
+        goldMax: 150
+
+  # ---------- 结构预留（阶段 9 开放，本阶段不实装） ----------
+  - id: MAP_AREA_WATERS
+    name: 静水湖域（水域分支）
+    type: AREA
+    recommendedLevel: "15~25"
+    unlockType: QUEST
+    planned: true
+  - id: MAP_AREA_THUNDER
+    name: 雷鸣高地（雷属性分支）
+    type: AREA
+    recommendedLevel: "15~25"
+    unlockType: QUEST
+    planned: true
+  - id: MAP_AREA_RUINS
+    name: 远古遗迹（最终区域）
+    type: AREA
+    recommendedLevel: "30~50"
+    unlockType: QUEST
+    planned: true

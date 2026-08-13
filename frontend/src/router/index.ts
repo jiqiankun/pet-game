@@ -17,6 +17,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Explore/ExploreView.vue'),
   },
   {
+    path: '/world-map',
+    name: 'WorldMap',
+    component: () => import('../views/WorldMap/WorldMapView.vue'),
+  },
+  {
     path: '/battle',
     name: 'Battle',
     component: () => import('../views/Battle/BattleView.vue'),

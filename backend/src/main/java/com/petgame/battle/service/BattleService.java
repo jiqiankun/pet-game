@@ -82,6 +82,7 @@ public class BattleService {
     private final PetGrowthService growthService;
     private final WildEncounterService wildEncounterService;
     private final TeamService teamService;
+    private final com.petgame.map.service.MapExplorationService mapExplorationService;
 
     /** 战斗上下文内存池：battleId → BattleContext。不落库。 */
     private final Map<String, BattleContext> battles = new ConcurrentHashMap<>();
@@ -99,7 +100,8 @@ public class BattleService {
                          PlayerInventoryMapper playerInventoryMapper,
                          PetGrowthService growthService,
                          WildEncounterService wildEncounterService,
-                         TeamService teamService) {
+                         TeamService teamService,
+                         com.petgame.map.service.MapExplorationService mapExplorationService) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.playerMapper = playerMapper;
@@ -111,6 +113,7 @@ public class BattleService {
         this.growthService = growthService;
         this.wildEncounterService = wildEncounterService;
         this.teamService = teamService;
+        this.mapExplorationService = mapExplorationService;
     }
 
     /**
@@ -128,6 +131,7 @@ public class BattleService {
         if (teamPets.isEmpty()) {
             throw new BusinessException("NO_BATTLE_UNITS", "当前激活队伍没有可参战宠物");
         }
+        requireFightablePet(teamPets);
 
         long battleSeed = seed != null ? seed : System.nanoTime();
         String battleId = UUID.randomUUID().toString();
@@ -159,6 +163,7 @@ public class BattleService {
         if (teamPets.isEmpty()) {
             throw new BusinessException("NO_BATTLE_UNITS", "当前激活队伍没有可参战宠物");
         }
+        requireFightablePet(teamPets);
 
         long battleSeed = seed != null ? seed : System.nanoTime();
         String battleId = UUID.randomUUID().toString();
@@ -320,6 +325,31 @@ public class BattleService {
     }
 
     /**
+     * HP 持续消耗规则（阶段 6，需求 §45）：全队倒下（全部 0 HP）时不可开战，
+     * 需先用药品/复苏道具或营地恢复。
+     */
+    private void requireFightablePet(List<PlayerPetEntity> teamPets) {
+        boolean anyFightable = teamPets.stream()
+                .anyMatch(p -> p.getCurrentHp() != null && p.getCurrentHp() > 0);
+        if (!anyFightable) {
+            throw new BusinessException("NO_FIGHTABLE_PETS",
+                    "队伍中所有宠物均已倒下，请先使用药品、复苏道具或回营地恢复");
+        }
+    }
+
+    /**
+     * 是否存在未结束的战斗（阶段 6：战斗中禁止队伍预设切换等敏感操作）。
+     */
+    public boolean hasActiveBattle() {
+        for (BattleContext ctx : battles.values()) {
+            if (!ctx.isFinished()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 提交玩家行动意图，结算一整个回合。
      */
     public BattleSnapshot submitActions(String battleId, List<BattleAction> actions) {
@@ -419,6 +449,12 @@ public class BattleService {
         if ("WILD".equals(ctx.getBattleType())) {
             settleCaptures(ctx, player, settlement, joinTeam);
             consumeCaptureBalls(ctx, player);
+        }
+
+        // 2.6 战败流程（阶段 6，需求 §44）：零惩罚 + 返回最近恢复点 + 队伍恢复 + 嘲讽提示。
+        //     逃跑成功同战败结算但不触发战败流程（玩家主动退出，队伍不自动恢复）。
+        if (!playerWon && !ctx.isFled() && mapExplorationService != null) {
+            settlement.setDefeat(mapExplorationService.handleDefeat(player));
         }
 
         // 3. 标记已结算并清理内存
@@ -902,6 +938,9 @@ public class BattleService {
 
         /** 参战宠物 HP 回写明细。 */
         private List<PetHpWriteback> hpWritebacks = new ArrayList<>();
+
+        /** 战败流程结果（阶段 6，需求 §44；玩家战败且未逃跑时非空）。 */
+        private com.petgame.map.service.MapExplorationService.DefeatView defeat;
 
         /** 单个掉落结果。 */
         @lombok.Data

@@ -187,3 +187,39 @@ frontend/
 - **简化遭遇入口**：战斗页「野生遭遇」按钮 + 探索页临时入口（仅跳转，不承载遭遇逻辑）；阶段 6 由地图承接后移除或改造，不在其中沉淀地图耦合逻辑。
 - **仓库页**（`/storage`）：状态集中在新增 `stores/storage.ts`（`useStorageStore`）；筛选/排序条件以查询参数提交后端；放生必须先走预览接口（保护原因/警告/礼物点数）二次确认，放生结果礼物汇总展示后手动关闭。
 - **昵称展示约定**：种族名称始终保留，有昵称时展示为「昵称（种族名）」。
+
+---
+
+## 15. 地图探索与 Phaser 约定（阶段 6 起）
+
+### 15.1 Phaser 集成约定
+
+- **Phaser 版本**：3.90.0，通过 `src/game/PhaserGame.ts` 创建实例，ExploreView 在 `onMounted` 启动、`onBeforeUnmount` 销毁。
+- **3 核心 Scene**：`BootScene`（资源加载，含未数据保护）、`MapScene`（地图渲染 + 野怪 AI + 交互）、`BattleScene`（预留，后续阶段接入）。不为每张地图创建独立 Scene，地图差异通过 Tiled JSON 解决。
+- **GameBridge 事件桥**：`src/game/bridge/GameBridge.ts`，类型化事件总线（`emit`/`on`/`off`）；Phaser 只通过 bridge 向 Vue 层发送事件，Vue 层处理后回传结果；Phaser 禁止直接调用后端 API、禁止操作 Pinia Store。
+- **bridge 命令约定**：Vue → Phaser 使用前缀 `cmd:`（如 `cmd:restart-map`、`cmd:remove-wild`、`cmd:set-input-lock`）；Phaser → Vue 使用业务事件名（如 `encounter`、`exit`、`camp`、`gather`、`chest`）。
+
+### 15.2 Tiled 地图约定
+
+- **地图尺寸**：25×19 格 × 32px，统一使用占位 PNG 资源（`public/assets/`）。
+- **图层约定**：`ground`（底层地块）、`obstacle`（阻挡层，gid 3=水、4=树）、`objects`（对象层）。
+- **对象类型**：`wild_spawn`（野生刷新点，props: encounterGroupId/spawnId/aiMode）、`camp`（营地）、`chest`（宝箱）、`gather`（采集点）、`exit`（出口）、`boss_entrance`（Boss 入口占位）、`npc`（NPC 占位）、`hidden_spot`（隐藏点占位）。
+- **资源命名**：地图 `public/assets/maps/{mapId}.json`，tileset `public/assets/maps/tileset.png`，精灵 `public/assets/sprites/{id}.png`，统一使用 ID，禁止中文文件名。
+
+### 15.3 地图探索页约定
+
+- **ExploreView**（`/explore`）：Phaser 容器 + 模态对话框（遭遇/营地/出口/奖励）+ toast；生命周期：`onMounted` 加载 bootstrap + currentMap → 创建 Phaser 游戏。
+- **地图 store**：`stores/map.ts`（`useMapStore`），维护当前地图状态、已击败野怪、交互结果；Phaser 通过 bridge 事件同步状态。
+- **移动操作**：方向键/WASD 控制玩家移动，E 键与附近对象交互；碰撞检测分轴支持沿墙滑动。
+- **野怪 AI**：WANDER（随机游荡）、TIMID（玩家靠近时远离）、AGGRESSIVE（主动靠近）、RARE_STAY（稀有短暂停留）。
+
+### 15.4 大地图页约定
+
+- **WorldMapView**（`/world-map`）：显示已解锁区域卡片（名称/推荐等级/解锁状态）、营地传送入口。
+- **路由**：`/world-map`，MainLayout 导航栏添加「大地图」链接。
+
+### 15.5 队伍页约定（阶段 6 重写）
+
+- **TeamView**（`/team`）：5 套预设标签页 + HTML5 drag & drop + 技能查看（来自 petSummaries）+ 详情链接。
+- **预设 API**：`GET /api/team/presets`（查询 5 套预设）、`PUT /api/team/presets/{teamId}/activate`（切换激活预设）。
+- **战斗守卫**：战斗中禁止预设切换/编辑，通过 `battleStore.inBattle` 检测并禁用操作按钮。

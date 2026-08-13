@@ -3,6 +3,8 @@
  * 前端只提交意图，所有计算在后端完成。
  */
 
+import type { DefeatView } from './map'
+
 // ==================== 宠物详情 ====================
 
 /** 单维度属性分解。 */
@@ -183,10 +185,41 @@ export interface TeamView {
   members: TeamMemberView[]
 }
 
+/** 队伍预设视图（阶段 6：5 套预设）。 */
+export interface TeamPresetView {
+  teamId: number
+  slot: number
+  name: string
+  isActive: boolean
+  members: TeamMemberView[]
+}
+
 /** 成员条目（前端提交）。 */
 export interface TeamMemberEntry {
   petId: number
   position: number
+}
+
+/** 宠物装备技能摘要（Bootstrap petSummaries）。 */
+export interface EquippedSkillSummary {
+  skillId: string
+  name: string
+  slot: number
+}
+
+/** 宠物摘要（Bootstrap：种族信息 + 装备技能，队伍页技能查看用）。 */
+export interface PetSummaryView {
+  pet: {
+    id: number
+    speciesId: string
+    nickname: string | null
+    level: number
+    currentHp: number
+  }
+  speciesName: string
+  element: string
+  rarity: string
+  equippedSkills: EquippedSkillSummary[]
 }
 
 // ==================== 背包 ====================
@@ -267,4 +300,6 @@ export interface BattleSettlement {
   /** 本场被捕捉的宠物列表（野生战斗）。 */
   capturedPets: CapturedPetView[]
   hpWritebacks: PetHpWriteback[]
+  /** 战败流程结果（阶段 6；玩家战败且未逃跑时非空）。 */
+  defeat?: DefeatView
 }

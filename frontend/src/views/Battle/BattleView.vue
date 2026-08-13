@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useBattleStore, isActiveAlive } from '../../stores/battle'
 import { useGameStore } from '../../stores/game'
+import { useMapStore } from '../../stores/map'
 import { apiGet } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
 import type { BattleAction, UnitSnapshot } from '../../types/battle'
@@ -9,6 +10,7 @@ import type { InventoryItemView } from '../../types/pet'
 
 const battleStore = useBattleStore()
 const gameStore = useGameStore()
+const mapStore = useMapStore()
 
 // 固定种子输入（开发者模式复现用，可留空）
 const seedInput = ref('')
@@ -85,6 +87,22 @@ watch(
     }
   },
 )
+
+/**
+ * 结算完成后的地图联动（阶段 6）：
+ * 野生战斗胜利时标记地图野怪刷新点移除；战败流程由后端随结算完成（零惩罚）。
+ */
+watch(settlement, (result) => {
+  if (!result) return
+  if (result.playerWon && mapStore.activeEncounterSpawnId) {
+    mapStore.markWildDefeated(mapStore.activeEncounterSpawnId)
+    mapStore.activeEncounterSpawnId = null
+  }
+  if (!result.playerWon && !result.fled) {
+    // 战败后地图遭遇野怪不再标记移除（仍在原地）
+    mapStore.activeEncounterSpawnId = null
+  }
+})
 
 async function startBattle() {
   const seed = seedInput.value.trim() ? Number(seedInput.value.trim()) : undefined
@@ -271,8 +289,17 @@ async function handleLeave() {
           <template v-else>
             <span v-if="settlement.playerWon" class="reward-item exp">经验 +{{ settlement.expGained }}</span>
             <span v-if="settlement.playerWon" class="reward-item gold">金币 +{{ settlement.goldGained }}</span>
-            <span v-if="!settlement.playerWon" class="reward-item none">无奖励（战败）</span>
+            <span v-if="!settlement.playerWon" class="reward-item none">无奖励（战败零惩罚）</span>
           </template>
+        </div>
+
+        <!-- 战败流程（阶段 6，需求 §44）：返回最近恢复点 + 队伍恢复 + 嘲讽提示 -->
+        <div v-if="settlement.defeat" class="defeat-section">
+          <div class="defeat-message">“{{ settlement.defeat.message }}”</div>
+          <div class="defeat-detail">
+            你被送回了恢复点，队伍 {{ settlement.defeat.healedPets }} 只宠物已全部恢复。
+            未损失任何金币、经验与物品。
+          </div>
         </div>
         <div v-if="settlement.capturedPets.length" class="captured-section">
           <span class="captured-label">捕捉成功：</span>
@@ -1018,5 +1045,25 @@ async function handleLeave() {
   color: #d32f2f;
   font-size: 11px;
   margin-left: 4px;
+}
+
+.defeat-section {
+  background-color: #fff3cd;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 10px 0;
+}
+
+.defeat-message {
+  font-size: 15px;
+  color: #856404;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.defeat-detail {
+  font-size: 13px;
+  color: #6d5a1e;
+  line-height: 1.6;
 }
 </style>

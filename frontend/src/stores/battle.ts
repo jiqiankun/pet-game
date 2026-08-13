@@ -83,7 +83,7 @@ export const useBattleStore = defineStore('battle', () => {
     }
   }
 
-  /** 开始野生战斗（阶段 5：可捕捉可逃跑的简化遭遇入口）。 */
+  /** 开始野生战斗（阶段 5 简化遭遇入口；阶段 6 起正式遭遇走 startMapEncounter）。 */
   async function startWildBattle(seed?: number) {
     loading.value = true
     error.value = ''
@@ -91,19 +91,45 @@ export const useBattleStore = defineStore('battle', () => {
       const res = await apiPost<BattleSnapshot>('/api/wild/battles', {
         seed: seed ?? null,
       })
-      snapshot.value = (res as ApiResponse<BattleSnapshot>).data
-      pendingActions.value = []
-      actionOrder.value = []
-      captureRates.value = []
-      settlement.value = null
-      eventLog.value = [`遭遇野生宠物！（种子 ${snapshot.value.seed}）`]
-      appendEvents(snapshot.value.events)
+      adoptSnapshot((res as ApiResponse<BattleSnapshot>).data)
     } catch (e: any) {
       error.value = e.message || '野生遭遇创建失败'
       throw e
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * 开始地图遭遇战斗（阶段 6 正式遭遇入口）。
+   * 后端校验刷新组属于玩家当前区域；可见野怪接触前由 Vue 层完成首发调整。
+   */
+  async function startMapEncounter(groupId: string, seed?: number) {
+    loading.value = true
+    error.value = ''
+    try {
+      const res = await apiPost<BattleSnapshot>('/api/maps/encounters', {
+        groupId,
+        seed: seed ?? null,
+      })
+      adoptSnapshot((res as ApiResponse<BattleSnapshot>).data)
+    } catch (e: any) {
+      error.value = e.message || '地图遭遇创建失败'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /** 采用后端返回的战斗快照（野生遭遇类入口共用初始化）。 */
+  function adoptSnapshot(data: BattleSnapshot) {
+    snapshot.value = data
+    pendingActions.value = []
+    actionOrder.value = []
+    captureRates.value = []
+    settlement.value = null
+    eventLog.value = [`遭遇野生宠物！（种子 ${data.seed}）`]
+    appendEvents(data.events)
   }
 
   /** 加载捕捉率（后端实时计算：目标状态变化后需重新加载）。 */
@@ -330,6 +356,7 @@ export const useBattleStore = defineStore('battle', () => {
     loadSkillConfig,
     startTestBattle,
     startWildBattle,
+    startMapEncounter,
     loadCaptureRates,
     captureRateOf,
     submitActions,

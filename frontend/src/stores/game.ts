@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiGet, apiPost, BusinessError } from '../api/client'
 import type { ApiResponse } from '../types/api'
+import type { PetSummaryView } from '../types/pet'
 
 /**
  * 游戏状态 Store。
@@ -12,6 +13,8 @@ export const useGameStore = defineStore('game', () => {
   const hasSave = ref<boolean | null>(null) // null = 未检查
   const player = ref<any>(null)
   const pets = ref<any[]>([])
+  /** 宠物摘要（含面板属性与装备技能，阶段 6 队伍页技能查看用）。 */
+  const petSummaries = ref<PetSummaryView[]>([])
   const activeTeam = ref<any>(null)
   const teamMembers = ref<any[]>([])
   const gameVersion = ref('')
@@ -43,6 +46,7 @@ export const useGameStore = defineStore('game', () => {
       const data = (res as ApiResponse<any>).data
       player.value = data.player
       pets.value = data.pets || []
+      petSummaries.value = (data.petSummaries || []) as PetSummaryView[]
       activeTeam.value = data.activeTeam
       teamMembers.value = data.teamMembers || []
       gameVersion.value = data.gameVersion
@@ -75,6 +79,7 @@ export const useGameStore = defineStore('game', () => {
       const data = (res as ApiResponse<any>).data
       player.value = data.player
       pets.value = data.pets || []
+      petSummaries.value = (data.petSummaries || []) as PetSummaryView[]
       activeTeam.value = data.activeTeam
       teamMembers.value = data.teamMembers || []
       gameVersion.value = data.gameVersion
@@ -101,7 +106,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   return {
-    hasSave, player, pets, activeTeam, teamMembers,
+    hasSave, player, pets, petSummaries, activeTeam, teamMembers,
     gameVersion, saveVersion, developerMode, loading, error,
     checkSaveStatus, loadBootstrap, createNewGame, manualSave,
   }

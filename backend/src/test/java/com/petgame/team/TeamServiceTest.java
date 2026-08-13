@@ -13,6 +13,7 @@ import com.petgame.team.service.TeamService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,10 +26,11 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 /**
- * TeamService 单元测试（阶段 4 验收标准）。
+ * TeamService 单元测试（阶段 4 验收标准 + 阶段 6 预设扩展）。
  * <p>
  * 覆盖：成员数量上限（6 宠携带）、位置范围与唯一性、同一宠物不可重复占位、
- * 宠物归属校验、整体替换在单事务内完成（先删除后插入）、查询激活队伍。
+ * 宠物归属校验、整体替换在单事务内完成（先删除后插入）、查询激活队伍、
+ * 5 套预设懒创建与切换、战斗中禁止编辑/切换（阶段 6）。
  */
 @ExtendWith(MockitoExtension.class)
 class TeamServiceTest {
@@ -41,6 +43,8 @@ class TeamServiceTest {
     private PlayerTeamMemberMapper playerTeamMemberMapper;
     @Mock
     private PlayerPetMapper playerPetMapper;
+    @Mock
+    private com.petgame.battle.service.BattleService battleService;
 
     @InjectMocks
     private TeamService teamService;
@@ -363,7 +367,121 @@ class TeamServiceTest {
         assertEquals(6, result.getMembers().size());
     }
 
+    // ==================== 5 套预设（阶段 6） ====================
+
+    @Test
+    void getTeamPresets_lazilyCreatesMissingPresets() {
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        // 存量存档只有 1 套队伍（阶段 4 行为）：首次查询返回 1 套，懒创建后返回 5 套
+        when(playerTeamMapper.selectList(any()))
+                .thenReturn(List.of(activeTeam))
+                .thenReturn(List.of(activeTeam, preset(201L, 2), preset(202L, 3),
+                        preset(203L, 4), preset(204L, 5)));
+        when(playerTeamMemberMapper.selectList(any())).thenReturn(List.of());
+
+        List<TeamService.TeamPresetView> presets = teamService.getTeamPresets();
+
+        assertEquals(5, presets.size());
+        // 缺失的 4 套预设懒创建
+        verify(playerTeamMapper, times(4)).insert(any(PlayerTeamEntity.class));
+    }
+
+    @Test
+    void activatePreset_switchesActiveTeam() {
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        PlayerTeamEntity target = preset(200L, 2);
+        when(playerTeamMapper.selectById(200L)).thenReturn(target);
+        List<PlayerTeamEntity> fiveTeams = List.of(activeTeam, target,
+                preset(201L, 3), preset(202L, 4), preset(203L, 5));
+        // 第 1 次：切换阶段（2 套）；后续预设列表查询（5 套已齐全，不再懒创建）
+        when(playerTeamMapper.selectList(any()))
+                .thenReturn(List.of(activeTeam, target))
+                .thenReturn(fiveTeams);
+        when(playerTeamMemberMapper.selectList(any())).thenReturn(List.of());
+
+        List<TeamService.TeamPresetView> presets = teamService.activatePreset(200L);
+
+        // 旧预设取消激活、新预设激活
+        ArgumentCaptor<PlayerTeamEntity> captor = ArgumentCaptor.forClass(PlayerTeamEntity.class);
+        verify(playerTeamMapper, times(2)).updateById(captor.capture());
+        List<PlayerTeamEntity> updated = captor.getAllValues();
+        assertFalse(updated.stream().filter(t -> t.getId() == 100L).findFirst().orElseThrow().getIsActive());
+        assertTrue(updated.stream().filter(t -> t.getId() == 200L).findFirst().orElseThrow().getIsActive());
+        assertEquals(5, presets.size());
+    }
+
+    @Test
+    void activatePreset_otherSaveTeam_rejected() {
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        PlayerTeamEntity foreign = new PlayerTeamEntity();
+        foreign.setId(300L);
+        foreign.setSaveId("SAVE_OTHER");
+        when(playerTeamMapper.selectById(300L)).thenReturn(foreign);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> teamService.activatePreset(300L));
+        assertEquals("TEAM_NOT_FOUND", ex.getErrorCode());
+    }
+
+    @Test
+    void activatePreset_inBattle_rejected() {
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        when(battleService.hasActiveBattle()).thenReturn(true);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> teamService.activatePreset(200L));
+        assertEquals("BATTLE_IN_PROGRESS", ex.getErrorCode());
+    }
+
+    @Test
+    void updateTeamMembers_inBattle_rejected() {
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        when(battleService.hasActiveBattle()).thenReturn(true);
+
+        TeamService.UpdateMembersRequest request = new TeamService.UpdateMembersRequest();
+        request.setMembers(List.of(entry(1L, 1)));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> teamService.updateTeamMembers(request));
+        assertEquals("BATTLE_IN_PROGRESS", ex.getErrorCode());
+    }
+
+    @Test
+    void updateTeamMembers_targetPreset_editsSpecifiedTeam() {
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        PlayerTeamEntity preset2 = new PlayerTeamEntity();
+        preset2.setId(200L);
+        preset2.setSaveId("SAVE_1");
+        preset2.setSlot(2);
+        preset2.setName("队伍 2");
+        preset2.setIsActive(false);
+        when(playerTeamMapper.selectById(200L)).thenReturn(preset2);
+        when(playerPetMapper.selectById(1L)).thenReturn(pet(1L, "SPEC_A", "小白"));
+        when(playerTeamMemberMapper.selectList(any())).thenReturn(
+                List.of(member(31L, 200L, 1L, 1)));
+
+        TeamService.UpdateMembersRequest request = new TeamService.UpdateMembersRequest();
+        request.setTeamId(200L);
+        request.setMembers(List.of(entry(1L, 1)));
+
+        TeamService.TeamView result = teamService.updateTeamMembers(request);
+
+        assertEquals(200L, result.getTeamId());
+        verify(playerTeamMemberMapper).delete(any());
+        verify(playerTeamMemberMapper, times(1)).insert(any(PlayerTeamMemberEntity.class));
+    }
+
     // ==================== 工具方法 ====================
+
+    private PlayerTeamEntity preset(Long id, int slot) {
+        PlayerTeamEntity team = new PlayerTeamEntity();
+        team.setId(id);
+        team.setSaveId("SAVE_1");
+        team.setSlot(slot);
+        team.setName("队伍 " + slot);
+        team.setIsActive(false);
+        return team;
+    }
 
     private PlayerPetEntity pet(Long id, String speciesId, String nickname) {
         PlayerPetEntity pet = new PlayerPetEntity();

@@ -8,6 +8,7 @@ import com.petgame.config.model.EncountersConfig;
 import com.petgame.config.model.GameElementsConfig;
 import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemsConfig;
+import com.petgame.config.model.MapsConfig;
 import com.petgame.config.model.PetsConfig;
 import com.petgame.config.model.ReleaseGiftsConfig;
 import com.petgame.config.model.SkillsConfig;
@@ -46,6 +47,7 @@ public class GameConfigLoader {
     private static final String PETS_YML = "pets/pets.yml";
     private static final String ENCOUNTERS_YML = "encounters/encounters.yml";
     private static final String RELEASE_GIFTS_YML = "drops/release-gifts.yml";
+    private static final String MAPS_YML = "maps/maps.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -214,6 +216,22 @@ public class GameConfigLoader {
         ReleaseGiftsConfig external = loadExternalYaml(RELEASE_GIFTS_YML, ReleaseGiftsConfig.class);
         if (external != null) {
             log.info("已加载外部 drops/release-gifts.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载地图与区域配置（阶段 6：地图探索与区域系统）。
+     */
+    public MapsConfig loadMapsConfig() {
+        MapsConfig config = loadInternalYaml(MAPS_YML, MapsConfig.class);
+        if (config == null) {
+            throw new IllegalStateException("内部 maps/maps.yml 未找到，无法启动");
+        }
+        MapsConfig external = loadExternalYaml(MAPS_YML, MapsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 maps/maps.yml 覆盖内部配置");
             config = external;
         }
         return config;

@@ -1,15 +1,53 @@
 # ============================================================
-# 宠物精灵游戏 - 野生遭遇配置（阶段 5）
+# 宠物精灵游戏 - 野生遭遇配置（阶段 5 基础，阶段 6 按地图细化）
 # ============================================================
-# 阶段 5 简化遭遇入口使用的刷新组配置：按权重生成野生阵容（种族、等级范围）。
-# 地图只声明「哪里用哪个刷新组」（阶段 6），宠物与概率全部在此配置中（数据分离原则）。
+# 按权重生成野生阵容（种族、等级范围）。
+# 地图只声明「哪里用哪个刷新组」（阶段 6：maps/maps.yml 区域声明允许的刷新组），
+# 宠物与概率全部在此配置中（数据分离原则）。
 # 奖励 = expPerLevel/goldPerLevel × 敌等级 × 稀有度系数（system.yml）；被捕捉宠物不参与。
 # ============================================================
 
 configVersion: 1
 
 encounterGroups:
-  # 阶段 5 临时通用刷新组（简化遭遇入口使用；阶段 6 按地图细化）
+  # ---------- 阶段 6：地图刷新组 ----------
+  # 青草原（初始区域，推荐 Lv.3~8）：低阶种族为主
+  - id: ENCOUNTER_MEADOW
+    name: 青草原野怪
+    teamSizeMin: 1
+    teamSizeMax: 2
+    expPerLevel: 12
+    goldPerLevel: 3
+    species:
+      - { speciesId: PET_WOOD_001, weight: 12, levelMin: 2, levelMax: 6 }
+      - { speciesId: PET_WOOD_002, weight: 12, levelMin: 2, levelMax: 6 }
+      - { speciesId: PET_EARTH_001, weight: 10, levelMin: 2, levelMax: 6 }
+      - { speciesId: PET_WIND_001, weight: 10, levelMin: 2, levelMax: 6 }
+      - { speciesId: PET_FIRE_001, weight: 8, levelMin: 3, levelMax: 7 }
+      - { speciesId: PET_WATER_001, weight: 8, levelMin: 3, levelMax: 7 }
+      - { speciesId: PET_METAL_001, weight: 6, levelMin: 4, levelMax: 8 }
+      - { speciesId: PET_LIGHT_001, weight: 3, levelMin: 4, levelMax: 8 }
+
+  # 翠树林（森林区域，推荐 Lv.8~15）：中阶种族为主，稀有种族低概率出现
+  - id: ENCOUNTER_FOREST
+    name: 翠树林野怪
+    teamSizeMin: 1
+    teamSizeMax: 3
+    expPerLevel: 14
+    goldPerLevel: 4
+    species:
+      - { speciesId: PET_WOOD_002, weight: 12, levelMin: 6, levelMax: 11 }
+      - { speciesId: PET_WOOD_003, weight: 10, levelMin: 8, levelMax: 13 }
+      - { speciesId: PET_EARTH_002, weight: 10, levelMin: 6, levelMax: 11 }
+      - { speciesId: PET_WIND_002, weight: 8, levelMin: 7, levelMax: 12 }
+      - { speciesId: PET_FIRE_002, weight: 8, levelMin: 7, levelMax: 12 }
+      - { speciesId: PET_WATER_002, weight: 8, levelMin: 7, levelMax: 12 }
+      - { speciesId: PET_DARK_002, weight: 6, levelMin: 8, levelMax: 13 }
+      - { speciesId: PET_THUNDER_002, weight: 5, levelMin: 8, levelMax: 13 }
+      - { speciesId: PET_DARK_003, weight: 2, levelMin: 10, levelMax: 15 }
+      - { speciesId: PET_LIGHT_002, weight: 2, levelMin: 10, levelMax: 15 }
+
+  # 阶段 5 临时通用刷新组（简化遭遇入口使用，阶段 6 起正式遭遇走上表地图刷新组）
   - id: ENCOUNTER_GENERAL
     name: 通用野外
     teamSizeMin: 1

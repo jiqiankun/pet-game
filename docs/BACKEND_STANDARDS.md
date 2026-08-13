@@ -384,3 +384,76 @@ battle/service/BattleService         # 扩展 startWildBattle/getCaptureRates/se
 ### 16.6 数据库
 
 - 阶段 5 无新增 Flyway 迁移：仓库字段（locked/favorite/specialAppearance/captured_map_id/captured_at）已在 V2 迁移建立，captured_level/base_*_offset 已在 V3 建立。
+
+---
+
+## 17. 地图探索与区域系统实现约定（阶段 6 起）
+
+### 17.1 模块结构与职责
+
+```text
+map/
+├── service/MapExplorationService      # 核心服务：区域解锁/移动/营地/采集/宝箱/遭遇/战败
+├── controller/MapController           # REST 接口：/api/map/**
+├── entity/                            # 5 实体（复合主键无 @TableId）
+└── mapper/                            # 5 mapper
+
+config/model/MapsConfig                # 地图配置模型（region/exit/camp/gather/chest/reward）
+```
+
+### 17.2 地图配置约定
+
+- 配置唯一来源：`game-config/maps/maps.yml`（`MapsConfig`），包含区域/出口/营地/采集/宝箱/奖励定义。
+- 区域解锁类型：`AUTO`（自动）/`BOSS`（Boss 击败，阶段 7）/`QUEST`（任务完成，阶段 9）；本阶段仅 AUTO。
+- 出口解析：客户端传 `exitId`，后端从当前区域配置解析对应 `entryObjectId`，避免前端伪造。
+- `planned: true` 的区域仅结构预留，不参与运行时解锁/加载。
+- 采集/宝箱奖励通过 `reward` 字段配置（type: GOLD/EXP/ITEM，value 数量），奖励发放由 InventoryService 完成。
+
+### 17.3 地图刷新与会话
+
+- 每次进入区域生成新 `sessionId`（UUID），存入 `player_map_session`。
+- 采集记录（`player_gather_used`）与会话绑定：新会话可重新采集。
+- 宝箱记录（`player_chest_loot`）永久绑定：不受会话刷新影响。
+- 离开区域、营地休息、营地传送均触发新会话。
+
+### 17.4 营地系统
+
+- 营地免费恢复全队 HP（含倒下宠物复苏至 maxHp）。
+- 首次进入区域自动激活该区域营地（`autoActivate`）。
+- 已激活营地间可免费快速传送；传送触发地图刷新（视为重新进入区域）。
+
+### 17.5 战败流程
+
+- `MapExplorationService.handleDefeat(player)`：退出战斗 → 返回最近营地（当前区域已激活营地）→ 全队恢复至 maxHp → 生成轻度嘲讽提示（从 `defeatMessages` 配置抽取）。
+- 在 BattleService 结算同一事务内调用，避免部分成功脏数据。
+- 战败零惩罚：不扣金币、不扣经验、不掉物品、不丢宠物。
+
+### 17.6 区域解锁懒写入
+
+- `ensureAutoUnlocks(saveId)`：查询玩家已解锁区域，补齐所有 AUTO 类型区域的解锁记录。
+- 新游戏创建后首次访问地图时懒写入，避免新游戏流程耦合地图逻辑。
+
+### 17.7 与战斗系统集成
+
+- `BattleService` 注入 `MapExplorationService`（构造函数参数）。
+- `startTestBattle`/`startWildBattle` 添加 `requireFightablePet`：队伍中所有宠物 currentHp=0 → `NO_FIGHTABLE_PETS` 业务错误。
+- 战斗结算 `settleBattle` 失败时（!playerWon && !fled）调用 `mapExplorationService.handleDefeat`。
+- `hasActiveBattle()` 供 TeamService 检测战斗状态。
+
+### 17.8 与队伍系统集成
+
+- `TeamService` 新增 5 套预设支持：`getTeamPresets()`（懒创建）、`activatePreset(teamId)`。
+- `@Lazy` 注入 `BattleService` 避免循环依赖（TeamService ↔ BattleService）。
+- `requireNotInBattle()` 守卫：战斗中拒绝预设切换/成员编辑。
+- `updateTeamMembers` 支持 `teamId` 参数（null = 当前激活预设）。
+
+### 17.9 数据库迁移（V4）
+
+- 5 张玩家状态表：
+  - `player_region_unlock`（save_id + map_id，区域解锁记录）
+  - `player_camp_activation`（save_id + camp_id，营地激活记录）
+  - `player_chest_loot`（save_id + chest_id，宝箱一次性消耗）
+  - `player_map_session`（save_id + map_id，地图会话 UUID）
+  - `player_gather_used`（save_id + gather_id + session_id，采集会话绑定）
+- 复合主键无 @TableId，insert/select/delete via wrapper。
+- 迁移文件 `V4__map_exploration_tables.sql`，**禁止手工改表**。

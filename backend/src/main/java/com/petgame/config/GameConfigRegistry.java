@@ -40,6 +40,7 @@ public class GameConfigRegistry {
     private PetsConfig petsConfig;
     private EncountersConfig encountersConfig;
     private ReleaseGiftsConfig releaseGiftsConfig;
+    private MapsConfig mapsConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -61,6 +62,12 @@ public class GameConfigRegistry {
 
     /** 种族 ID → 种族配置 的快速索引（阶段 5）。 */
     private Map<String, PetSpeciesConfig> speciesIndex;
+
+    /** 区域 ID → 区域配置 的快速索引（阶段 6）。 */
+    private Map<String, MapsConfig.RegionConfig> regionIndex;
+
+    /** 营地 ID → 所属区域配置 的快速索引（阶段 6）。 */
+    private Map<String, MapsConfig.RegionConfig> campRegionIndex;
 
     public GameConfigRegistry(GameConfigLoader loader, GameConfigValidator validator) {
         this.loader = loader;
@@ -85,11 +92,12 @@ public class GameConfigRegistry {
         this.petsConfig = loader.loadPetsConfig();
         this.encountersConfig = loader.loadEncountersConfig();
         this.releaseGiftsConfig = loader.loadReleaseGiftsConfig();
+        this.mapsConfig = loader.loadMapsConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
                 skillsConfig, statusesConfig, testBattleConfig, itemsConfig,
-                petsConfig, encountersConfig, releaseGiftsConfig);
+                petsConfig, encountersConfig, releaseGiftsConfig, mapsConfig);
 
         // 构建索引
         buildElementIndex();
@@ -99,8 +107,9 @@ public class GameConfigRegistry {
         buildPassiveIndex();
         buildItemIndex();
         buildSpeciesIndex();
+        buildRegionIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
                 initialPetsConfig.getInitialPets().size(),
@@ -109,7 +118,8 @@ public class GameConfigRegistry {
                 statusesConfig.getStatuses().size(),
                 itemsConfig.getItems().size(),
                 petsConfig.getSpecies().size(),
-                encountersConfig.getEncounterGroups().size());
+                encountersConfig.getEncounterGroups().size(),
+                mapsConfig.getRegions().size());
     }
 
     // ---- 查询方法 ----
@@ -162,6 +172,28 @@ public class GameConfigRegistry {
     /** 获取放生礼物配置（只读使用，阶段 5）。 */
     public ReleaseGiftsConfig getReleaseGiftsConfig() {
         return releaseGiftsConfig;
+    }
+
+    /** 获取地图与区域配置（只读使用，阶段 6）。 */
+    public MapsConfig getMapsConfig() {
+        return mapsConfig;
+    }
+
+    /** 根据区域 ID 获取区域配置，不存在返回 null（阶段 6）。 */
+    public MapsConfig.RegionConfig getRegion(String mapId) {
+        return mapId == null ? null : regionIndex.get(mapId);
+    }
+
+    /** 根据营地 ID 获取其所属区域配置，不存在返回 null（阶段 6）。 */
+    public MapsConfig.RegionConfig getRegionByCamp(String campId) {
+        return campId == null ? null : campRegionIndex.get(campId);
+    }
+
+    /** 获取全部已实装区域（排除结构预留 planned 区域，按配置顺序，阶段 6）。 */
+    public List<MapsConfig.RegionConfig> getImplementedRegions() {
+        return mapsConfig.getRegions().stream()
+                .filter(r -> !r.isPlanned())
+                .toList();
     }
 
     /** 根据道具 ID 获取道具配置，不存在返回 null。 */
@@ -291,6 +323,17 @@ public class GameConfigRegistry {
         speciesIndex = new LinkedHashMap<>();
         for (PetSpeciesConfig species : petsConfig.getSpecies()) {
             speciesIndex.put(species.getId(), species);
+        }
+    }
+
+    private void buildRegionIndex() {
+        regionIndex = new LinkedHashMap<>();
+        campRegionIndex = new LinkedHashMap<>();
+        for (MapsConfig.RegionConfig region : mapsConfig.getRegions()) {
+            regionIndex.put(region.getId(), region);
+            for (MapsConfig.CampConfig camp : region.getCamps()) {
+                campRegionIndex.put(camp.getCampId(), region);
+            }
         }
     }
 }

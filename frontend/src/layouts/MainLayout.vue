@@ -7,11 +7,12 @@
     <header class="app-header">
       <div class="header-brand">
         <h1 class="header-title">宠物精灵</h1>
-        <span class="header-badge">Phase 5</span>
+        <span class="header-badge">Phase 6</span>
       </div>
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>
         <RouterLink to="/explore">探索</RouterLink>
+        <RouterLink to="/world-map">大地图</RouterLink>
         <RouterLink to="/battle">战斗</RouterLink>
         <RouterLink to="/pets">宠物</RouterLink>
         <RouterLink to="/team">队伍</RouterLink>

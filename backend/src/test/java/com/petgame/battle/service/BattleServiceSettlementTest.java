@@ -72,6 +72,8 @@ class BattleServiceSettlementTest {
     private WildEncounterService wildEncounterService;
     @Mock
     private TeamService teamService;
+    @Mock
+    private com.petgame.map.service.MapExplorationService mapExplorationService;
 
     private GameConfigRegistry registry;
     private PetGrowthService growthService;
@@ -95,7 +97,7 @@ class BattleServiceSettlementTest {
         battleService = new BattleService(registry, enemyDecisionProvider,
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                growthService, wildEncounterService, teamService);
+                growthService, wildEncounterService, teamService, mapExplorationService);
     }
 
     // ==================== 玩家胜：HP 回写 + 奖励发放 ====================
@@ -209,6 +211,82 @@ class BattleServiceSettlementTest {
         assertEquals(0, pet1.getWinCount());  // 败方不累加 win_count
     }
 
+    // ==================== 战败流程（阶段 6） ====================
+
+    @Test
+    void settleBattle_playerLose_triggersDefeatFlow() {
+        BattleUnit unit1 = playerUnit("P_1", 1L, 100, 0);
+        BattleContext ctx = finishedBattle("BATTLE_D1", 1L, "ENEMY", unit1);
+        injectBattle("BATTLE_D1", ctx);
+
+        PlayerEntity player = playerWithExpPool(500, 200);
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        when(playerPetMapper.selectById(1L)).thenReturn(pet(1L, 80));
+        when(playerPetMapper.updateById(any(PlayerPetEntity.class))).thenReturn(1);
+
+        com.petgame.map.service.MapExplorationService.DefeatView defeatView =
+                new com.petgame.map.service.MapExplorationService.DefeatView();
+        defeatView.setMessage("看来这支队伍还需要再磨合一下。");
+        defeatView.setRespawnMapId("MAP_AREA_MEADOW");
+        defeatView.setRespawnObjectId("CAMP_MEADOW_1");
+        defeatView.setHealedPets(1);
+        when(mapExplorationService.handleDefeat(any(PlayerEntity.class))).thenReturn(defeatView);
+
+        BattleService.BattleSettlement result = battleService.settleBattle("BATTLE_D1");
+
+        // 战败流程随结算同事务触发（需求 §44：零惩罚 + 返回恢复点 + 队伍恢复）
+        assertNotNull(result.getDefeat());
+        assertEquals("CAMP_MEADOW_1", result.getDefeat().getRespawnObjectId());
+        verify(mapExplorationService).handleDefeat(player);
+        // 零惩罚：金币/经验不变
+        assertEquals(500, player.getExpPool());
+        assertEquals(200, player.getGold());
+    }
+
+    @Test
+    void settleBattle_fled_doesNotTriggerDefeatFlow() {
+        BattleUnit unit1 = playerUnit("P_1", 1L, 100, 50);
+        BattleContext ctx = finishedBattle("BATTLE_D2", 1L, null, unit1);
+        ctx.setFled(true); // 逃跑同战败结算，但不触发战败流程
+        injectBattle("BATTLE_D2", ctx);
+
+        PlayerEntity player = playerWithExpPool(500, 200);
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        when(playerPetMapper.selectById(1L)).thenReturn(pet(1L, 80));
+        when(playerPetMapper.updateById(any(PlayerPetEntity.class))).thenReturn(1);
+
+        BattleService.BattleSettlement result = battleService.settleBattle("BATTLE_D2");
+
+        assertTrue(result.isFled());
+        assertNull(result.getDefeat());
+        verify(mapExplorationService, never()).handleDefeat(any(PlayerEntity.class));
+    }
+
+    @Test
+    void startWildBattle_allPetsDown_throwsNoFightablePets() {
+        // HP 持续消耗规则（需求 §45）：全队倒下不可开战
+        PlayerEntity player = playerWithExpPool(0, 0);
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+
+        com.petgame.team.entity.PlayerTeamEntity team = new com.petgame.team.entity.PlayerTeamEntity();
+        team.setId(100L);
+        team.setSaveId("SAVE_1");
+        team.setIsActive(true);
+        when(playerTeamMapper.selectOne(any())).thenReturn(team);
+
+        com.petgame.team.entity.PlayerTeamMemberEntity member =
+                new com.petgame.team.entity.PlayerTeamMemberEntity();
+        member.setTeamId(100L);
+        member.setPetId(1L);
+        member.setPosition(1);
+        when(playerTeamMemberMapper.selectList(any())).thenReturn(List.of(member));
+        when(playerPetMapper.selectById(1L)).thenReturn(pet(1L, 0)); // 0 HP
+
+        BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                BusinessException.class, () -> battleService.startWildBattle("ENCOUNTER_GENERAL", 1L));
+        assertEquals("NO_FIGHTABLE_PETS", ex.getErrorCode());
+    }
+
     // ==================== 拒绝结算场景 ====================
 
     @Test
@@ -277,7 +355,7 @@ class BattleServiceSettlementTest {
         BattleService customService = new BattleService(customRegistry, enemyDecisionProvider,
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                customGrowth, wildEncounterService, teamService);
+                customGrowth, wildEncounterService, teamService, mapExplorationService);
 
         BattleUnit unit1 = playerUnit("P_1", 1L, 100, 50);
         BattleContext ctx = finishedBattle("BATTLE_7", 1L, "PLAYER", unit1);

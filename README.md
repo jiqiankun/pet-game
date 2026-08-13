@@ -117,11 +117,11 @@ pet-game/
 
 ## 开发进度
 
-当前阶段：**阶段 5（捕捉与宠物仓库管理）— 已完成**
+当前阶段：**阶段 6（地图探索与区域系统）— 已完成**
 
-已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5
+已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6
 
-下一阶段：阶段 6（地图探索与区域系统，以规划文档为准）
+下一阶段：阶段 7（Boss 系统与重复挑战，以规划文档为准）
 
 详细的阶段划分与进度跟踪见 [`AGENTS.md`](AGENTS.md) §6「当前阶段状态」。
 
@@ -209,6 +209,28 @@ pet-game/
 - **初始宠物等级 5 级（用户裁决）**：避免初始状态打不过野生宠物；HP 按 Lv.5 面板公式计算，学习 unlockLevel ≤ 5 的种族技能，属性自然强于 1 级；新游戏赠送道具补充小型恢复药 ×10 + 复苏药 ×2（HP 跨战斗保留的前期续航保障）
 - 单元测试 181 个全量通过：新增 CaptureCalculator 6 场景、WildEncounterService 6 场景、ReleaseGiftCalculator 6 场景、PetStorageService 7 场景；配置全量加载测试扩展至阶段 5（27 种族/稀有度分布/捕捉球/遭遇组/礼物池）；验收修复 3 处：野生临时实体自由点数字段初始化（防 NPE）、道具校验 null category/itemType 容错、player_pet_skill.learned_at 自动填充（MetaObjectHandler）
 - E2E 验收脚本 `scripts/e2e-capture-test.ps1` 全部验收项通过：新游戏赠送道具 → 捕捉率查询 → 压血投球捕捉 → 结算入队/留仓库 → 捕捉球消耗 → 仓库筛选排序/昵称/锁定/收藏/放生保护/礼物底线
+
+### 阶段 6 完成内容
+
+- **Phaser 集成**：Phaser 3.90.0 + 3 核心 Scene（BootScene/MapScene/BattleScene）+ GameBridge 类型化事件桥接（Phaser ↔ Vue 单向通信）；占位 PNG 资源生成脚本（tileset + 13 个 sprite）
+- **Tiled JSON 地图管线**：25×19 格 × 32px；图层约定（ground/obstacle/objects）；对象层类型（wild_spawn/camp/chest/gather/exit/boss_entrance/npc/hidden_spot）
+- **地图配置体系**：`game-config/maps/maps.yml`（6 区域：3 实装 + 3 结构预留 planned:true）；`encounters.yml` 扩展 ENCOUNTER_MEADOW/FOREST；`MapsConfig` 模型（region/exit/camp/gather/chest/reward）
+- **后端 map 模块**：`MapExplorationService`（核心服务，区域解锁/移动/营地/采集/宝箱/遭遇/战败）+ `MapController`（REST 接口）；5 实体 + 5 mapper（player_region_unlock/player_camp_activation/player_chest_loot/player_map_session/player_gather_used）
+- **Flyway V4 迁移**：5 张玩家状态表（区域解锁、营地激活、宝箱消耗、地图会话、采集消耗）；复合主键无 @TableId
+- **区域解锁与移动**：AUTO/BOSS/QUEST 三种解锁类型（本阶段仅 AUTO）；懒写入解锁记录；出口解析由后端权威完成（传 exitId，后端解析对应 entry）
+- **营地系统**：免费恢复全队 HP（含倒下宠物复苏）；激活后可在已激活营地间免费传送；传送触发地图刷新
+- **地图刷新**：离开区域重新进入、营地休息/传送生成新 session（UUID）；采集记录与会话绑定，新会话可重新采集
+- **采集点与宝箱**：普通采集点重进区域可刷新（会话绑定），隐藏宝箱一次性（永久消耗）；奖励入背包
+- **野怪简单行为**：WANDER/TIMID/AGGRESSIVE/RARE_STAY 四种 AI 模式；接触触发遭遇；玩家可绕开
+- **战败流程**：BattleService 结算同事务调用 handleDefeat；退出战斗 → 返回最近营地 → 全队恢复 → 轻度嘲讽提示；零惩罚
+- **5 套队伍预设**：getTeamPresets（懒创建）/activatePreset；战斗中禁止切换/编辑（@Lazy 注入 BattleService 避免循环依赖）
+- **大地图雏形**：`/world-map` 页面显示已解锁区域卡片、推荐等级、营地传送
+- **前端探索页**：`ExploreView.vue`（Phaser 容器 + 模态对话框 + toast）；方向键/WASD 移动 + E 键交互；GameBridge 事件驱动
+- **前端队伍页重写**：`TeamView.vue`（5 预设标签页 + HTML5 拖拽 + 技能查看 + 详情链接）
+- **战斗页扩展**：BattleView 添加 defeat 面板；battle store 新增 startMapEncounter + adoptSnapshot
+- **后端集成**：BattleService 注入 MapExplorationService（NO_FIGHTABLE_PETS 检查 + defeat 钩子 + hasActiveBattle）；TeamService 扩展 5 预设 + @Lazy 注入
+- 单元测试 236 个全量通过：新增 MapExplorationServiceTest 16 场景、GameConfigMapValidateTest、TeamServiceTest 扩展（5 预设 + 战斗守卫）、BattleServiceSettlementTest 扩展（defeat/NO_FIGHTABLE_PETS）
+- E2E 验收脚本 `scripts/e2e-map-test.ps1` 全部通过：3 区域解锁 → 出口移动 → 采集/宝箱一次性 → 跨区刷新组拒绝 → 地图遭遇战斗+结算 → 营地休息/传送 → 5 套预设切换
 
 ---
 

@@ -59,6 +59,17 @@ public class GameConfigValidator {
                          SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
                          ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
                          ReleaseGiftsConfig releaseGifts) {
+        validate(system, elements, initialPets, skills, statuses, testBattle, items,
+                pets, encounters, releaseGifts, null);
+    }
+
+    /**
+     * 校验全部配置（阶段 6：含地图与区域），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
+                         ReleaseGiftsConfig releaseGifts, MapsConfig maps) {
         List<String> errors = new ArrayList<>();
 
         validateSystemRules(system, errors);
@@ -80,6 +91,9 @@ public class GameConfigValidator {
         }
         if (releaseGifts != null) {
             validateReleaseGifts(releaseGifts, items, errors);
+        }
+        if (maps != null) {
+            validateMaps(maps, encounters, items, initialPets, errors);
         }
         if (testBattle != null) {
             validateTestBattle(testBattle, skills, elements, errors);
@@ -905,6 +919,162 @@ public class GameConfigValidator {
                     && item.getValue() <= 0) {
                 errors.add("item " + item.getId() + " 恢复类道具 value 必须 > 0");
             }
+        }
+    }
+
+    /** 合法的解锁方式（阶段 6：AUTO/BOSS/QUEST，后两者随阶段 7/9 启用）。 */
+    private static final Set<String> VALID_UNLOCK_TYPES = Set.of("AUTO", "BOSS", "QUEST");
+
+    /**
+     * 校验地图与区域配置（阶段 6）：
+     * ID 唯一、出口目标存在且非预留、刷新组引用存在、奖励道具引用存在且数量合法、
+     * 初始地图必须存在且已实装。
+     */
+    private void validateMaps(MapsConfig maps, EncountersConfig encounters, ItemsConfig items,
+                              InitialPetsConfig initialPets, List<String> errors) {
+        if (maps.getRegions() == null || maps.getRegions().isEmpty()) {
+            errors.add("maps regions 列表不能为空");
+            return;
+        }
+
+        Set<String> regionIds = new HashSet<>();
+        Set<String> campIds = new HashSet<>();
+        Set<String> gatherIds = new HashSet<>();
+        Set<String> chestIds = new HashSet<>();
+        Set<String> encounterGroupIds = new HashSet<>();
+        Set<String> itemIds = new HashSet<>();
+        if (encounters != null && encounters.getEncounterGroups() != null) {
+            for (EncountersConfig.EncounterGroup g : encounters.getEncounterGroups()) {
+                encounterGroupIds.add(g.getId());
+            }
+        }
+        if (items != null && items.getItems() != null) {
+            for (ItemConfig item : items.getItems()) {
+                itemIds.add(item.getId());
+            }
+        }
+
+        Map<String, MapsConfig.RegionConfig> regionIndex = new HashMap<>();
+        for (MapsConfig.RegionConfig region : maps.getRegions()) {
+            if (region.getId() == null || region.getId().isBlank()) {
+                errors.add("region 缺少 id 字段");
+                continue;
+            }
+            if (!regionIds.add(region.getId())) {
+                errors.add("region ID 重复: " + region.getId());
+            }
+            regionIndex.put(region.getId(), region);
+
+            if (region.isPlanned()) {
+                // 结构预留区域：仅校验解锁方式，不要求内容完整（阶段 9 开放）
+                if (region.getUnlockType() != null && !VALID_UNLOCK_TYPES.contains(region.getUnlockType())) {
+                    errors.add("region " + region.getId() + " unlockType 非法: " + region.getUnlockType());
+                }
+                continue;
+            }
+
+            if (region.getUnlockType() == null || !VALID_UNLOCK_TYPES.contains(region.getUnlockType())) {
+                errors.add("region " + region.getId() + " unlockType 非法: " + region.getUnlockType());
+            }
+            if (region.getMapFile() == null || region.getMapFile().isBlank()) {
+                errors.add("region " + region.getId() + " 缺少 mapFile（Tiled 地图资源名）");
+            }
+
+            // 刷新组引用
+            for (String groupId : region.getEncounterGroups()) {
+                if (!encounterGroupIds.contains(groupId)) {
+                    errors.add("region " + region.getId() + " 引用不存在的刷新组: " + groupId);
+                }
+            }
+
+            // 营地 ID 全局唯一
+            for (MapsConfig.CampConfig camp : region.getCamps()) {
+                if (camp.getCampId() == null || camp.getCampId().isBlank()) {
+                    errors.add("region " + region.getId() + " 存在缺少 campId 的营地");
+                    continue;
+                }
+                if (!campIds.add(camp.getCampId())) {
+                    errors.add("营地 ID 重复: " + camp.getCampId());
+                }
+            }
+
+            // 采集点 ID 全局唯一 + 奖励合法
+            for (MapsConfig.GatherPointConfig gather : region.getGathers()) {
+                if (gather.getGatherId() == null || gather.getGatherId().isBlank()) {
+                    errors.add("region " + region.getId() + " 存在缺少 gatherId 的采集点");
+                    continue;
+                }
+                if (!gatherIds.add(gather.getGatherId())) {
+                    errors.add("采集点 ID 重复: " + gather.getGatherId());
+                }
+                validateMapRewards(region.getId(), gather.getGatherId(), gather.getRewards(),
+                        gather.getGoldMin(), gather.getGoldMax(), itemIds, errors);
+            }
+
+            // 宝箱 ID 全局唯一 + 奖励合法（宝箱至少应有奖励）
+            for (MapsConfig.ChestConfig chest : region.getChests()) {
+                if (chest.getChestId() == null || chest.getChestId().isBlank()) {
+                    errors.add("region " + region.getId() + " 存在缺少 chestId 的宝箱");
+                    continue;
+                }
+                if (!chestIds.add(chest.getChestId())) {
+                    errors.add("宝箱 ID 重复: " + chest.getChestId());
+                }
+                validateMapRewards(region.getId(), chest.getChestId(), chest.getRewards(),
+                        chest.getGoldMin(), chest.getGoldMax(), itemIds, errors);
+                if (chest.getRewards().isEmpty() && chest.getGoldMax() <= 0) {
+                    errors.add("宝箱 " + chest.getChestId() + " 没有任何奖励");
+                }
+            }
+        }
+
+        // 出口目标必须存在且非预留区域
+        for (MapsConfig.RegionConfig region : maps.getRegions()) {
+            if (region.isPlanned()) {
+                continue;
+            }
+            for (MapsConfig.ExitConfig exit : region.getExits()) {
+                if (exit.getExitId() == null || exit.getExitId().isBlank()) {
+                    errors.add("region " + region.getId() + " 存在缺少 exitId 的出口");
+                    continue;
+                }
+                MapsConfig.RegionConfig target = regionIndex.get(exit.getTargetMapId());
+                if (target == null) {
+                    errors.add("出口 " + exit.getExitId() + " 目标区域不存在: " + exit.getTargetMapId());
+                } else if (target.isPlanned()) {
+                    errors.add("出口 " + exit.getExitId() + " 指向结构预留区域（本阶段不可达）: "
+                            + exit.getTargetMapId());
+                }
+            }
+        }
+
+        // 初始地图必须存在且已实装
+        if (initialPets != null && initialPets.getInitialMapId() != null) {
+            MapsConfig.RegionConfig initialRegion = regionIndex.get(initialPets.getInitialMapId());
+            if (initialRegion == null) {
+                errors.add("initialMapId 对应区域不存在: " + initialPets.getInitialMapId());
+            } else if (initialRegion.isPlanned()) {
+                errors.add("initialMapId 不可指向结构预留区域: " + initialPets.getInitialMapId());
+            }
+        }
+    }
+
+    /** 校验地图对象奖励条目：道具引用存在、数量区间合法、金币区间合法。 */
+    private void validateMapRewards(String regionId, String objectId,
+                                    List<MapsConfig.RewardEntry> rewards,
+                                    int goldMin, int goldMax,
+                                    Set<String> itemIds, List<String> errors) {
+        for (MapsConfig.RewardEntry reward : rewards) {
+            if (reward.getItemId() == null || !itemIds.contains(reward.getItemId())) {
+                errors.add(regionId + " 对象 " + objectId + " 引用不存在的道具: " + reward.getItemId());
+            }
+            if (reward.getQtyMin() < 1 || reward.getQtyMax() < reward.getQtyMin()) {
+                errors.add(regionId + " 对象 " + objectId + " 奖励数量区间非法: "
+                        + reward.getItemId() + " [" + reward.getQtyMin() + ", " + reward.getQtyMax() + "]");
+            }
+        }
+        if (goldMin < 0 || goldMax < goldMin) {
+            errors.add(regionId + " 对象 " + objectId + " 金币区间非法: [" + goldMin + ", " + goldMax + "]");
         }
     }
 }

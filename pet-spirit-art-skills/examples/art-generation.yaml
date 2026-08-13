@@ -1,0 +1,49 @@
+project: 宠物精灵
+mode: incremental
+style_version: art-v1
+
+targets:
+  pets:
+    enabled: true
+    expected_count: 27
+  tilesets:
+    enabled: true
+  vfx:
+    enabled: true
+
+defaults:
+  portrait_master_size: 1024
+  portrait_export_size: 512
+  tile_size: 32
+  vfx_canvas_size: 256
+
+pet_batching:
+  anchor_batch:
+    id: A0
+    count: 3
+    candidates_per_pet: 2
+  production_batches:
+    ids: [B01, B02, B03, B04, B05, B06, B07, B08]
+    pets_per_batch: 3
+    candidates_per_pet: 1
+  balance_by:
+    - body_type
+    - element
+    - palette
+    - rarity
+    - pet_id
+
+qc:
+  required: true
+  pass_score: 90
+  auto_regenerate_max: 3
+  milestone_batches:
+    - [A0, B01, B02, B03]
+    - [B04, B05, B06]
+    - [B07, B08]
+
+policy:
+  overwrite_accepted: false
+  save_prompts: true
+  save_generation_metadata: true
+  export_only_after_qc: true

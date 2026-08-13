@@ -12,6 +12,7 @@ import com.petgame.team.mapper.PlayerTeamMapper;
 import com.petgame.team.mapper.PlayerTeamMemberMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +23,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 队伍服务（阶段 4）。
+ * 队伍服务（阶段 4 基础，阶段 6 扩展 5 套预设）。
  * <p>
- * 管理玩家队伍编辑：6 宠携带（3 首发 + 3 候补）。
- * 阶段 4 仅支持 1 套队伍（当前激活队伍）；5 套预设切换属阶段 6。
+ * 管理玩家队伍编辑：6 宠携带（3 首发 + 3 候补），5 套预设切换（需求 §6/规划阶段 6）。
  * <p>
  * 关键约束：
  * <ul>
@@ -34,6 +34,7 @@ import java.util.Set;
  *   <li>宠物必须属于当前存档。</li>
  *   <li>整体替换在单事务内完成，避免中间状态。</li>
  *   <li>战斗阵容（BattleService）实时从激活队伍读取，编辑后立即生效。</li>
+ *   <li>预设固定 5 套（懒创建）；战斗中禁止切换预设与编辑队伍。</li>
  * </ul>
  */
 @Service
@@ -41,19 +42,26 @@ public class TeamService {
 
     private static final Logger log = LoggerFactory.getLogger(TeamService.class);
 
+    /** 队伍预设数量（固定规则：5 套预设）。 */
+    public static final int MAX_PRESETS = 5;
+
     private final PlayerMapper playerMapper;
     private final PlayerTeamMapper playerTeamMapper;
     private final PlayerTeamMemberMapper playerTeamMemberMapper;
     private final PlayerPetMapper playerPetMapper;
+    /** 战斗状态检查（阶段 6：战斗中禁止切换预设）；@Lazy 避免与 BattleService 循环依赖。 */
+    private final com.petgame.battle.service.BattleService battleService;
 
     public TeamService(PlayerMapper playerMapper,
                        PlayerTeamMapper playerTeamMapper,
                        PlayerTeamMemberMapper playerTeamMemberMapper,
-                       PlayerPetMapper playerPetMapper) {
+                       PlayerPetMapper playerPetMapper,
+                       @Lazy com.petgame.battle.service.BattleService battleService) {
         this.playerMapper = playerMapper;
         this.playerTeamMapper = playerTeamMapper;
         this.playerTeamMemberMapper = playerTeamMemberMapper;
         this.playerPetMapper = playerPetMapper;
+        this.battleService = battleService;
     }
 
     /**
@@ -62,45 +70,16 @@ public class TeamService {
     public TeamView getActiveTeam() {
         PlayerEntity player = requirePlayer();
         PlayerTeamEntity team = requireActiveTeam(player.getSaveId());
-
-        List<PlayerTeamMemberEntity> members = playerTeamMemberMapper.selectList(
-                new LambdaQueryWrapper<PlayerTeamMemberEntity>()
-                        .eq(PlayerTeamMemberEntity::getTeamId, team.getId())
-                        .orderByAsc(PlayerTeamMemberEntity::getPosition));
-
-        List<TeamView.MemberView> memberViews = new ArrayList<>();
-        for (PlayerTeamMemberEntity m : members) {
-            PlayerPetEntity pet = playerPetMapper.selectById(m.getPetId());
-            if (pet == null) {
-                continue;
-            }
-            TeamView.MemberView view = new TeamView.MemberView();
-            view.setMemberId(m.getId());
-            view.setPetId(pet.getId());
-            view.setPosition(m.getPosition());
-            view.setSpeciesId(pet.getSpeciesId());
-            view.setNickname(pet.getNickname());
-            view.setLevel(pet.getLevel());
-            view.setCurrentHp(pet.getCurrentHp());
-            // 首发 = 位置 1~3（需求 §6 上场规则），与宠物「初始伙伴」纪念标记无关
-            view.setIsStarter(m.getPosition() <= 3);
-            memberViews.add(view);
-        }
-
-        TeamView view = new TeamView();
-        view.setTeamId(team.getId());
-        view.setName(team.getName());
-        view.setSlot(team.getSlot());
-        view.setIsActive(team.getIsActive());
-        view.setMembers(memberViews);
-        return view;
+        return getTeamView(team);
     }
 
     /**
-     * 整体替换当前激活队伍的成员布局（需求 §6：6 宠携带，3 首发 + 3 候补）。
+     * 整体替换队伍成员布局（需求 §6：6 宠携带，3 首发 + 3 候补）。
      * <p>
      * 前端提交完整的成员列表（最多 6 条，position 1~6 唯一），后端校验后全量替换。
      * 同一事务内删除旧成员、插入新成员，避免中间状态。
+     * request.teamId 为空时编辑当前激活队伍（兼容阶段 4 行为）；
+     * 阶段 6 起可指定任意预设编辑。
      *
      * @param request 新成员布局
      */
@@ -110,7 +89,10 @@ public class TeamService {
             throw new BusinessException("INVALID_TEAM", "成员列表不能为空");
         }
         PlayerEntity player = requirePlayer();
-        PlayerTeamEntity team = requireActiveTeam(player.getSaveId());
+        requireNotInBattle();
+        PlayerTeamEntity team = request.getTeamId() != null
+                ? requireOwnedTeam(player.getSaveId(), request.getTeamId())
+                : requireActiveTeam(player.getSaveId());
 
         List<MemberEntry> entries = request.getMembers();
         if (entries.size() > 6) {
@@ -152,7 +134,129 @@ public class TeamService {
         }
 
         log.info("队伍成员更新：teamId={}, 成员 {} 名", team.getId(), entries.size());
-        return getActiveTeam();
+        return getTeamView(team);
+    }
+
+    // ==================== 5 套预设（阶段 6） ====================
+
+    /**
+     * 查询全部 5 套预设（含成员），缺失的预设懒创建（空队伍）。
+     */
+    @Transactional
+    public List<TeamPresetView> getTeamPresets() {
+        PlayerEntity player = requirePlayer();
+        ensurePresets(player.getSaveId());
+
+        List<PlayerTeamEntity> teams = playerTeamMapper.selectList(
+                new LambdaQueryWrapper<PlayerTeamEntity>()
+                        .eq(PlayerTeamEntity::getSaveId, player.getSaveId())
+                        .orderByAsc(PlayerTeamEntity::getSlot));
+        List<TeamPresetView> presets = new ArrayList<>();
+        for (PlayerTeamEntity team : teams) {
+            TeamPresetView preset = new TeamPresetView();
+            preset.setTeamId(team.getId());
+            preset.setSlot(team.getSlot());
+            preset.setName(team.getName());
+            preset.setIsActive(team.getIsActive());
+            preset.setMembers(buildMemberViews(team.getId()));
+            presets.add(preset);
+        }
+        return presets;
+    }
+
+    /**
+     * 切换激活预设（需求：5 套预设切换）。
+     * 战斗中禁止切换（战斗阵容快照基于开战时激活队伍，避免中途变更产生不一致）。
+     */
+    @Transactional
+    public List<TeamPresetView> activatePreset(Long teamId) {
+        PlayerEntity player = requirePlayer();
+        requireNotInBattle();
+        PlayerTeamEntity target = requireOwnedTeam(player.getSaveId(), teamId);
+        if (Boolean.TRUE.equals(target.getIsActive())) {
+            return getTeamPresets();
+        }
+
+        // 取消其他预设激活状态，激活目标预设
+        List<PlayerTeamEntity> teams = playerTeamMapper.selectList(
+                new LambdaQueryWrapper<PlayerTeamEntity>()
+                        .eq(PlayerTeamEntity::getSaveId, player.getSaveId()));
+        for (PlayerTeamEntity team : teams) {
+            boolean shouldBeActive = team.getId().equals(teamId);
+            if (!Boolean.valueOf(shouldBeActive).equals(team.getIsActive())) {
+                team.setIsActive(shouldBeActive);
+                playerTeamMapper.updateById(team);
+            }
+        }
+        log.info("队伍预设切换：teamId={}, slot={}", target.getId(), target.getSlot());
+        return getTeamPresets();
+    }
+
+    /** 确保存档拥有 5 套预设（slot 1~5，缺失则创建空队伍）。 */
+    private void ensurePresets(String saveId) {
+        List<PlayerTeamEntity> teams = playerTeamMapper.selectList(
+                new LambdaQueryWrapper<PlayerTeamEntity>()
+                        .eq(PlayerTeamEntity::getSaveId, saveId));
+        Set<Integer> slots = new HashSet<>();
+        boolean anyActive = false;
+        for (PlayerTeamEntity team : teams) {
+            slots.add(team.getSlot());
+            if (Boolean.TRUE.equals(team.getIsActive())) {
+                anyActive = true;
+            }
+        }
+        for (int slot = 1; slot <= MAX_PRESETS; slot++) {
+            if (slots.contains(slot)) {
+                continue;
+            }
+            PlayerTeamEntity preset = new PlayerTeamEntity();
+            preset.setSaveId(saveId);
+            preset.setName("队伍 " + slot);
+            preset.setSlot(slot);
+            // 存档首套预设默认激活（存量存档兼容：阶段 4 只有 1 套队伍）
+            preset.setIsActive(!anyActive && slot == 1);
+            playerTeamMapper.insert(preset);
+            if (preset.getIsActive()) {
+                anyActive = true;
+            }
+        }
+    }
+
+    /** 构建队伍成员视图列表（预设列表与激活队伍查询共用）。 */
+    private List<TeamView.MemberView> buildMemberViews(Long teamId) {
+        List<PlayerTeamMemberEntity> members = playerTeamMemberMapper.selectList(
+                new LambdaQueryWrapper<PlayerTeamMemberEntity>()
+                        .eq(PlayerTeamMemberEntity::getTeamId, teamId)
+                        .orderByAsc(PlayerTeamMemberEntity::getPosition));
+        List<TeamView.MemberView> memberViews = new ArrayList<>();
+        for (PlayerTeamMemberEntity m : members) {
+            PlayerPetEntity pet = playerPetMapper.selectById(m.getPetId());
+            if (pet == null) {
+                continue;
+            }
+            TeamView.MemberView view = new TeamView.MemberView();
+            view.setMemberId(m.getId());
+            view.setPetId(pet.getId());
+            view.setPosition(m.getPosition());
+            view.setSpeciesId(pet.getSpeciesId());
+            view.setNickname(pet.getNickname());
+            view.setLevel(pet.getLevel());
+            view.setCurrentHp(pet.getCurrentHp());
+            view.setIsStarter(m.getPosition() <= 3);
+            memberViews.add(view);
+        }
+        return memberViews;
+    }
+
+    /** 按队伍实体构建视图。 */
+    private TeamView getTeamView(PlayerTeamEntity team) {
+        TeamView view = new TeamView();
+        view.setTeamId(team.getId());
+        view.setName(team.getName());
+        view.setSlot(team.getSlot());
+        view.setIsActive(team.getIsActive());
+        view.setMembers(buildMemberViews(team.getId()));
+        return view;
     }
 
     // ==================== 内部工具 ====================
@@ -239,6 +343,22 @@ public class TeamService {
         return player;
     }
 
+    /** 校验队伍属于当前存档。 */
+    private PlayerTeamEntity requireOwnedTeam(String saveId, Long teamId) {
+        PlayerTeamEntity team = playerTeamMapper.selectById(teamId);
+        if (team == null || !saveId.equals(team.getSaveId())) {
+            throw new BusinessException("TEAM_NOT_FOUND", "队伍不存在或不属于当前存档: " + teamId);
+        }
+        return team;
+    }
+
+    /** 战斗中禁止切换预设/编辑队伍（阶段 6）。 */
+    private void requireNotInBattle() {
+        if (battleService != null && battleService.hasActiveBattle()) {
+            throw new BusinessException("BATTLE_IN_PROGRESS", "战斗中无法编辑队伍或切换预设，请先结束战斗");
+        }
+    }
+
     private PlayerTeamEntity requireActiveTeam(String saveId) {
         PlayerTeamEntity team = playerTeamMapper.selectOne(
                 new LambdaQueryWrapper<PlayerTeamEntity>()
@@ -280,6 +400,18 @@ public class TeamService {
     @lombok.Data
     public static class UpdateMembersRequest {
         private List<MemberEntry> members;
+        /** 目标预设 ID（阶段 6；null = 当前激活队伍）。 */
+        private Long teamId;
+    }
+
+    /** 队伍预设视图（阶段 6）。 */
+    @lombok.Data
+    public static class TeamPresetView {
+        private Long teamId;
+        private Integer slot;
+        private String name;
+        private Boolean isActive;
+        private List<TeamView.MemberView> members = new ArrayList<>();
     }
 
     /** 单个成员条目（前端提交）。 */
