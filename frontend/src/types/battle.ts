@@ -61,14 +61,16 @@ export interface BattleEvent {
 /** 战斗快照。 */
 export interface BattleSnapshot {
   battleId: string
-  /** 战斗类型：TEST / WILD。 */
-  battleType: 'TEST' | 'WILD' | string
+  /** 战斗类型：TEST / WILD / BOSS。 */
+  battleType: 'TEST' | 'WILD' | 'BOSS' | string
   seed: number
   currentRound: number
   finished: boolean
   winner: 'PLAYER' | 'ENEMY' | null
   /** 玩家是否逃跑成功（野生战斗，同战败结算）。 */
   fled: boolean
+  /** Boss 战斗禁止捕捉（阶段 7）。 */
+  uncapturable?: boolean
   playerUnits: UnitSnapshot[]
   enemyUnits: UnitSnapshot[]
   events: BattleEvent[]

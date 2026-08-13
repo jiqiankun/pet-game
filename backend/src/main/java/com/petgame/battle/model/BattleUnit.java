@@ -1,5 +1,6 @@
 package com.petgame.battle.model;
 
+import com.petgame.config.model.BossesConfig;
 import com.petgame.config.model.PassiveSkillConfig;
 import lombok.Data;
 
@@ -118,6 +119,23 @@ public class BattleUnit {
 
     /** 携带的状态实例。 */
     private List<StatusInstance> statuses = new ArrayList<>();
+
+    // ---- Boss 战斗扩展（阶段 7）----
+
+    /** 控制抗性系数（1.0=无抗性，0.6=Boss，0.8=精英）。 */
+    private double controlResistance = 1.0;
+
+    /** 连续被控制计数（施加控制命中后递增）。 */
+    private int consecutiveControlCount = 0;
+
+    /** 连续未受控回合数（达到阈值时归零 consecutiveControlCount）。 */
+    private int roundsWithoutControl = 0;
+
+    /** 阶段触发器列表（Boss 专用，配置化）。 */
+    private List<BossesConfig.PhaseTrigger> phaseTriggers = new ArrayList<>();
+
+    /** 阶段触发状态（对应 phaseTriggers 每个元素是否已激活）。 */
+    private List<Boolean> phaseActivated = new ArrayList<>();
 
     // ---- 查询辅助 ----
 

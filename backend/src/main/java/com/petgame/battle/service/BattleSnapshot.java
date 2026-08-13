@@ -17,8 +17,11 @@ public class BattleSnapshot {
 
     private String battleId;
 
-    /** 战斗类型：TEST / WILD。 */
+    /** 战斗类型：TEST / WILD / BOSS。 */
     private String battleType;
+
+    /** Boss 战斗禁止捕捉（阶段 7）。 */
+    private boolean uncapturable;
 
     /** 随机种子（开发者模式可用于复现）。 */
     private long seed;

@@ -31,6 +31,9 @@ const settlement = computed(() => battleStore.settlement)
 const playerActive = computed(() => snapshot.value?.playerUnits.filter(isActiveAlive) ?? [])
 const playerBench = computed(() => snapshot.value?.playerUnits.filter((u) => u.alive && !u.active) ?? [])
 const isWild = computed(() => snapshot.value?.battleType === 'WILD')
+const isBoss = computed(() => snapshot.value?.battleType === 'BOSS')
+/** Boss 战斗禁止捕捉/逃跑。 */
+const uncapturable = computed(() => isBoss.value || snapshot.value?.uncapturable === true)
 
 /** 是否需要捕捉去向选择：野生战斗、有被捕捉宠物且队伍未满 6 只。 */
 const needDestChoice = computed(() => {
@@ -258,6 +261,7 @@ async function handleLeave() {
       <div class="battle-header">
         <span class="round-badge">回合 {{ snapshot.currentRound }}</span>
         <span v-if="isWild" class="wild-badge">野生遭遇</span>
+        <span v-if="isBoss" class="boss-badge">Boss 战</span>
         <span v-if="snapshot.finished" class="result-badge" :class="snapshot.fled ? 'flee' : snapshot.winner === 'PLAYER' ? 'win' : 'lose'">
           {{ snapshot.fled ? '已逃跑' : snapshot.winner === 'PLAYER' ? '胜利' : '失败' }}
         </span>
@@ -460,8 +464,8 @@ async function handleLeave() {
                 <button class="skill-btn defend" :disabled="battleStore.loading" @click="handleDefend(unit)">
                   防御
                 </button>
-                <!-- 野生战斗：捕捉与逃跑（阶段 5） -->
-                <template v-if="isWild">
+                <!-- 野生战斗：捕捉与逃跑（阶段 5；Boss 战禁用） -->
+                <template v-if="isWild && !uncapturable">
                   <button
                     class="skill-btn capture"
                     :disabled="battleStore.loading || captureMode !== null"
@@ -473,6 +477,7 @@ async function handleLeave() {
                     逃跑
                   </button>
                 </template>
+                <span v-if="isBoss" class="boss-action-hint">Boss 战不可捕捉/逃跑</span>
               </div>
               <!-- 换宠：存在存活候补时可用 -->
               <div v-if="playerBench.length > 0" class="switch-row">
@@ -616,6 +621,21 @@ async function handleLeave() {
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
+}
+
+.boss-badge {
+  background-color: #fde0dc;
+  color: #b71c1c;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.boss-action-hint {
+  font-size: 11px;
+  color: #b71c1c;
+  margin-left: 4px;
 }
 
 .start-buttons {

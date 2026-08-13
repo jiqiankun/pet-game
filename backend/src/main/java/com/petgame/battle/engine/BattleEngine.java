@@ -15,6 +15,7 @@ import com.petgame.battle.model.StatusInstance;
 import com.petgame.battle.passive.PassiveManager;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
+import com.petgame.config.model.BossesConfig;
 import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SkillConfig;
@@ -225,6 +226,9 @@ public class BattleEngine {
                     throw new BusinessException("INVALID_SWITCH", "换宠目标不是存活候补单位: " + action.getSwitchPetId());
                 }
             } else if ("CAPTURE".equalsIgnoreCase(action.getType())) {
+                if (ctx.isUncapturable()) {
+                    throw new BusinessException("INVALID_ACTION", "当前战斗不允许捕捉（Boss 不可捕捉）");
+                }
                 validateCaptureAction(ctx, action);
             } else if ("FLEE".equalsIgnoreCase(action.getType())) {
                 requireWildBattle(ctx);
@@ -523,7 +527,7 @@ public class BattleEngine {
                 } else if (!target.isAlive()) {
                     continue;
                 }
-                if (!ctx.getRandom().chance(effect.getChance())) {
+                if (!ctx.getRandom().chance(computeFinalStatusChance(ctx, caster, target, effect))) {
                     continue;
                 }
                 applySkillEffect(ctx, caster, target, skill, effect, effectBase, singleTarget, outcomes);
@@ -1072,6 +1076,11 @@ public class BattleEngine {
             target.getStatuses().add(new StatusInstance(statusId, config.getDefaultDuration(),
                     source.getUnitId()));
         }
+        // 阶段 7：SPECIAL_CONTROL 命中后递增连续控制计数
+        if ("SPECIAL_CONTROL".equals(config.getCategory())) {
+            target.setConsecutiveControlCount(target.getConsecutiveControlCount() + 1);
+            target.setRoundsWithoutControl(0);
+        }
         // 援护状态：建立援护关系
         if (config.getGuardTransferPercent() > 0) {
             source.setGuardTargetId(target.getUnitId());
@@ -1185,6 +1194,9 @@ public class BattleEngine {
     private void endRound(BattleContext ctx) {
         int round = ctx.getCurrentRound();
 
+        // 阶段 7：Boss 阶段触发检查（在 DOT 结算前）
+        checkPhaseTriggers(ctx);
+
         for (BattleSide side : List.of(ctx.getPlayerSide(), ctx.getEnemySide())) {
             for (BattleUnit unit : side.getUnits()) {
                 if (!unit.isAlive()) {
@@ -1242,6 +1254,22 @@ public class BattleEngine {
                 unit.getCooldowns().replaceAll((k, v) -> Math.max(0, v - 1));
                 // 行动顺序干预仅当前回合有效（REV-007）
                 unit.setActionOrderBoost(0);
+                // 阶段 7：连续控制衰减重置检查
+                if (unit.getConsecutiveControlCount() > 0) {
+                    boolean hasControl = unit.getStatuses().stream().anyMatch(s -> {
+                        StatusEffectConfig cfg = registry.getStatus(s.getStatusId());
+                        return cfg != null && "SPECIAL_CONTROL".equals(cfg.getCategory());
+                    });
+                    if (!hasControl) {
+                        unit.setRoundsWithoutControl(unit.getRoundsWithoutControl() + 1);
+                        if (unit.getRoundsWithoutControl() >= registry.getSystemRules().getControlDecayResetRounds()) {
+                            unit.setConsecutiveControlCount(0);
+                            unit.setRoundsWithoutControl(0);
+                        }
+                    } else {
+                        unit.setRoundsWithoutControl(0);
+                    }
+                }
             }
         }
 
@@ -1283,5 +1311,132 @@ public class BattleEngine {
 
         checkBattleEnd(ctx);
         ctx.emit(BattleEvent.of(BattleEventType.TURN_ENDED, round));
+    }
+
+    // ---- 阶段 7：控制抗性、连续衰减、阶段触发、runFullBattle ----
+
+    /**
+     * 计算状态施加的最终成功概率（阶段 7：控制抗性 + 连续控制衰减）。
+     * <p>
+     * 对 SPECIAL_CONTROL 类状态：baseChance × controlResistance × consecutiveControlDecay。
+     * 非控制类状态不受影响，直接返回原始 chance。
+     */
+    private double computeFinalStatusChance(BattleContext ctx, BattleUnit caster, BattleUnit target,
+                                             SkillConfig.SkillEffectConfig effect) {
+        double baseChance = effect.getChance();
+        if (effect.getStatusId() == null) {
+            return baseChance;
+        }
+        StatusEffectConfig statusConfig = registry.getStatus(effect.getStatusId());
+        if (statusConfig == null || !"SPECIAL_CONTROL".equals(statusConfig.getCategory())) {
+            return baseChance;
+        }
+        // 控制抗性
+        double resistance = target.getControlResistance();
+        double chance = baseChance * resistance;
+
+        // 连续控制衰减
+        SystemRuleConfig system = registry.getSystemRules();
+        List<Double> decay = system.getConsecutiveControlDecay();
+        int controlCount = target.getConsecutiveControlCount();
+        double decayFactor;
+        if (decay != null && !decay.isEmpty()) {
+            if (controlCount < decay.size()) {
+                decayFactor = decay.get(controlCount);
+            } else {
+                decayFactor = system.getConsecutiveControlMin();
+            }
+        } else {
+            decayFactor = 1.0;
+        }
+        chance *= decayFactor;
+
+        if (chance < baseChance) {
+            ctx.emit(BattleEvent.of(BattleEventType.CONTROL_RESISTED, ctx.getCurrentRound())
+                    .target(target.getUnitId()).status(effect.getStatusId())
+                    .put("originalChance", baseChance).put("finalChance", chance)
+                    .put("resistance", resistance).put("decayFactor", decayFactor));
+        }
+        return Math.max(0, Math.min(1.0, chance));
+    }
+
+    /**
+     * Boss 阶段触发检查（阶段 7：在回合结束 DOT 结算前执行）。
+     * <p>
+     * 检查敌方 Boss 单位的 phaseTriggers：
+     * 条件：currentHp / maxHp <= trigger.hpPercent 且 !trigger.activated。
+     */
+    private void checkPhaseTriggers(BattleContext ctx) {
+        for (BattleSide side : List.of(ctx.getPlayerSide(), ctx.getEnemySide())) {
+            for (BattleUnit unit : side.getUnits()) {
+                if (!unit.isAlive() || unit.getPhaseTriggers() == null || unit.getPhaseTriggers().isEmpty()) {
+                    continue;
+                }
+                double hpPercent = (double) unit.getCurrentHp() / unit.getMaxHp();
+                for (int i = 0; i < unit.getPhaseTriggers().size(); i++) {
+                    BossesConfig.PhaseTrigger trigger = unit.getPhaseTriggers().get(i);
+                    if (i < unit.getPhaseActivated().size() && Boolean.TRUE.equals(unit.getPhaseActivated().get(i))) {
+                        continue; // 已激活
+                    }
+                    if (hpPercent <= trigger.getHpPercent()) {
+                        // 激活阶段
+                        if (i >= unit.getPhaseActivated().size()) {
+                            while (unit.getPhaseActivated().size() <= i) {
+                                unit.getPhaseActivated().add(false);
+                            }
+                        }
+                        unit.getPhaseActivated().set(i, true);
+                        // 执行效果
+                        for (BossesConfig.PhaseEffect effect : trigger.getEffects()) {
+                            executePhaseEffect(ctx, unit, effect);
+                        }
+                        ctx.emit(BattleEvent.of(BattleEventType.PHASE_TRANSITION, ctx.getCurrentRound())
+                                .target(unit.getUnitId())
+                                .put("hpPercent", hpPercent)
+                                .put("phaseIndex", i));
+                    }
+                }
+            }
+        }
+    }
+
+    /** 执行阶段效果。 */
+    private void executePhaseEffect(BattleContext ctx, BattleUnit unit, BossesConfig.PhaseEffect effect) {
+        switch (effect.getType()) {
+            case "ADD_SKILL" -> {
+                if (effect.getSkillId() != null && !unit.getSkillIds().contains(effect.getSkillId())) {
+                    unit.getSkillIds().add(effect.getSkillId());
+                    unit.getCooldowns().put(effect.getSkillId(), 0);
+                }
+            }
+            case "ADD_SHIELD" -> {
+                unit.setShield(unit.getShield() + effect.getShieldValue());
+                ctx.emit(BattleEvent.of(BattleEventType.SHIELD_CREATED, ctx.getCurrentRound())
+                        .source(unit.getUnitId()).target(unit.getUnitId())
+                        .value(effect.getShieldValue()).put("phase", true));
+            }
+            case "BUFF_SELF" -> {
+                if (effect.getStatusId() != null) {
+                    applyStatus(ctx, unit, unit, effect.getStatusId());
+                }
+            }
+            default -> log.warn("未知的阶段效果类型: {}", effect.getType());
+        }
+    }
+
+    /**
+     * AI vs AI 跑完整个战斗（自动挑战使用，阶段 7）。
+     * <p>
+     * 双方都使用 AI DecisionProvider，同步执行完整战斗直到结束。
+     *
+     * @param ctx 已初始化的战斗上下文
+     * @param playerAI 玩家方 AI（自动挑战时使用）
+     */
+    public void runFullBattle(BattleContext ctx, DecisionProvider playerAI) {
+        startBattle(ctx);
+        while (!ctx.isFinished()) {
+            List<BattleAction> playerActions = playerAI.decide(ctx, ctx.getPlayerSide());
+            playTurn(ctx, playerActions);
+        }
     }
 }

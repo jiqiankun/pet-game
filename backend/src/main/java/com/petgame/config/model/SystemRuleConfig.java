@@ -168,8 +168,75 @@ public class SystemRuleConfig {
     /** Boss 幸运值兑换消耗（默认 100）。 */
     private int luckyExchangeCost = 100;
 
+    /** Boss AI 决策参数（BossDecisionProvider 评分权重，均不影响实际战斗结算）。 */
+    private BossAiConfig bossAi = new BossAiConfig();
+
+    // ---- Boss 控制抗性（阶段 7，需求 §43 + 决策六）----
+
+    /** 控制抗性：key = NORMAL/ELITE/BOSS，value = 异常成功率修正系数。 */
+    private java.util.Map<String, Double> controlResistance = new java.util.HashMap<>();
+
+    /** 连续控制衰减系数：第 1/2/3 次施加控制的成功率修正。 */
+    private java.util.List<Double> consecutiveControlDecay = new java.util.ArrayList<>();
+
+    /** 第 4 次及以后保持的下限。 */
+    private double consecutiveControlMin = 0.4;
+
+    /** 连续 N 回合未受控归零控制计数。 */
+    private int controlDecayResetRounds = 2;
+
     // ---- HP 百分比交换（REV-005，需求 §147 命运天平）----
 
     /** Boss 受 HP 百分比交换的幅度上限（单次最多改变的百分点，默认 0.20 = 20 个百分点）。 */
     private double bossHpExchangeLimit = 0.20;
+
+    /**
+     * Boss AI 决策参数（阶段 7 Boss AI 改造）。
+     * <p>
+     * 仅供 BossDecisionProvider 评分使用，不参与实际战斗结算；
+     * 不读取玩家等级/战力，难度仅来源于 Boss 配置与战场状态（需求 §80）。
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class BossAiConfig {
+
+        /** 治疗触发阈值：友方 HP% 低于该值时治疗优先级明显提高（默认 0.40）。 */
+        private double healTriggerHpPercent = 0.40;
+
+        /** 治疗免费阈值：友方 HP% 高于该值时治疗候选大幅降权（默认 0.90）。 */
+        private double healNoNeedHpPercent = 0.90;
+
+        /** 低血治疗紧迫度倍率（HP% < healTriggerHpPercent 时治疗分 ×该值，默认 1.8）。 */
+        private double healUrgencyMultiplier = 1.8;
+
+        /** 斩杀奖励比例：预计伤害可击杀目标时，额外加 估算伤害 × 该值（默认 0.6）。 */
+        private double killBonusPercent = 0.6;
+
+        /** 低血目标加权：攻击分 × (1 + 该值 × (1 - 目标HP%))（默认 0.5）。 */
+        private double lowHpTargetWeight = 0.5;
+
+        /** 控制技能基础分（默认 60）。 */
+        private double controlBaseScore = 60.0;
+
+        /** 减益/增益技能基础分（默认 40）。 */
+        private double utilityBaseScore = 40.0;
+
+        /** 目标已受控/已携带同名状态时的评分惩罚倍率（默认 0.10，避免机械重复控制）。 */
+        private double existingControlPenalty = 0.10;
+
+        /** 攻击技能附加状态效果的估值比例（chance × 该值 × 估算伤害，默认 0.10）。 */
+        private double statusEffectBonus = 0.10;
+
+        /** 接近分容差：评分 ≥ 最高分 × (1 - 该值) 的候选间随机选择（默认 0.05）。 */
+        private double tieTolerance = 0.05;
+
+        /** 阶段攻击倍率（索引 = 已激活阶段触发器数量，越界取末项）。 */
+        private java.util.List<Double> phaseAttackMultipliers = java.util.List.of(1.0, 1.3, 1.6);
+
+        /** 阶段控制/辅助倍率（三阶段关键控制回升）。 */
+        private java.util.List<Double> phaseControlMultipliers = java.util.List.of(1.0, 0.8, 1.2);
+
+        /** 阶段治疗倍率（后期降权，允许爆发优先于小额治疗）。 */
+        private java.util.List<Double> phaseHealMultipliers = java.util.List.of(1.0, 0.8, 0.6);
+    }
 }

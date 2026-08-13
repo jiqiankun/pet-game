@@ -698,3 +698,12 @@ passives:
     trigger: TURN_END
     effectType: HEAL_SELF
     value: 8
+
+  # ---------- 阶段 7：Boss 被动 ----------
+
+  - id: PASSIVE_THICK_HIDE
+    name: 厚皮
+    description: 受到的物理伤害减少 15%。
+    trigger: BEFORE_TAKE_DAMAGE
+    effectType: REDUCE_PHYSICAL_DAMAGE
+    value: 0.15

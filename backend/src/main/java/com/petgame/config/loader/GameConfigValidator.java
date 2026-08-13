@@ -70,6 +70,17 @@ public class GameConfigValidator {
                          SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
                          ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
                          ReleaseGiftsConfig releaseGifts, MapsConfig maps) {
+        validate(system, elements, initialPets, skills, statuses, testBattle, items,
+                pets, encounters, releaseGifts, maps, null);
+    }
+
+    /**
+     * 校验全部配置（阶段 7：含 Boss 配置），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
+                         ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses) {
         List<String> errors = new ArrayList<>();
 
         validateSystemRules(system, errors);
@@ -94,6 +105,9 @@ public class GameConfigValidator {
         }
         if (maps != null) {
             validateMaps(maps, encounters, items, initialPets, errors);
+        }
+        if (bosses != null) {
+            validateBosses(bosses, elements, skills, items, maps, errors);
         }
         if (testBattle != null) {
             validateTestBattle(testBattle, skills, elements, errors);
@@ -419,10 +433,10 @@ public class GameConfigValidator {
     /** 被动触发时机（REV-009，技术方案 §78 + ON_KILL 击败敌方时机）。 */
     private static final Set<String> VALID_PASSIVE_TRIGGERS = Set.of(
             "BATTLE_START", "TURN_START", "BEFORE_ACTION", "BEFORE_DAMAGE", "AFTER_DAMAGE",
-            "AFTER_TAKE_DAMAGE", "AFTER_HEAL", "AFTER_SKILL", "ON_CRITICAL", "ON_STATUS_APPLIED",
+            "AFTER_TAKE_DAMAGE", "BEFORE_TAKE_DAMAGE", "AFTER_HEAL", "AFTER_SKILL", "ON_CRITICAL", "ON_STATUS_APPLIED",
             "ON_ENTER", "ON_EXIT", "ON_DEFEAT", "ON_KILL", "ON_ALLY_DEFEAT", "TURN_END", "BATTLE_END");
     private static final Set<String> VALID_PASSIVE_EFFECTS = Set.of("SURVIVE_LETHAL", "APPLY_STATUS_ALLY_ALL",
-            "APPLY_STATUS_SELF", "DAMAGE_ENEMY_RANDOM", "HEAL_SELF");
+            "APPLY_STATUS_SELF", "DAMAGE_ENEMY_RANDOM", "HEAL_SELF", "REDUCE_PHYSICAL_DAMAGE");
     // 阶段 4：道具配置枚举
     private static final Set<String> VALID_ITEM_CATEGORIES =
             Set.of("CAPTURE", "RECOVERY", "MATERIAL", "SKILL_BOOK", "KEY_ITEM");
@@ -1075,6 +1089,111 @@ public class GameConfigValidator {
         }
         if (goldMin < 0 || goldMax < goldMin) {
             errors.add(regionId + " 对象 " + objectId + " 金币区间非法: [" + goldMin + ", " + goldMax + "]");
+        }
+    }
+
+    // ---- 阶段 7：Boss 配置校验 ----
+
+    /**
+     * 校验 Boss 配置：引用完整性（元素/技能/被动/道具/区域存在性）、
+     * HP 阈值合法性、掉落概率合法性。
+     */
+    private void validateBosses(BossesConfig bosses, GameElementsConfig elements,
+                                SkillsConfig skills, ItemsConfig items,
+                                MapsConfig maps, List<String> errors) {
+        if (bosses.getBosses() == null || bosses.getBosses().isEmpty()) {
+            return; // Boss 配置可选
+        }
+
+        Set<String> elementIds = elements.getElements().stream()
+                .map(GameElementConfig::getId).collect(java.util.stream.Collectors.toSet());
+        Set<String> skillIds = skills.getSkills().stream()
+                .map(SkillConfig::getId).collect(java.util.stream.Collectors.toSet());
+        Set<String> passiveIds = skills.getPassives().stream()
+                .map(PassiveSkillConfig::getId).collect(java.util.stream.Collectors.toSet());
+        Set<String> itemIds = items.getItems().stream()
+                .map(ItemConfig::getId).collect(java.util.stream.Collectors.toSet());
+        Set<String> regionIds = maps != null
+                ? maps.getRegions().stream().map(MapsConfig.RegionConfig::getId).collect(java.util.stream.Collectors.toSet())
+                : Set.of();
+
+        Set<String> bossIds = new HashSet<>();
+        for (BossesConfig.BossConfig boss : bosses.getBosses()) {
+            if (boss.getId() == null || boss.getId().isBlank()) {
+                errors.add("Boss ID 不可为空");
+                continue;
+            }
+            if (!bossIds.add(boss.getId())) {
+                errors.add("Boss ID 重复: " + boss.getId());
+            }
+            if (boss.getElement() != null && !elementIds.contains(boss.getElement())) {
+                errors.add("Boss " + boss.getId() + " 引用不存在的属性: " + boss.getElement());
+            }
+            if (boss.getMapId() != null && !regionIds.contains(boss.getMapId())) {
+                errors.add("Boss " + boss.getId() + " 引用不存在的区域: " + boss.getMapId());
+            }
+
+            if (boss.getDifficulties() != null) {
+                for (Map.Entry<String, BossesConfig.DifficultyConfig> entry : boss.getDifficulties().entrySet()) {
+                    String diffKey = entry.getKey();
+                    BossesConfig.DifficultyConfig diff = entry.getValue();
+                    String prefix = "Boss " + boss.getId() + " 难度 " + diffKey;
+
+                    // 技能引用
+                    for (String skillId : diff.getSkills()) {
+                        if (!skillIds.contains(skillId)) {
+                            errors.add(prefix + " 引用不存在的技能: " + skillId);
+                        }
+                    }
+                    // 被动引用
+                    for (String passiveId : diff.getPassives()) {
+                        if (!passiveIds.contains(passiveId)) {
+                            errors.add(prefix + " 引用不存在的被动: " + passiveId);
+                        }
+                    }
+                    // 掉落校验
+                    if (diff.getDrops() != null) {
+                        for (Map.Entry<String, List<BossesConfig.DropEntry>> dropEntry : diff.getDrops().entrySet()) {
+                            for (BossesConfig.DropEntry drop : dropEntry.getValue()) {
+                                if (drop.getItemId() == null || !itemIds.contains(drop.getItemId())) {
+                                    errors.add(prefix + " 掉落引用不存在的道具: " + drop.getItemId());
+                                }
+                                if (drop.getChance() < 0 || drop.getChance() > 1.0) {
+                                    errors.add(prefix + " 掉落概率非法: " + drop.getItemId() + " chance=" + drop.getChance());
+                                }
+                                if (drop.getQty() < 1) {
+                                    errors.add(prefix + " 掉落数量非法: " + drop.getItemId() + " qty=" + drop.getQty());
+                                }
+                            }
+                        }
+                    }
+                    // 阶段触发器校验
+                    if (diff.getPhases() != null) {
+                        for (BossesConfig.PhaseTrigger phase : diff.getPhases()) {
+                            if (phase.getHpPercent() <= 0 || phase.getHpPercent() >= 1.0) {
+                                errors.add(prefix + " HP 阈值非法: " + phase.getHpPercent() + "（应在 0~1 之间）");
+                            }
+                            for (BossesConfig.PhaseEffect effect : phase.getEffects()) {
+                                if ("ADD_SKILL".equals(effect.getType()) && effect.getSkillId() != null
+                                        && !skillIds.contains(effect.getSkillId())) {
+                                    errors.add(prefix + " 阶段技能引用不存在: " + effect.getSkillId());
+                                }
+                                if ("BUFF_SELF".equals(effect.getType()) && effect.getStatusId() != null) {
+                                    // 状态引用校验已在其他地方处理，此处仅记录
+                                }
+                            }
+                        }
+                    }
+                    // stats 合法性
+                    BossesConfig.StatsConfig stats = diff.getStats();
+                    if (stats.getMaxHp() <= 0) {
+                        errors.add(prefix + " maxHp 必须 > 0");
+                    }
+                    if (diff.getLuckGain() < 0) {
+                        errors.add(prefix + " luckGain 不可为负数");
+                    }
+                }
+            }
         }
     }
 }

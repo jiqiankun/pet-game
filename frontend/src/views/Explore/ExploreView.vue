@@ -105,9 +105,9 @@ function registerBridgeHandlers() {
       actionError.value = ''
       syncInputLock()
     }),
-    // 占位对象提示（后续阶段启用）
-    gameBridge.on('boss:touch', () => {
-      showToast('Boss 入口（占位）：Boss 挑战将在阶段 7 开放')
+    // Boss 入口（阶段 7）：导航到 Boss 页面并携带 bossId
+    gameBridge.on('boss:touch', (payload) => {
+      router.push({ path: '/boss', query: { bossId: payload.id } })
     }),
     gameBridge.on('npc:touch', () => {
       showToast('NPC（占位）：对话与任务将在阶段 9 开放')

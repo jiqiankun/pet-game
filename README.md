@@ -117,11 +117,11 @@ pet-game/
 
 ## 开发进度
 
-当前阶段：**阶段 6（地图探索与区域系统）— 已完成**
+当前阶段：**阶段 7（Boss 系统与重复挑战）— 已完成**
 
-已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6
+已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7
 
-下一阶段：阶段 7（Boss 系统与重复挑战，以规划文档为准）
+下一阶段：阶段 8（以规划文档为准）
 
 详细的阶段划分与进度跟踪见 [`AGENTS.md`](AGENTS.md) §6「当前阶段状态」。
 
@@ -231,6 +231,22 @@ pet-game/
 - **后端集成**：BattleService 注入 MapExplorationService（NO_FIGHTABLE_PETS 检查 + defeat 钩子 + hasActiveBattle）；TeamService 扩展 5 预设 + @Lazy 注入
 - 单元测试 236 个全量通过：新增 MapExplorationServiceTest 16 场景、GameConfigMapValidateTest、TeamServiceTest 扩展（5 预设 + 战斗守卫）、BattleServiceSettlementTest 扩展（defeat/NO_FIGHTABLE_PETS）
 - E2E 验收脚本 `scripts/e2e-map-test.ps1` 全部通过：3 区域解锁 → 出口移动 → 采集/宝箱一次性 → 跨区刷新组拒绝 → 地图遭遇战斗+结算 → 营地休息/传送 → 5 套预设切换
+
+### 阶段 7 完成内容
+
+- **Boss 配置体系**：`bosses.yml` + `BossesConfig` 模型（2 Boss × 3 难度：NORMAL/HARD/NIGHTMARE），每难度含 stats/skills/passives/phases/drops/luckGain；掉落分 4 档稀有度（COMMON/RARE/EPIC/LEGENDARY）
+- **控制抗性与连续衰减**：`system.yml` 新增 controlResistance（精英 0.8/Boss 0.6）、consecutiveControlDecay [1.0, 0.7, 0.4]、controlDecayResetRounds=2；BattleEngine 对 SPECIAL_CONTROL 状态应用抗性×衰减判定
+- **阶段机制**：Boss HP 低于阈值触发 ADD_SKILL/ADD_SHIELD/BUFF_SELF；每触发器仅激活一次；PHASE_TRANSITION 事件
+- **Boss AI**：`BossDecisionProvider` 考虑属性克制、低血目标优先、技能冷却、阶段策略
+- **Flyway V5 迁移**：5 张表（player_boss_defeat_count/difficulty_unlock/luck/drop_unlock/manual_clear）
+- **Boss 模块**：5 实体 + 5 mapper + `BossService`（开战/结算/自动挑战/幸运兑换/情报）+ `BossController`（REST）
+- **BattleService 集成**：`startBossBattle` 构建 Boss 敌方（控制抗性 0.6 + 阶段触发器）；BOSS 结算（掉落/经验/金币/击败次数/幸运值/难度解锁/全队恢复）
+- **BattleEngine `runFullBattle`**：AI vs AI 跑完整个战斗（自动挑战使用）；`uncapturable` 标记禁止 Boss 捕捉
+- **幸运值系统**：每 Boss 独立，按难度 +4/+7/+10；每 100 点兑换一次；情报解锁阈值 1/3/6/10 次
+- **自动挑战**：5 种模式（ONCE/FIVE/TEN/UNTIL_FAIL/UNTIL_LUCKY），需已手动击败过
+- **前端**：`types/boss.ts` + `stores/boss.ts` + `BossView.vue`（列表/难度/情报/挑战/自动/兑换）；ExploreView boss 入口导航；BattleView Boss 战禁止捕捉/逃跑
+- 单元测试 262 个全量通过：新增 BattleEngineControlResistanceTest 8 场景、BattleEnginePhaseTest 4 场景、BossDecisionProviderTest 4 场景、BossConfigValidateTest 10 场景
+- E2E 验收脚本 `scripts/e2e-boss-test.ps1`：Boss 列表/详情/开战/战斗/结算/击败次数/自动挑战/幸运兑换
 
 ---
 

@@ -35,11 +35,20 @@ public class BattleContext {
     /** 当前回合号（从 1 开始）。 */
     private int currentRound = 0;
 
-    /** 战斗类型：TEST（测试战斗）/ WILD（野生遭遇，可捕捉可逃跑）。 */
+    /** 战斗类型：TEST（测试战斗）/ WILD（野生遭遇，可捕捉可逃跑）/ BOSS（Boss 战斗）。 */
     private String battleType = "TEST";
 
     /** 野生战斗的遭遇组 ID（结算奖励与稀有度系数计算用）。 */
     private String encounterGroupId;
+
+    /** Boss ID（BOSS 战斗类型时使用，阶段 7）。 */
+    private String bossId;
+
+    /** Boss 难度（NORMAL/HARD/NIGHTMARE，阶段 7）。 */
+    private String bossDifficulty;
+
+    /** true 时禁止 CAPTURE 行动（Boss 不可捕捉，阶段 7）。 */
+    private boolean uncapturable;
 
     /** 玩家方。 */
     private BattleSide playerSide;

@@ -223,3 +223,29 @@ frontend/
 - **TeamView**（`/team`）：5 套预设标签页 + HTML5 drag & drop + 技能查看（来自 petSummaries）+ 详情链接。
 - **预设 API**：`GET /api/team/presets`（查询 5 套预设）、`PUT /api/team/presets/{teamId}/activate`（切换激活预设）。
 - **战斗守卫**：战斗中禁止预设切换/编辑，通过 `battleStore.inBattle` 检测并禁用操作按钮。
+
+---
+
+## 16. Boss 页面约定（阶段 7 起）
+
+### 16.1 Boss Store 与类型
+
+- **类型定义**：`types/boss.ts`（`BossInfo`、`DifficultyInfo`、`DropTierInfo`、`BossBattleResult`、`AutoSummary`）。
+- **Store**：`stores/boss.ts`（`useBossStore`），管理 Boss 列表、当前选中 Boss、战斗状态、自动挑战进度。
+- **API 封装**：`api/boss.ts`，统一调用 `/api/bosses/**` 接口。
+
+### 16.2 BossView 页面约定
+
+- **BossView**（`/boss`）：Boss 列表卡片（名称/属性/推荐等级/击败次数/幸运值）+ 难度选择（普通/困难/噩梦，未解锁灰显 + 锁定图标）+ 掉落情报（分 4 档稀有度，未解锁显示 ???）+ 操作栏（挑战/自动挑战下拉/幸运兑换）+ 战斗结算汇总面板。
+- **路由参数**：支持 `?bossId=xxx` 预选 Boss（从地图入口导航时携带）。
+- **战斗导航**：开始 Boss 战斗成功后跳转 `/battle`。
+
+### 16.3 BattleView Boss 战扩展
+
+- **`uncapturable` 标记**：Boss 战斗时 BattleSnapshot 返回 `uncapturable: true`，前端禁用捕捉/逃跑按钮。
+- **Boss 战 badge**：战斗页面显示 Boss 战标识（名称 + 难度）。
+- **阶段转换提示**：显示 PHASE_TRANSITION 事件消息。
+
+### 16.4 地图 Boss 入口
+
+- **ExploreView** `boss:touch` 事件：从 GameBridge 接收 `boss:touch` 事件（携带 `id: bossId`），导航至 `/boss?bossId=xxx`（而非占位 toast）。

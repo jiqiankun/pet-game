@@ -4,6 +4,7 @@ import com.petgame.battle.engine.BattleContext;
 import com.petgame.battle.model.BattleSide;
 import com.petgame.battle.model.BattleUnit;
 import com.petgame.battle.ai.WildEnemyDecisionProvider;
+import com.petgame.battle.ai.BossDecisionProvider;
 import com.petgame.capture.WildEncounterService;
 import com.petgame.common.BusinessException;
 import com.petgame.common.GameRandom;
@@ -95,6 +96,7 @@ class BattleServiceSettlementTest {
         growthService = new PetGrowthService(registry);
 
         battleService = new BattleService(registry, enemyDecisionProvider,
+                new BossDecisionProvider(registry),
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
                 growthService, wildEncounterService, teamService, mapExplorationService);
@@ -353,6 +355,7 @@ class BattleServiceSettlementTest {
                 buildRewards(100, 50, dropEntry(ITEM_DROP, 0.0, 2)));  // chance=0
         PetGrowthService customGrowth = new PetGrowthService(customRegistry);
         BattleService customService = new BattleService(customRegistry, enemyDecisionProvider,
+                new BossDecisionProvider(customRegistry),
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
                 customGrowth, wildEncounterService, teamService, mapExplorationService);
@@ -549,6 +552,62 @@ class BattleServiceSettlementTest {
         // HP 回写为空（宠物不存在被跳过），但奖励照常发放
         assertTrue(result.getHpWritebacks().isEmpty());
         assertEquals(100, result.getExpGained());
+    }
+
+    // ==================== Boss 战引擎路由（阶段 7 Boss AI 改造）====================
+
+    @Test
+    void submitActions_bossBattle_shouldNotUseWildEnemyProvider() {
+        // BOSS 战斗路由到 bossEngine（敌方决策 = 真实 BossDecisionProvider），
+        // WildEnemyDecisionProvider 不应被调用 → 证明 Boss 战运行时确实进入 Boss AI
+        BattleContext ctx = activeBattle("BOSS_BATTLE_1", "BOSS");
+        injectBattle("BOSS_BATTLE_1", ctx);
+
+        battleService.submitActions("BOSS_BATTLE_1",
+                List.of(com.petgame.battle.model.BattleAction.defend("P_1")));
+
+        verify(enemyDecisionProvider, never()).decide(any(), any());
+    }
+
+    @Test
+    void submitActions_nonBossBattle_shouldUseWildEnemyProvider() {
+        // TEST/WILD 战斗仍用默认引擎（WildEnemyDecisionProvider）
+        when(enemyDecisionProvider.decide(any(), any()))
+                .thenReturn(List.of(com.petgame.battle.model.BattleAction.defend("E_1")));
+        BattleContext ctx = activeBattle("TEST_BATTLE_1", "TEST");
+        injectBattle("TEST_BATTLE_1", ctx);
+
+        battleService.submitActions("TEST_BATTLE_1",
+                List.of(com.petgame.battle.model.BattleAction.defend("P_1")));
+
+        verify(enemyDecisionProvider, times(1)).decide(any(), any());
+    }
+
+    /** 构造未结束、双方各 1 个在场单位的战斗上下文。 */
+    private BattleContext activeBattle(String battleId, String battleType) {
+        BattleContext ctx = new BattleContext(battleId, 42L);
+        ctx.setBattleType(battleType);
+        BattleUnit player = playerUnit("P_1", 1L, 100, 100);
+        player.setActive(true);
+        player.setPosition(0);
+        BattleUnit enemy = new BattleUnit();
+        enemy.setUnitId("E_1");
+        enemy.setName("E_1");
+        enemy.setElement("WATER");
+        enemy.setLevel(5);
+        enemy.setMaxHp(100);
+        enemy.setCurrentHp(100);
+        enemy.setStrength(10);
+        enemy.setDefense(10);
+        enemy.setResistance(10);
+        enemy.setSpeed(10);
+        enemy.setActive(true);
+        enemy.setPosition(0);
+        ctx.setPlayerSide(side(player));
+        BattleSide enemySide = new BattleSide("ENEMY");
+        enemySide.getUnits().add(enemy);
+        ctx.setEnemySide(enemySide);
+        return ctx;
     }
 
     // ==================== 工具方法 ====================

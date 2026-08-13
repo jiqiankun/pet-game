@@ -112,3 +112,34 @@ wildRewardRarityMultiplier:
 luckyExchangeCost: 100
 # HP 百分比交换（命运天平类，需求 §147）：Boss 单次交换幅度上限（百分点）
 bossHpExchangeLimit: 0.20
+
+# ---- Boss 控制抗性（阶段 7，需求 §43 + 决策六）----
+# 异常成功率修正：NORMAL 无抗性、ELITE -20%、BOSS -40%
+controlResistance:
+  NORMAL: 1.0
+  ELITE: 0.80
+  BOSS: 0.60
+# 连续控制衰减：第 1/2/3 次施加控制的成功率修正
+consecutiveControlDecay: [1.0, 0.7, 0.4]
+# 第 4 次及以后保持下限
+consecutiveControlMin: 0.4
+# 连续 N 回合未受控归零
+controlDecayResetRounds: 2
+
+# ---- Boss AI 决策参数（阶段 7 Boss AI 改造）----
+# 仅供 BossDecisionProvider 评分使用，不参与实际战斗结算；
+# 不读取玩家等级/战力，难度仅来源于 Boss 配置与战场状态（需求 §80）。
+bossAi:
+  healTriggerHpPercent: 0.40       # 友方 HP% 低于该值时治疗优先级明显提高
+  healNoNeedHpPercent: 0.90        # 友方 HP% 高于该值时治疗候选大幅降权
+  healUrgencyMultiplier: 1.8       # 低血治疗紧迫度倍率
+  killBonusPercent: 0.6            # 可斩杀目标时的额外奖励比例
+  lowHpTargetWeight: 0.5           # 低血目标加权系数
+  controlBaseScore: 60.0           # 控制技能基础分
+  utilityBaseScore: 40.0           # 减益/增益技能基础分
+  existingControlPenalty: 0.10     # 目标已受控时的评分惩罚倍率
+  statusEffectBonus: 0.10          # 攻击技能附加状态效果估值比例
+  tieTolerance: 0.05               # 接近分容差（接近分候选间随机）
+  phaseAttackMultipliers: [1.0, 1.3, 1.6]   # 阶段攻击倍率（一阶段均衡/二阶段进攻/三阶段爆发）
+  phaseControlMultipliers: [1.0, 0.8, 1.2]  # 阶段控制倍率（三阶段关键控制回升）
+  phaseHealMultipliers: [1.0, 0.8, 0.6]     # 阶段治疗倍率（后期降权）

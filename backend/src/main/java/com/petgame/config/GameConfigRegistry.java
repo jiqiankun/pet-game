@@ -41,6 +41,7 @@ public class GameConfigRegistry {
     private EncountersConfig encountersConfig;
     private ReleaseGiftsConfig releaseGiftsConfig;
     private MapsConfig mapsConfig;
+    private BossesConfig bossesConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -69,6 +70,9 @@ public class GameConfigRegistry {
     /** 营地 ID → 所属区域配置 的快速索引（阶段 6）。 */
     private Map<String, MapsConfig.RegionConfig> campRegionIndex;
 
+    /** Boss ID → Boss 配置 的快速索引（阶段 7）。 */
+    private Map<String, BossesConfig.BossConfig> bossIndex;
+
     public GameConfigRegistry(GameConfigLoader loader, GameConfigValidator validator) {
         this.loader = loader;
         this.validator = validator;
@@ -93,11 +97,13 @@ public class GameConfigRegistry {
         this.encountersConfig = loader.loadEncountersConfig();
         this.releaseGiftsConfig = loader.loadReleaseGiftsConfig();
         this.mapsConfig = loader.loadMapsConfig();
+        this.bossesConfig = loader.loadBossesConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
                 skillsConfig, statusesConfig, testBattleConfig, itemsConfig,
-                petsConfig, encountersConfig, releaseGiftsConfig, mapsConfig);
+                petsConfig, encountersConfig, releaseGiftsConfig, mapsConfig,
+                bossesConfig);
 
         // 构建索引
         buildElementIndex();
@@ -108,8 +114,9 @@ public class GameConfigRegistry {
         buildItemIndex();
         buildSpeciesIndex();
         buildRegionIndex();
+        buildBossIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
                 initialPetsConfig.getInitialPets().size(),
@@ -119,7 +126,8 @@ public class GameConfigRegistry {
                 itemsConfig.getItems().size(),
                 petsConfig.getSpecies().size(),
                 encountersConfig.getEncounterGroups().size(),
-                mapsConfig.getRegions().size());
+                mapsConfig.getRegions().size(),
+                bossesConfig.getBosses().size());
     }
 
     // ---- 查询方法 ----
@@ -177,6 +185,16 @@ public class GameConfigRegistry {
     /** 获取地图与区域配置（只读使用，阶段 6）。 */
     public MapsConfig getMapsConfig() {
         return mapsConfig;
+    }
+
+    /** 获取 Boss 配置（只读使用，阶段 7）。 */
+    public BossesConfig getBossesConfig() {
+        return bossesConfig;
+    }
+
+    /** 根据 Boss ID 获取 Boss 配置，不存在返回 null（阶段 7）。 */
+    public BossesConfig.BossConfig getBoss(String bossId) {
+        return bossId == null ? null : bossIndex.get(bossId);
     }
 
     /** 根据区域 ID 获取区域配置，不存在返回 null（阶段 6）。 */
@@ -333,6 +351,15 @@ public class GameConfigRegistry {
             regionIndex.put(region.getId(), region);
             for (MapsConfig.CampConfig camp : region.getCamps()) {
                 campRegionIndex.put(camp.getCampId(), region);
+            }
+        }
+    }
+
+    private void buildBossIndex() {
+        bossIndex = new LinkedHashMap<>();
+        if (bossesConfig != null && bossesConfig.getBosses() != null) {
+            for (BossesConfig.BossConfig boss : bossesConfig.getBosses()) {
+                bossIndex.put(boss.getId(), boss);
             }
         }
     }

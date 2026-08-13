@@ -123,6 +123,12 @@ public enum BattleEventType {
     /** 标记叠层变化。 */
     MARK_STACK_CHANGED,
 
+    /** Boss 阶段转换（阶段 7）。 */
+    PHASE_TRANSITION,
+
+    /** 控制抗性/衰减生效（阶段 7）。 */
+    CONTROL_RESISTED,
+
     /** 回合结束。 */
     TURN_ENDED,
 

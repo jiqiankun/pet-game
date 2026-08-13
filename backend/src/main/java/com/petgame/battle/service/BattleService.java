@@ -1,6 +1,7 @@
 package com.petgame.battle.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.petgame.battle.ai.BossDecisionProvider;
 import com.petgame.battle.ai.WildEnemyDecisionProvider;
 import com.petgame.battle.calculator.CaptureCalculator;
 import com.petgame.battle.engine.BattleContext;
@@ -14,6 +15,7 @@ import com.petgame.battle.model.StatusInstance;
 import com.petgame.capture.WildEncounterService;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
+import com.petgame.config.model.BossesConfig;
 import com.petgame.config.model.EncountersConfig;
 import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemConfig;
@@ -73,6 +75,8 @@ public class BattleService {
 
     private final GameConfigRegistry registry;
     private final BattleEngine engine;
+    /** Boss 战专用引擎实例（同一 BattleEngine 类，敌方决策为 BossDecisionProvider，阶段 7）。 */
+    private final BattleEngine bossEngine;
     private final PlayerMapper playerMapper;
     private final PlayerPetMapper playerPetMapper;
     private final PlayerPetSkillMapper playerPetSkillMapper;
@@ -92,6 +96,7 @@ public class BattleService {
 
     public BattleService(GameConfigRegistry registry,
                          WildEnemyDecisionProvider enemyDecisionProvider,
+                         BossDecisionProvider bossDecisionProvider,
                          PlayerMapper playerMapper,
                          PlayerPetMapper playerPetMapper,
                          PlayerPetSkillMapper playerPetSkillMapper,
@@ -104,6 +109,7 @@ public class BattleService {
                          com.petgame.map.service.MapExplorationService mapExplorationService) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
+        this.bossEngine = new BattleEngine(registry, bossDecisionProvider);
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
@@ -351,11 +357,19 @@ public class BattleService {
 
     /**
      * 提交玩家行动意图，结算一整个回合。
+     * <p>
+     * BOSS 战斗路由到 bossEngine（敌方决策 = BossDecisionProvider），
+     * TEST/WILD 仍用默认引擎（WildEnemyDecisionProvider）。
      */
     public BattleSnapshot submitActions(String battleId, List<BattleAction> actions) {
         BattleContext ctx = requireBattle(battleId);
-        TurnResult result = engine.playTurn(ctx, actions);
+        TurnResult result = engineFor(ctx).playTurn(ctx, actions);
         return toSnapshot(ctx, result.getEvents());
+    }
+
+    /** 按战斗类型选择引擎实例（同一 BattleEngine 类，仅 DecisionProvider 不同）。 */
+    private BattleEngine engineFor(BattleContext ctx) {
+        return "BOSS".equals(ctx.getBattleType()) ? bossEngine : engine;
     }
 
     /**
@@ -843,6 +857,7 @@ public class BattleService {
         BattleSnapshot snapshot = new BattleSnapshot();
         snapshot.setBattleId(ctx.getBattleId());
         snapshot.setBattleType(ctx.getBattleType());
+        snapshot.setUncapturable(ctx.isUncapturable());
         snapshot.setSeed(ctx.getRandomSeed());
         snapshot.setCurrentRound(ctx.getCurrentRound());
         snapshot.setFinished(ctx.isFinished());
@@ -974,5 +989,147 @@ public class BattleService {
             private int maxHp;
             private boolean alive;
         }
+    }
+
+    // ---- 阶段 7：Boss 战斗支持 ----
+
+    /**
+     * 开始 Boss 战斗（阶段 7）。
+     * <p>
+     * 由 BossService 委托调用，创建 Boss 战斗上下文。
+     */
+    public String startBossBattle(String saveId, BossesConfig.BossConfig boss,
+                                  BossesConfig.DifficultyConfig diffConfig,
+                                  String bossId, String difficulty, Long seed) {
+        String battleId = createBossBattle(saveId, boss, diffConfig, bossId, difficulty, seed);
+        bossEngine.startBattle(battles.get(battleId));
+        return battleId;
+    }
+
+    /**
+     * 创建 Boss 战斗上下文但不执行 startBattle（自动挑战专用，阶段 7）。
+     * <p>
+     * {@code runFullBattle} 内部会调用 startBattle，自动挑战走此方法避免
+     * 登场被动重复触发。
+     */
+    public String createBossBattle(String saveId, BossesConfig.BossConfig boss,
+                                   BossesConfig.DifficultyConfig diffConfig,
+                                   String bossId, String difficulty, Long seed) {
+        List<PlayerPetEntity> teamPets = loadActiveTeamPets(saveId);
+        if (teamPets == null || teamPets.isEmpty()) {
+            throw new BusinessException("NO_TEAM", "未设置战斗队伍");
+        }
+        // 检查队伍有可战斗宠物
+        boolean hasAlive = teamPets.stream().anyMatch(p -> p.getCurrentHp() != null && p.getCurrentHp() > 0);
+        if (!hasAlive) {
+            throw new BusinessException("NO_ALIVE_PET", "队伍中没有存活的宠物");
+        }
+
+        String battleId = UUID.randomUUID().toString();
+        long randomSeed = seed != null ? seed : System.nanoTime();
+        BattleContext ctx = new BattleContext(battleId, randomSeed);
+        ctx.setBattleType("BOSS");
+        ctx.setBossId(bossId);
+        ctx.setBossDifficulty(difficulty);
+        ctx.setUncapturable(true);
+
+        // 构建玩家方
+        ctx.setPlayerSide(buildPlayerSide(teamPets));
+
+        // 构建 Boss 敌方
+        ctx.setEnemySide(buildBossSide(boss, diffConfig, difficulty));
+
+        battles.put(battleId, ctx);
+        return battleId;
+    }
+
+    /** 获取战斗上下文（供自动挑战使用）。 */
+    public BattleContext getBattleContext(String battleId) {
+        return battles.get(battleId);
+    }
+
+    /** 全队 HP 回满（Boss 重复战恢复，需求 §88）。 */
+    @Transactional
+    public void healTeamFully(String saveId) {
+        List<PlayerPetEntity> pets = playerPetMapper.selectList(
+                new LambdaQueryWrapper<PlayerPetEntity>()
+                        .eq(PlayerPetEntity::getSaveId, saveId));
+        for (PlayerPetEntity pet : pets) {
+            PetSpeciesConfig species = registry.getSpecies(pet.getSpeciesId());
+            if (species == null) continue;
+            PetPanelStats stats = growthService.computePanelStats(pet, species);
+            pet.setCurrentHp(stats.getMaxHp());
+            playerPetMapper.updateById(pet);
+        }
+    }
+
+    /** 添加经验和金币（供自动挑战结算使用）。 */
+    @Transactional
+    public void addExpAndGold(String saveId, int exp, int gold) {
+        PlayerEntity player = playerMapper.selectOne(
+                new LambdaQueryWrapper<PlayerEntity>()
+                        .eq(PlayerEntity::getSaveId, saveId));
+        if (player == null) return;
+        player.setExpPool(player.getExpPool() + exp);
+        player.setGold(player.getGold() + gold);
+        playerMapper.updateById(player);
+    }
+
+    /** 添加背包物品（供 BossService 调用）。 */
+    public void addInventoryItemPublic(String saveId, String itemId, int quantity) {
+        addInventoryItem(saveId, itemId, quantity);
+    }
+
+    /** 构建 Boss 敌方阵容。 */
+    private BattleSide buildBossSide(BossesConfig.BossConfig boss,
+                                     BossesConfig.DifficultyConfig diffConfig,
+                                     String difficulty) {
+        BattleSide side = new BattleSide("ENEMY");
+        BattleUnit unit = new BattleUnit();
+        unit.setUnitId("BOSS_" + boss.getId() + "_" + difficulty);
+        unit.setName(boss.getName() + " (" + difficulty + ")");
+        unit.setElement(boss.getElement());
+        unit.setLevel(boss.getRecommendedLevel());
+
+        BossesConfig.StatsConfig stats = diffConfig.getStats();
+        unit.setMaxHp(stats.getMaxHp());
+        unit.setStrength(stats.getStrength());
+        unit.setSpirit(stats.getSpirit());
+        unit.setDefense(stats.getDefense());
+        unit.setResistance(stats.getResistance());
+        unit.setSpeed(stats.getSpeed());
+        unit.setCurrentHp(stats.getMaxHp());
+        unit.setActive(true);
+        unit.setPosition(0);
+
+        // 技能
+        unit.getSkillIds().addAll(diffConfig.getSkills());
+
+        // 被动
+        for (String passiveId : diffConfig.getPassives()) {
+            PassiveSkillConfig passive = registry.getPassive(passiveId);
+            if (passive != null) {
+                unit.getPassives().add(passive);
+            }
+        }
+
+        // Boss 控制抗性
+        Map<String, Double> controlResistance = registry.getSystemRules().getControlResistance();
+        if (controlResistance != null && controlResistance.containsKey("BOSS")) {
+            unit.setControlResistance(controlResistance.get("BOSS"));
+        } else {
+            unit.setControlResistance(0.6);
+        }
+
+        // 阶段触发器
+        if (diffConfig.getPhases() != null) {
+            unit.getPhaseTriggers().addAll(diffConfig.getPhases());
+            for (int i = 0; i < diffConfig.getPhases().size(); i++) {
+                unit.getPhaseActivated().add(false);
+            }
+        }
+
+        side.getUnits().add(unit);
+        return side;
     }
 }

@@ -1,0 +1,157 @@
+# 宠物精灵游戏 - Boss 配置（阶段 7）
+# ============================================================
+# 每个 Boss 含 3 个难度（NORMAL/HARD/NIGHTMARE）。
+# 掉落分 4 档稀有度（COMMON/RARE/EPIC/LEGENDARY），
+# 对应情报解锁阈值（首次/3 次/6 次/10 次）。
+# 已开放区域：MAP_AREA_MEADOW（3~8 级）、MAP_AREA_FOREST（8~15 级）。
+# 本阶段实装 2 个主 Boss，其余随后续区域开放补齐。
+# ============================================================
+
+configVersion: 1
+
+bosses:
+  # ==================== 草原 Boss ====================
+  - id: BOSS_MEADOW_GUARDIAN
+    name: 草原守卫·岩甲犀
+    mapId: MAP_AREA_MEADOW
+    element: EARTH
+    recommendedLevel: 10
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 800, strength: 45, spirit: 20, defense: 50, resistance: 30, speed: 25 }
+        skills: [SKILL_ROCK_THROW, SKILL_EARTHQUAKE, SKILL_HEADBUTT]
+        passives: [PASSIVE_THICK_HIDE]
+        luckGain: 4
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: ADD_SKILL, skillId: SKILL_EARTHQUAKE }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_SMALL, qty: 3, chance: 0.80, exchangeQty: 5 }
+            - { itemId: ITEM_POTION_MEDIUM, qty: 1, chance: 0.50, exchangeQty: 3 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 2, chance: 0.30, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.10, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.02, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 1200, strength: 60, spirit: 30, defense: 65, resistance: 40, speed: 30 }
+        skills: [SKILL_ROCK_THROW, SKILL_EARTHQUAKE, SKILL_HEADBUTT, SKILL_TAUNT]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_REGENERATE]
+        luckGain: 7
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: ADD_SKILL, skillId: SKILL_EARTHQUAKE }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 200 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 2, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 3, chance: 0.40, exchangeQty: 2 }
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.20, exchangeQty: 1 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.15, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.05, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 1800, strength: 80, spirit: 45, defense: 80, resistance: 55, speed: 35 }
+        skills: [SKILL_ROCK_THROW, SKILL_EARTHQUAKE, SKILL_HEADBUTT, SKILL_TAUNT, SKILL_ARMOR_CRUSH]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_REGENERATE, PASSIVE_UNYIELDING]
+        luckGain: 10
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: ADD_SKILL, skillId: SKILL_EARTHQUAKE }
+              - { type: ADD_SHIELD, shieldValue: 150 }
+          - hpPercent: 0.25
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 300 }
+              - { type: BUFF_SELF, statusId: DEF_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 3, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.40, exchangeQty: 2 }
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 3, chance: 0.50, exchangeQty: 3 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.25, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.08, exchangeQty: 1 }
+
+  # ==================== 森林 Boss ====================
+  - id: BOSS_FOREST_KING
+    name: 森林之王·翠牙狼
+    mapId: MAP_AREA_FOREST
+    element: WOOD
+    recommendedLevel: 15
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 1000, strength: 55, spirit: 35, defense: 40, resistance: 35, speed: 45 }
+        skills: [SKILL_THORN_BIND, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_STRIKE]
+        passives: [PASSIVE_REGENERATE]
+        luckGain: 4
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_SMALL, qty: 4, chance: 0.80, exchangeQty: 5 }
+            - { itemId: ITEM_POTION_MEDIUM, qty: 2, chance: 0.50, exchangeQty: 3 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 2, chance: 0.35, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.12, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.03, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 1500, strength: 72, spirit: 48, defense: 55, resistance: 48, speed: 55 }
+        skills: [SKILL_THORN_BIND, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_STRIKE, SKILL_CURSE]
+        passives: [PASSIVE_REGENERATE, PASSIVE_TAILWIND]
+        luckGain: 7
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 180 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 3, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 3, chance: 0.45, exchangeQty: 2 }
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.25, exchangeQty: 1 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.18, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.06, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 2200, strength: 95, spirit: 65, defense: 70, resistance: 60, speed: 65 }
+        skills: [SKILL_THORN_BIND, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_STRIKE, SKILL_CURSE, SKILL_SHADOW_BALL]
+        passives: [PASSIVE_REGENERATE, PASSIVE_TAILWIND, PASSIVE_UNYIELDING]
+        luckGain: 10
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+              - { type: ADD_SHIELD, shieldValue: 120 }
+          - hpPercent: 0.25
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 350 }
+              - { type: BUFF_SELF, statusId: SPD_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 4, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.45, exchangeQty: 2 }
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 4, chance: 0.55, exchangeQty: 3 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.28, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.10, exchangeQty: 1 }

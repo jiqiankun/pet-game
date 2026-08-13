@@ -457,3 +457,75 @@ config/model/MapsConfig                # 地图配置模型（region/exit/camp/g
   - `player_gather_used`（save_id + gather_id + session_id，采集会话绑定）
 - 复合主键无 @TableId，insert/select/delete via wrapper。
 - 迁移文件 `V4__map_exploration_tables.sql`，**禁止手工改表**。
+
+---
+
+## 18. Boss 系统与重复挑战实现约定（阶段 7 起）
+
+### 18.1 模块结构与职责
+
+```text
+boss/
+├── service/BossService              # 核心服务：开战/结算/自动挑战/幸运兑换/情报
+├── controller/BossController        # REST 接口：/api/bosses/**
+├── entity/                          # 5 实体（复合主键无 @TableId）
+└── mapper/                          # 5 mapper
+
+config/model/BossesConfig            # Boss 配置模型（BossConfig > DifficultyConfig > PhaseTrigger / DropEntry）
+```
+
+### 18.2 Boss 配置约定
+
+- 配置唯一来源：`game-config/bosses/bosses.yml`（`BossesConfig`），包含 Boss 基础信息 + 3 难度配置。
+- 每个 Boss 包含：id、name、mapId、element、recommendedLevel、difficulties（NORMAL/HARD/NIGHTMARE）。
+- 每个难度包含：stats、skills、passives、phases、drops、luckGain。
+- 掉落分 4 档稀有度（COMMON/RARE/EPIC/LEGENDARY），对应情报解锁阈值（1/3/6/10 次）。
+- 阶段触发器（PhaseTrigger）：hpPercent + effects（ADD_SKILL/ADD_SHIELD/BUFF_SELF），每触发器仅激活一次。
+- 配置校验：`GameConfigValidator.validateBosses()` 检查 element/skills/passives/items/maps 引用完整性、HP 阈值合法性、概率范围。
+
+### 18.3 控制抗性与连续衰减
+
+- 系统规则配置（`system.yml`）：`controlResistance`（精英 0.8/Boss 0.6）、`consecutiveControlDecay` [1.0, 0.7, 0.4]、`controlDecayResetRounds`（默认 2）。
+- `BattleUnit` 新增字段：`controlResistance`、`consecutiveControlCount`、`roundsWithoutControl`、`phaseTriggers`。
+- 施加控制类状态（SPECIAL_CONTROL）时：先乘目标 controlResistance，再乘连续衰减系数，判定命中。
+- 每回合结束时：未处于控制状态则递增 roundsWithoutControl，达到阈值时归零 consecutiveControlCount。
+
+### 18.4 BattleService Boss 集成
+
+- `startBossBattle(bossId, difficulty, seed)`：校验 Boss 存在 + 难度已解锁 + 队伍有可战斗宠物；构建 Boss 敌方（controlResistance + phaseTriggers）；使用 bossEngine 开战。
+- 双引擎实例（同一 BattleEngine 类，仅 DecisionProvider 不同）：`engine`（WildEnemyDecisionProvider，TEST/WILD）与 `bossEngine`（BossDecisionProvider，BOSS）；`submitActions` 按 `battleType` 路由（`engineFor`）。
+- `createBossBattle(...)`：创建 Boss 战斗上下文但不 startBattle（自动挑战专用，`runFullBattle` 内部统一开战，避免登场被动重复触发）。
+- `BattleContext` 新增字段：`bossId`、`bossDifficulty`、`uncapturable`（Boss 战斗禁止捕捉/逃跑）。
+- 结算扩展：BOSS 类型胜利时发放掉落/经验/金币/击败次数/幸运值/难度解锁；战后自动恢复全队 HP。
+- `runFullBattle(playerAI)`：AI vs AI 跑完整个战斗（自动挑战使用）。
+
+### 18.5 自动挑战与幸运兑换
+
+- 自动挑战 5 种模式：`ONCE`/`FIVE`/`TEN`/`UNTIL_FAIL`/`UNTIL_LUCKY`；需已手动击败过对应难度（`player_boss_manual_clear`）。
+- 循环：自动恢复 → runFullBattle → settleBattle → 检查停止条件。
+- 幸运兑换：幸运值 >= 100 时可兑换已公开掉落池物品；扣幸运值 + 发放物品同事务。
+- 幸运值每 Boss 独立，不同难度共享；按难度 +4/+7/+10。
+
+### 18.6 Boss AI
+
+`BossDecisionProvider` 为评分式规则 AI（候选行动生成 → 过滤 → 评分 → 选最高分，接近分用 `ctx.getRandom()` 小幅随机），详细设计见 `docs/BOSS_AI_REWORK.md`：
+
+- **候选行动**：按「技能 × 目标」组合生成；攻击估算复用 `DamageCalculator`（基础值/减伤）+ 现有克制表 + 本属性加成；治疗/护盾估算复用 `HealCalculator`。
+- **属性克制与斩杀**：克制倍率直接进入估算伤害；预计伤害 ≥ 目标 HP+护盾时追加斩杀奖励；低 HP 目标加权。
+- **阶段策略**：阶段索引 = 已激活 phaseTrigger 数量（引擎维护，AI 只读）；一阶段均衡 / 二阶段进攻（攻击 ×1.3）/ 三阶段爆发（攻击 ×1.6、关键控制回升、治疗降权）；倍率配置化（`system.yml bossAi`）。
+- **控制策略**：估算成功率 = chance × 目标 controlResistance × consecutiveControlDecay（与引擎同公式，仅估算不改结算）；目标已受控时大幅降权，避免机械连续控制。
+- **治疗策略**：友方 HP% < `healTriggerHpPercent`（0.40）时紧迫度提高；过量治疗不计分；HP% > `healNoNeedHpPercent`（0.90）不治疗。
+- **边界 fallback**：沉默/无就绪技能/无候选 → DEFEND；死亡单位不进入任何候选。
+- **禁止玩家动态缩放**（需求 §80）：不读取玩家等级/战力/属性总和，难度仅来源于 Boss 配置、技能配置、阶段与战场状态。
+- 普通野生敌人仍使用 `WildEnemyDecisionProvider`，不受 Boss AI 影响。
+
+### 18.7 数据库迁移（V5）
+
+- 5 张 Boss 进度表：
+  - `player_boss_defeat_count`（save_id + boss_id + difficulty，击败次数）
+  - `player_boss_difficulty_unlock`（save_id + boss_id + difficulty，难度解锁记录）
+  - `player_boss_luck`（save_id + boss_id，幸运值）
+  - `player_boss_drop_unlock`（save_id + boss_id + rarity，掉落情报解锁）
+  - `player_boss_manual_clear`（save_id + boss_id + difficulty，手动击败记录，自动挑战解锁校验）
+- 复合主键无 @TableId，insert/select/delete via wrapper。
+- 迁移文件 `V5__boss_tables.sql`，**禁止手工改表**。

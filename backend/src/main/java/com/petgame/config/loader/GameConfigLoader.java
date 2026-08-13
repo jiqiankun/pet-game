@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.petgame.config.GameProperties;
+import com.petgame.config.model.BossesConfig;
 import com.petgame.config.model.EncountersConfig;
 import com.petgame.config.model.GameElementsConfig;
 import com.petgame.config.model.InitialPetsConfig;
@@ -48,6 +49,7 @@ public class GameConfigLoader {
     private static final String ENCOUNTERS_YML = "encounters/encounters.yml";
     private static final String RELEASE_GIFTS_YML = "drops/release-gifts.yml";
     private static final String MAPS_YML = "maps/maps.yml";
+    private static final String BOSSES_YML = "bosses/bosses.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -232,6 +234,23 @@ public class GameConfigLoader {
         MapsConfig external = loadExternalYaml(MAPS_YML, MapsConfig.class);
         if (external != null) {
             log.info("已加载外部 maps/maps.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载 Boss 配置（阶段 7：Boss 系统与重复挑战）。
+     */
+    public BossesConfig loadBossesConfig() {
+        BossesConfig config = loadInternalYaml(BOSSES_YML, BossesConfig.class);
+        if (config == null) {
+            log.warn("内部 bosses/bosses.yml 未找到，使用空配置");
+            config = new BossesConfig();
+        }
+        BossesConfig external = loadExternalYaml(BOSSES_YML, BossesConfig.class);
+        if (external != null) {
+            log.info("已加载外部 bosses/bosses.yml 覆盖内部配置");
             config = external;
         }
         return config;
