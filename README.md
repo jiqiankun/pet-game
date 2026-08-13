@@ -117,11 +117,11 @@ pet-game/
 
 ## 开发进度
 
-当前阶段：**阶段 7（Boss 系统与重复挑战）— 已完成**
+当前阶段：**阶段 8（图鉴系统）— 已完成**
 
-已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7
+已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8
 
-下一阶段：阶段 8（以规划文档为准）
+下一阶段：阶段 9（以规划文档为准）
 
 详细的阶段划分与进度跟踪见 [`AGENTS.md`](AGENTS.md) §6「当前阶段状态」。
 
@@ -247,6 +247,16 @@ pet-game/
 - **前端**：`types/boss.ts` + `stores/boss.ts` + `BossView.vue`（列表/难度/情报/挑战/自动/兑换）；ExploreView boss 入口导航；BattleView Boss 战禁止捕捉/逃跑
 - 单元测试 262 个全量通过：新增 BattleEngineControlResistanceTest 8 场景、BattleEnginePhaseTest 4 场景、BossDecisionProviderTest 4 场景、BossConfigValidateTest 10 场景
 - E2E 验收脚本 `scripts/e2e-boss-test.ps1`：Boss 列表/详情/开战/战斗/结算/击败次数/自动挑战/幸运兑换
+
+### 阶段 8 完成内容
+
+- **Flyway V6 迁移**：`player_pokedex`（种族研究进度，复合主键 save_id + species_id）+ `player_pokedex_history`（种族历史记录，放生不清除）
+- **图鉴研究值配置**：`system.yml` 追加 `pokedex` 配置段（研究等级门槛 Lv.1~5、11 种研究值来源分值、资质预估等级标签 S/A/B/C/D）；`SystemRuleConfig.PokedexRuleConfig` 内部类；`GameConfigValidator` 追加门槛严格递增 + 分值非负 + 资质等级合法校验
+- **PokedexService 核心服务**：研究值累积（11 种来源）、研究等级计算（配置门槛 + seen 保底 Lv.1 + caught 保底 Lv.2）、逐级信息解锁（Lv.0→???、Lv.1→名称/属性/描述、Lv.2→稀有度/捕获率、Lv.3→技能/被动/六维基础、Lv.4→稀有技能池/出现区域、Lv.5→历史记录/特殊外观/进化占位）、Lv.5 野外识别（资质预估等级 S/A/B/C/D）
+- **PokedexController REST API**：`GET /api/pokedex`（全量列表）、`GET /api/pokedex/{speciesId}`（详情）、`POST /api/pokedex/{speciesId}/identify`（Lv.5 野外识别）
+- **既有行为接入**：BattleService（遭遇发现 + 捕捉记录 + 战斗参与/获胜）、PetService（技能解锁记录）、GameService（新游戏初始宠物补录）；所有记录方法使用 `REQUIRES_NEW` 传播策略，记录失败不阻断主流程
+- **前端图鉴页面**：`types/pokedex.ts`（PokedexEntry/PokedexDetail/PokedexHistory/WildIdentification）+ `stores/pokedex.ts`（Pinia Store，筛选/统计）+ `PokedexView.vue`（统计栏 + 筛选栏 + 卡片网格 + 详情面板，按等级逐级展示已解锁信息）
+- 单元测试：PokedexServiceTest 20+ 场景（研究等级计算/首次后续发现/捕获/高资质/稀有技能/特殊外观/精英捕获/战斗参与获胜/技能解锁/历史记录累加/野外识别）；GameConfigValidatorTest 追加 3 个图鉴配置校验测试
 
 ---
 

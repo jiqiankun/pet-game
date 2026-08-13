@@ -14,6 +14,7 @@ import com.petgame.pet.entity.PlayerPetEntity;
 import com.petgame.pet.entity.PlayerPetSkillEntity;
 import com.petgame.pet.mapper.PlayerPetMapper;
 import com.petgame.pet.mapper.PlayerPetSkillMapper;
+import com.petgame.pokedex.service.PokedexService;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.team.entity.PlayerTeamEntity;
@@ -53,6 +54,7 @@ public class GameService {
     private final GameConfigRegistry configRegistry;
     private final GameProperties gameProperties;
     private final PetGrowthService growthService;
+    private final PokedexService pokedexService;
 
     public GameService(PlayerMapper playerMapper,
                        PlayerPetMapper playerPetMapper,
@@ -62,7 +64,8 @@ public class GameService {
                        PlayerInventoryMapper playerInventoryMapper,
                        GameConfigRegistry configRegistry,
                        GameProperties gameProperties,
-                       PetGrowthService growthService) {
+                       PetGrowthService growthService,
+                       PokedexService pokedexService) {
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
@@ -72,6 +75,7 @@ public class GameService {
         this.configRegistry = configRegistry;
         this.gameProperties = gameProperties;
         this.growthService = growthService;
+        this.pokedexService = pokedexService;
     }
 
     /**
@@ -225,6 +229,20 @@ public class GameService {
         playerTeamMemberMapper.insert(member);
 
         log.info("新游戏创建完成：玩家={}, saveId={}, 初始宠物={}", playerName, saveId, petChoiceId);
+
+        // 阶段 8：图鉴初始宠物补录（发现 + 捕获）
+        try {
+            int[] apts = new int[]{
+                    chosenPet.getAptitudeHp(), chosenPet.getAptitudeStrength(),
+                    chosenPet.getAptitudeSpirit(), chosenPet.getAptitudeDefense(),
+                    chosenPet.getAptitudeResistance(), chosenPet.getAptitudeSpeed()
+            };
+            pokedexService.recordCapture(saveId, petChoiceId, apts,
+                    java.util.List.of(), false, null);
+        } catch (Exception e) {
+            log.warn("图鉴初始宠物补录失败（不阻断新游戏创建）：{}", e.getMessage());
+        }
+
         return player;
     }
 

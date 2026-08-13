@@ -5,7 +5,9 @@ import com.petgame.config.model.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -110,5 +112,45 @@ class GameConfigValidatorTest {
         SystemRuleConfig system = validSystem();
         system.setAdvantageMultiplier(-1.0);
         assertThrows(IllegalStateException.class, () -> validator.validate(system, validElements()));
+    }
+
+    // ==================== 图鉴配置校验（阶段 8）====================
+
+    @Test
+    void validate_pokedexNonMonotonicThresholds_shouldFail() {
+        SystemRuleConfig system = validSystem();
+        SystemRuleConfig.PokedexRuleConfig pokedex = new SystemRuleConfig.PokedexRuleConfig();
+        Map<String, Integer> thresholds = new LinkedHashMap<>();
+        thresholds.put("1", 10);
+        thresholds.put("2", 5); // 不严格递增
+        pokedex.setLevelThresholds(thresholds);
+        system.setPokedex(pokedex);
+        assertThrows(IllegalStateException.class, () -> validator.validate(system, validElements()));
+    }
+
+    @Test
+    void validate_pokedexNegativePoints_shouldFail() {
+        SystemRuleConfig system = validSystem();
+        SystemRuleConfig.PokedexRuleConfig pokedex = new SystemRuleConfig.PokedexRuleConfig();
+        pokedex.setFirstDiscoveryPoints(-1);
+        system.setPokedex(pokedex);
+        assertThrows(IllegalStateException.class, () -> validator.validate(system, validElements()));
+    }
+
+    @Test
+    void validate_pokedexValidConfig_shouldPass() {
+        SystemRuleConfig system = validSystem();
+        SystemRuleConfig.PokedexRuleConfig pokedex = new SystemRuleConfig.PokedexRuleConfig();
+        Map<String, Integer> thresholds = new LinkedHashMap<>();
+        thresholds.put("1", 10);
+        thresholds.put("2", 30);
+        thresholds.put("3", 60);
+        pokedex.setLevelThresholds(thresholds);
+        Map<String, Integer> grades = new LinkedHashMap<>();
+        grades.put("S", 90);
+        grades.put("A", 80);
+        pokedex.setAptitudeGrades(grades);
+        system.setPokedex(pokedex);
+        assertDoesNotThrow(() -> validator.validate(system, validElements()));
     }
 }

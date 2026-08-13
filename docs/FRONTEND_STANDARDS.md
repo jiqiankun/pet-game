@@ -249,3 +249,21 @@ frontend/
 ### 16.4 地图 Boss 入口
 
 - **ExploreView** `boss:touch` 事件：从 GameBridge 接收 `boss:touch` 事件（携带 `id: bossId`），导航至 `/boss?bossId=xxx`（而非占位 toast）。
+
+---
+
+## 17. 图鉴页面约定（阶段 8 起）
+
+### 17.1 类型与 Store
+
+- **类型定义**：`types/pokedex.ts`（`PokedexEntry`、`PokedexDetail`、`PokedexHistory`、`WildIdentification`、`SkillInfo`、`PassiveInfo`），与后端 VO 对齐。
+- **Store**：`stores/pokedex.ts`（`usePokedexStore`），管理 entries 全量列表、currentDetail 详情、filterLevel/filterElement 筛选条件。
+- **计算属性**：`filteredEntries`（按研究等级 + 属性筛选）、`discoveredCount`、`caughtCount`、`fullyResearchedCount`、`totalCount`。
+- **方法**：`loadPokedex()`、`loadDetail(speciesId)`、`identifyWild(speciesId, aptitudes)`。
+
+### 17.2 PokedexView 页面约定
+
+- **PokedexView**（`/pokedex`）：统计栏（发现 X/27、捕获 Y/27、完全研究 Z/27）+ 筛选栏（按研究等级 Lv.0~5 + 按属性）+ 宠物卡片网格 + 详情模态面板。
+- **卡片样式**：未发现灰暗 + 问号（`card-unknown`）、已发现正常 + 边框（`card-seen`）、已捕获全彩 + 徽章（`card-caught`）。
+- **详情面板**：研究等级进度条 + 按等级逐级展示已解锁信息（未解锁部分显示 `???`）；Lv.5 显示历史记录面板。
+- **Lv.5 野外识别**：遭遇时调用 identify 接口，返回资质预估等级标签（S/A/B/C/D），在遭遇界面展示提示。

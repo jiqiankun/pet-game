@@ -11,6 +11,7 @@ import com.petgame.battle.event.BattleEvent;
 import com.petgame.battle.model.BattleAction;
 import com.petgame.battle.model.BattleSide;
 import com.petgame.battle.model.BattleUnit;
+import com.petgame.battle.model.BattleUnit.WildUnitData;
 import com.petgame.battle.model.StatusInstance;
 import com.petgame.capture.WildEncounterService;
 import com.petgame.common.BusinessException;
@@ -45,8 +46,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import com.petgame.pokedex.service.PokedexService;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -87,6 +90,7 @@ public class BattleService {
     private final WildEncounterService wildEncounterService;
     private final TeamService teamService;
     private final com.petgame.map.service.MapExplorationService mapExplorationService;
+    private final PokedexService pokedexService;
 
     /** 战斗上下文内存池：battleId → BattleContext。不落库。 */
     private final Map<String, BattleContext> battles = new ConcurrentHashMap<>();
@@ -106,7 +110,8 @@ public class BattleService {
                          PetGrowthService growthService,
                          WildEncounterService wildEncounterService,
                          TeamService teamService,
-                         com.petgame.map.service.MapExplorationService mapExplorationService) {
+                         com.petgame.map.service.MapExplorationService mapExplorationService,
+                         PokedexService pokedexService) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.bossEngine = new BattleEngine(registry, bossDecisionProvider);
@@ -120,6 +125,7 @@ public class BattleService {
         this.wildEncounterService = wildEncounterService;
         this.teamService = teamService;
         this.mapExplorationService = mapExplorationService;
+        this.pokedexService = pokedexService;
     }
 
     /**
@@ -180,9 +186,24 @@ public class BattleService {
 
         // 野生敌方：与测试敌人同一引擎入口（野生单位携带捕捉落库数据）
         BattleSide enemySide = new BattleSide("ENEMY");
-        enemySide.getUnits().addAll(
-                wildEncounterService.generateEncounter(groupId, ctx.getRandom()));
+        List<BattleUnit> wildUnits = wildEncounterService.generateEncounter(groupId, ctx.getRandom());
+        enemySide.getUnits().addAll(wildUnits);
         ctx.setEnemySide(enemySide);
+
+        // 阶段 8：遭遇时发现记录
+        Set<String> enemySpeciesIds = new LinkedHashSet<>();
+        for (BattleUnit unit : wildUnits) {
+            if (unit.getSpeciesId() != null) {
+                enemySpeciesIds.add(unit.getSpeciesId());
+            }
+        }
+        for (String sid : enemySpeciesIds) {
+            try {
+                pokedexService.recordDiscovery(player.getSaveId(), sid);
+            } catch (Exception e) {
+                log.warn("图鉴发现记录失败（不阻断战斗）：species={}", sid, e);
+            }
+        }
 
         // 捕捉球存量快照（仅捕捉球道具）
         for (PlayerInventoryEntity inv : loadCaptureBalls(player.getSaveId())) {
@@ -422,7 +443,15 @@ public class BattleService {
 
         // 1. HP 回写 + 统计累加（所有参战玩家宠物，胜负均执行）
         List<BattleSettlement.PetHpWriteback> hpWritebacks = new ArrayList<>();
+        Set<String> participantSpecies = new LinkedHashSet<>();
+        Set<String> winnerSpecies = new LinkedHashSet<>();
         for (BattleUnit unit : ctx.getPlayerSide().getUnits()) {
+            if (unit.getSpeciesId() != null) {
+                participantSpecies.add(unit.getSpeciesId());
+                if (playerWon) {
+                    winnerSpecies.add(unit.getSpeciesId());
+                }
+            }
             if (unit.getPetDbId() == null) {
                 continue;
             }
@@ -457,6 +486,18 @@ public class BattleService {
             } else {
                 settleTestRewards(ctx, player, settlement);
             }
+        }
+
+        // 2.3 阶段 8：图鉴研究值 — 战斗参与/获胜
+        try {
+            if (!participantSpecies.isEmpty()) {
+                pokedexService.recordBattleParticipation(player.getSaveId(), participantSpecies);
+            }
+            if (playerWon && !winnerSpecies.isEmpty()) {
+                pokedexService.recordBattleWins(player.getSaveId(), winnerSpecies);
+            }
+        } catch (Exception e) {
+            log.warn("图鉴战斗记录失败（不阻断结算）：{}", e.getMessage());
         }
 
         // 2.5 野生战斗：捕捉落库（被捕捉宠物）+ 捕捉球扣除（无论成败均消耗）
@@ -657,6 +698,21 @@ public class BattleService {
                 }
             }
             settlement.getCapturedPets().add(view);
+
+            // 阶段 8：图鉴捕获记录
+            try {
+                WildUnitData captureWd = captured.getWildData();
+                int[] apts = captureWd != null ? new int[]{
+                        captureWd.getHpAptitude(), captureWd.getStrengthAptitude(),
+                        captureWd.getSpiritAptitude(), captureWd.getDefenseAptitude(),
+                        captureWd.getResistanceAptitude(), captureWd.getSpeedAptitude()
+                } : null;
+                pokedexService.recordCapture(player.getSaveId(), captured.getSpeciesId(),
+                        apts, captureWd != null ? captureWd.getExtraSkillIds() : null,
+                        false, captureWd != null ? captureWd.getSpecialAppearance() : null);
+            } catch (Exception e) {
+                log.warn("图鉴捕获记录失败（不阻断结算）：species={}", captured.getSpeciesId(), e);
+            }
         }
     }
 
@@ -770,6 +826,7 @@ public class BattleService {
         BattleUnit unit = new BattleUnit();
         unit.setUnitId("P_" + pet.getId());
         unit.setPetDbId(pet.getId());
+        unit.setSpeciesId(species.getId());
         unit.setName(pet.getNickname() != null && !pet.getNickname().isBlank()
                 ? pet.getNickname() : species.getName());
         unit.setElement(species.getElement());

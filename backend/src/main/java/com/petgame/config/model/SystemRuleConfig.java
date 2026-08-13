@@ -190,6 +190,11 @@ public class SystemRuleConfig {
     /** Boss 受 HP 百分比交换的幅度上限（单次最多改变的百分点，默认 0.20 = 20 个百分点）。 */
     private double bossHpExchangeLimit = 0.20;
 
+    // ---- 图鉴（阶段 8，决策五）----
+
+    /** 图鉴研究值配置（阶段 8）。 */
+    private PokedexRuleConfig pokedex = new PokedexRuleConfig();
+
     /**
      * Boss AI 决策参数（阶段 7 Boss AI 改造）。
      * <p>
@@ -238,5 +243,44 @@ public class SystemRuleConfig {
 
         /** 阶段治疗倍率（后期降权，允许爆发优先于小额治疗）。 */
         private java.util.List<Double> phaseHealMultipliers = java.util.List.of(1.0, 0.8, 0.6);
+    }
+
+    /**
+     * 图鉴研究值配置（阶段 8，决策五）。
+     * <p>
+     * 研究等级门槛、研究值来源分值、资质预估等级标签全部配置化。
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class PokedexRuleConfig {
+
+        /** 研究等级门槛：key=等级(1~5)，value=累计研究值。默认 Lv.1=10/Lv.2=30/Lv.3=60/Lv.4=100/Lv.5=150。 */
+        private java.util.Map<String, Integer> levelThresholds = new java.util.LinkedHashMap<>();
+
+        /** 首次发现研究值（默认 5）。 */
+        private int firstDiscoveryPoints = 5;
+        /** 首次捕获研究值（默认 10）。 */
+        private int firstCapturePoints = 10;
+        /** 后续每次捕获研究值（默认 2）。 */
+        private int subsequentCapturePoints = 2;
+        /** 使用该宠物战斗研究值（默认 1）。 */
+        private int battleParticipationPoints = 1;
+        /** 使用该宠物获胜研究值（默认 1）。 */
+        private int battleWinPoints = 1;
+        /** 等级解锁新技能研究值（默认 2）。 */
+        private int skillUnlockPoints = 2;
+        /** 捕获综合资质 ≥80 个体研究值（默认 5）。 */
+        private int highAptitude80Points = 5;
+        /** 捕获综合资质 ≥90 个体研究值（默认 8）。 */
+        private int highAptitude90Points = 8;
+        /** 发现稀有技能研究值（默认 5）。 */
+        private int rareSkillDiscoveryPoints = 5;
+        /** 发现特殊外观研究值（默认 10）。 */
+        private int specialAppearancePoints = 10;
+        /** 捕获精英个体研究值（默认 8）。 */
+        private int eliteCapturePoints = 8;
+
+        /** 资质预估等级标签：key=等级标签(S/A/B/C/D)，value=最低综合资质。默认 S=90/A=80/B=65/C=50。 */
+        private java.util.Map<String, Integer> aptitudeGrades = new java.util.LinkedHashMap<>();
     }
 }

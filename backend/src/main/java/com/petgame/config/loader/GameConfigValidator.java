@@ -271,6 +271,76 @@ public class GameConfigValidator {
                     + system.getReleaseWarningAptitudeThreshold());
         }
         validateRarityDoubleMap("wildRewardRarityMultiplier", system.getWildRewardRarityMultiplier(), errors);
+
+        // 阶段 8：图鉴研究值配置
+        validatePokedexRules(system.getPokedex(), errors);
+    }
+
+    /** 校验图鉴研究值配置（阶段 8）：等级门槛严格递增、分值非负、资质预估合法。 */
+    private void validatePokedexRules(SystemRuleConfig.PokedexRuleConfig pokedex, List<String> errors) {
+        if (pokedex == null) {
+            return;
+        }
+        // 等级门槛严格递增
+        if (pokedex.getLevelThresholds() != null && !pokedex.getLevelThresholds().isEmpty()) {
+            int prevValue = 0;
+            for (Map.Entry<String, Integer> entry : pokedex.getLevelThresholds().entrySet()) {
+                if (entry.getValue() == null || entry.getValue() < 0) {
+                    errors.add("pokedex.levelThresholds[" + entry.getKey() + "] 必须 >= 0");
+                } else if (entry.getValue() <= prevValue) {
+                    errors.add("pokedex.levelThresholds 必须严格递增，等级 " + entry.getKey()
+                            + " 门槛 " + entry.getValue() + " 不高于前一等级 " + prevValue);
+                } else {
+                    prevValue = entry.getValue();
+                }
+            }
+        }
+        // 分值非负
+        if (pokedex.getFirstDiscoveryPoints() < 0) {
+            errors.add("pokedex.firstDiscoveryPoints 必须 >= 0");
+        }
+        if (pokedex.getFirstCapturePoints() < 0) {
+            errors.add("pokedex.firstCapturePoints 必须 >= 0");
+        }
+        if (pokedex.getSubsequentCapturePoints() < 0) {
+            errors.add("pokedex.subsequentCapturePoints 必须 >= 0");
+        }
+        if (pokedex.getBattleParticipationPoints() < 0) {
+            errors.add("pokedex.battleParticipationPoints 必须 >= 0");
+        }
+        if (pokedex.getBattleWinPoints() < 0) {
+            errors.add("pokedex.battleWinPoints 必须 >= 0");
+        }
+        if (pokedex.getSkillUnlockPoints() < 0) {
+            errors.add("pokedex.skillUnlockPoints 必须 >= 0");
+        }
+        if (pokedex.getHighAptitude80Points() < 0) {
+            errors.add("pokedex.highAptitude80Points 必须 >= 0");
+        }
+        if (pokedex.getHighAptitude90Points() < 0) {
+            errors.add("pokedex.highAptitude90Points 必须 >= 0");
+        }
+        if (pokedex.getRareSkillDiscoveryPoints() < 0) {
+            errors.add("pokedex.rareSkillDiscoveryPoints 必须 >= 0");
+        }
+        if (pokedex.getSpecialAppearancePoints() < 0) {
+            errors.add("pokedex.specialAppearancePoints 必须 >= 0");
+        }
+        if (pokedex.getEliteCapturePoints() < 0) {
+            errors.add("pokedex.eliteCapturePoints 必须 >= 0");
+        }
+        // 资质预估等级标签合法
+        if (pokedex.getAptitudeGrades() != null) {
+            Set<String> validGrades = Set.of("S", "A", "B", "C", "D");
+            for (Map.Entry<String, Integer> entry : pokedex.getAptitudeGrades().entrySet()) {
+                if (!validGrades.contains(entry.getKey())) {
+                    errors.add("pokedex.aptitudeGrades 非法标签: " + entry.getKey());
+                }
+                if (entry.getValue() == null || entry.getValue() < 0) {
+                    errors.add("pokedex.aptitudeGrades[" + entry.getKey() + "] 必须 >= 0");
+                }
+            }
+        }
     }
 
     /** 稀有度 → 整数映射的键与数值校验（如放生礼物基础点数）。 */

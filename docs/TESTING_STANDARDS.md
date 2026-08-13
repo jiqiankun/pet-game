@@ -112,6 +112,24 @@
 | 5 套预设 | 懒创建、切换、战斗中禁止编辑 |
 | NO_FIGHTABLE_PETS | 队伍全员 HP=0 时拒绝开战 |
 
+### 2.8 图鉴系统
+
+| 规则 | 验证要点 |
+|---|---|
+| 研究等级计算 | 0/Lv.1/Lv.2/Lv.3/Lv.4/Lv.5 门槛正确；seen 保底 Lv.1；caught 保底 Lv.2 |
+| 首次发现 | +firstDiscoveryPoints 研究值，标记 seen=true；重复发现不重复加分 |
+| 首次捕获 | +firstCapturePoints；后续捕获 +subsequentCapturePoints |
+| 高资质加分 | 综合资质 ≥80 +highAptitude80Points；≥90 +highAptitude90Points |
+| 稀有技能发现 | +rareSkillDiscoveryPoints |
+| 特殊外观发现 | +specialAppearancePoints |
+| 精英捕获 | +eliteCapturePoints |
+| 战斗参与/获胜 | +battleParticipationPoints / +battleWinPoints |
+| 技能解锁 | +skillUnlockPoints |
+| 历史记录累加 | total_captures/total_defeats/best_combined_aptitude/best_六维/discovered_rare_skills 正确累加 |
+| 放生保留 | 放生宠物后历史记录不删除 |
+| Lv.5 野外识别 | 资质预估等级标签正确（S/A/B/C/D） |
+| 配置校验 | levelThresholds 严格递增、分值非负、aptitudeGrades 合法 |
+
 ---
 
 ## 3. 前端测试重点
@@ -207,6 +225,7 @@
 | 放生奖励逻辑 | 全部放生系统测试 |
 | 配置体系 | 配置校验测试 + 受影响模块 |
 | 地图探索 | 地图探索测试 + 战斗集成测试 |
+| 图鉴系统 | 图鉴研究值/等级/历史记录测试 + 配置校验测试 |
 | 统一随机工具 | 所有依赖随机的测试 |
 
 ---

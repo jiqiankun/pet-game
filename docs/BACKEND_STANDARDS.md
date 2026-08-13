@@ -529,3 +529,51 @@ config/model/BossesConfig            # Boss 配置模型（BossConfig > Difficul
   - `player_boss_manual_clear`（save_id + boss_id + difficulty，手动击败记录，自动挑战解锁校验）
 - 复合主键无 @TableId，insert/select/delete via wrapper。
 - 迁移文件 `V5__boss_tables.sql`，**禁止手工改表**。
+
+---
+
+## 19. 图鉴系统实现约定（阶段 8 起）
+
+### 19.1 模块结构与职责
+
+```text
+pokedex/
+├── service/PokedexService           # 核心服务：研究值累积/等级计算/信息解锁/历史记录/野外识别
+├── controller/PokedexController     # REST 接口：/api/pokedex/**
+├── entity/                          # 2 实体（复合主键无 @TableId）
+├── mapper/                          # 2 mapper
+└── vo/                              # PokedexEntryVo / PokedexDetailVo / PokedexHistoryVo / WildIdentificationVo
+
+config/model/SystemRuleConfig.PokedexRuleConfig  # 图鉴配置内部类（嵌入 system.yml）
+```
+
+### 19.2 图鉴配置约定
+
+- 配置嵌入 `system.yml` 的 `pokedex` 段，通过 `SystemRuleConfig.PokedexRuleConfig` 反序列化。
+- 研究等级门槛 `levelThresholds`：Map<Integer, Integer>，键为等级（1~5），值为所需累计研究值，必须严格递增。
+- 研究值来源分值（11 种）：`firstDiscoveryPoints`、`firstCapturePoints`、`subsequentCapturePoints`、`battleParticipationPoints`、`battleWinPoints`、`skillUnlockPoints`、`highAptitude80Points`、`highAptitude90Points`、`rareSkillDiscoveryPoints`、`specialAppearancePoints`、`eliteCapturePoints`。
+- 资质预估等级标签 `aptitudeGrades`：Map<String, Integer>，键为等级标签（S/A/B/C），值为最低资质阈值。
+- 配置校验：`GameConfigValidator.validatePokedexRules()` 检查门槛严格递增、分值非负、资质等级合法。
+
+### 19.3 研究等级与信息解锁
+
+- 研究等级 Lv.0~5，由累计研究值与门槛配置决定。
+- 保底规则：`seen=true` 至少 Lv.1，`caught=true` 至少 Lv.2（即使研究值未达到门槛）。
+- 信息解锁层级：Lv.0 仅「???」、Lv.1 名称/属性/描述、Lv.2 +稀有度/捕获率、Lv.3 +技能/被动/六维基础、Lv.4 +稀有技能池/出现区域、Lv.5 +历史记录/特殊外观/进化占位。
+- PokedexService 根据等级过滤返回信息，未解锁字段为 null。
+
+### 19.4 既有行为接入
+
+- **BattleService**：`startWildBattle` 遍历敌方 speciesId 调用 `recordDiscovery`；`settleCaptures` 捕捉成功后调用 `recordCapture`；`settleBattle` 收集参战/获胜种族 ID 调用 `recordBattleParticipation`/`recordBattleWins`。
+- **PetService**：`levelUp` 解锁新种族技能时调用 `recordSkillUnlock`。
+- **GameService**：`createNewGame` 初始宠物创建后调用 `recordCapture` 记录发现与捕获。
+- 所有记录方法使用 `@Transactional(propagation = Propagation.REQUIRES_NEW)`，记录失败不阻断主流程。
+
+### 19.5 数据库迁移（V6）
+
+- 2 张图鉴进度表：
+  - `player_pokedex`（save_id + species_id，研究进度：research_points/seen/caught/first_seen_at/first_caught_at）
+  - `player_pokedex_history`（save_id + species_id，历史记录：total_captures/total_defeats/elite_encounters/special_appearances/best_*/discovered_rare_skills）
+- 复合主键无 @TableId，insert/select via LambdaQueryWrapper。
+- 历史记录放生不清除。
+- 迁移文件 `V6__pokedex_tables.sql`，**禁止手工改表**。

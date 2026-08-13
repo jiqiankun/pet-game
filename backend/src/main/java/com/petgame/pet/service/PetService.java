@@ -12,6 +12,7 @@ import com.petgame.pet.entity.PlayerPetEntity;
 import com.petgame.pet.entity.PlayerPetSkillEntity;
 import com.petgame.pet.mapper.PlayerPetMapper;
 import com.petgame.pet.mapper.PlayerPetSkillMapper;
+import com.petgame.pokedex.service.PokedexService;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import org.slf4j.Logger;
@@ -48,17 +49,20 @@ public class PetService {
     private final PlayerPetSkillMapper playerPetSkillMapper;
     private final PetGrowthService growthService;
     private final GameConfigRegistry registry;
+    private final PokedexService pokedexService;
 
     public PetService(PlayerMapper playerMapper,
                       PlayerPetMapper playerPetMapper,
                       PlayerPetSkillMapper playerPetSkillMapper,
                       PetGrowthService growthService,
-                      GameConfigRegistry registry) {
+                      GameConfigRegistry registry,
+                      PokedexService pokedexService) {
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
         this.growthService = growthService;
         this.registry = registry;
+        this.pokedexService = pokedexService;
     }
 
     // ==================== 宠物详情 ====================
@@ -204,6 +208,16 @@ public class PetService {
 
         log.info("宠物升级：petId={} {}→{}，消耗经验 {}，新解锁技能 {} 个",
                 petId, currentLevel, targetLevel, expRequired, unlocked.size());
+
+        // 阶段 8：图鉴技能解锁研究值
+        for (PetGrowthService.UnlockedSkill skill : unlocked) {
+            try {
+                pokedexService.recordSkillUnlock(player.getSaveId(), species.getId(), skill.getSkillId());
+            } catch (Exception e) {
+                log.warn("图鉴技能解锁记录失败（不阻断升级）：species={}, skill={}",
+                        species.getId(), skill.getSkillId(), e);
+            }
+        }
 
         PetDetail detail = getPetDetail(petId);
         detail.setNewlyLearnedSkillNames(newActiveNames);
