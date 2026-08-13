@@ -160,7 +160,7 @@ frontend/
 
 - 战斗类型定义集中在 `src/types/battle.ts`（`UnitSnapshot` / `BattleEvent` / `BattleSnapshot` / `BattleAction`），与后端 DTO 对齐。
 - 战斗状态集中在 `stores/battle.ts`（`useBattleStore`）：快照、待提交行动、事件日志；页面组件不自行持有战斗数据。
-- **前端只提交行动意图**（SKILL/DEFEND/SWITCH + 目标），伤害/暴击/克制等结果一律以快照中的事件为准；未选行动的宠物由后端默认防御。
+- **前端只提交行动意图**（SKILL/DEFEND/SWITCH/CAPTURE/FLEE + 目标），伤害/暴击/克制/捕捉结果一律以快照中的事件为准；未选行动的宠物由后端默认防御。
 - 事件展示：后端返回事件序列（`BattleEventType`），Store 负责把事件翻译为中文日志，后续接入 Phaser 表现时仍沿用「后端事件 → 前端播放」模型。
 - 当前 `/battle` 为 Vue 基础战斗页面（阶段 3 范围）；Phaser BattleScene 表现层在后续阶段接入，不在本页面内实现动画计算。
 - 技能名称等展示内容通过配置查询接口（`/api/game/config/skills`）获取，不在前端硬编码内容配置。
@@ -176,3 +176,14 @@ frontend/
 - **背包页**（`/inventory`）按分类分组展示道具，恢复道具使用区支持选择道具+宠物+使用，展示 HP 变化结果。
 - **战斗结算**：`stores/battle.ts` 新增 `settlement` 状态与 `settleBattle()` 方法；战斗结束时 `watch` 自动触发结算，BattleView 展示经验/金币/掉落/HP 回写结果面板。
 - **战斗中禁用培养操作**：PetView 与 TeamView 通过 `battleStore.inBattle` 计算属性检测战斗状态，战斗中禁用所有培养与编辑按钮。
+
+---
+
+## 14. 捕捉与仓库页面约定（阶段 5 起）
+
+- 阶段 5 类型定义：`src/types/battle.ts` 扩展（`battleType` / `fled` / `captured` / CAPTURE、FLEE 行动 / `CaptureRateView`），`src/types/pet.ts` 扩展（`CapturedPetView`），仓库类型集中在新增 `src/types/storage.ts`，均与后端 DTO 对齐。
+- **捕捉率只展示后端计算结果**：BattleView 通过 `battleStore.captureRates` 展示，回合变化后自动重新拉取（`loadCaptureRates`）；前端不做任何捕捉率计算。
+- **捕捉交互**：野生战斗中行动面板新增「捕捉/逃跑」按钮；捕捉流程为「选球 → 点目标」，捕捉球列表来自背包接口（itemType=CAPTURE_BALL）；捕捉去向（入队/仓库）在战斗结束后的去向选择面板确认，随 settle 提交 `joinTeam`。
+- **简化遭遇入口**：战斗页「野生遭遇」按钮 + 探索页临时入口（仅跳转，不承载遭遇逻辑）；阶段 6 由地图承接后移除或改造，不在其中沉淀地图耦合逻辑。
+- **仓库页**（`/storage`）：状态集中在新增 `stores/storage.ts`（`useStorageStore`）；筛选/排序条件以查询参数提交后端；放生必须先走预览接口（保护原因/警告/礼物点数）二次确认，放生结果礼物汇总展示后手动关闭。
+- **昵称展示约定**：种族名称始终保留，有昵称时展示为「昵称（种族名）」。

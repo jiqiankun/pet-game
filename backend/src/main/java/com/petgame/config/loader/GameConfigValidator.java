@@ -49,6 +49,16 @@ public class GameConfigValidator {
     public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
                          SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
                          ItemsConfig items) {
+        validate(system, elements, initialPets, skills, statuses, testBattle, items, null, null, null);
+    }
+
+    /**
+     * 校验全部配置（阶段 5：含宠物种族、野生遭遇、放生礼物），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
+                         ReleaseGiftsConfig releaseGifts) {
         List<String> errors = new ArrayList<>();
 
         validateSystemRules(system, errors);
@@ -60,10 +70,16 @@ public class GameConfigValidator {
             validateSkills(skills, elements, statuses, errors);
         }
         if (initialPets != null) {
-            validateInitialPets(initialPets, elements, system, errors);
-            if (skills != null) {
-                validateInitialPetSkillRefs(initialPets, skills, errors);
-            }
+            validateInitialPets(initialPets, pets, items, errors);
+        }
+        if (pets != null) {
+            validatePets(pets, skills, elements, system, errors);
+        }
+        if (encounters != null) {
+            validateEncounters(encounters, pets, errors);
+        }
+        if (releaseGifts != null) {
+            validateReleaseGifts(releaseGifts, items, errors);
         }
         if (testBattle != null) {
             validateTestBattle(testBattle, skills, elements, errors);
@@ -184,10 +200,83 @@ public class GameConfigValidator {
             errors.add("speedPointCost(" + system.getSpeedPointCost()
                     + ") 不应小于 statPointCost(" + system.getStatPointCost() + ")");
         }
+
+        // 阶段 5：捕捉与放生礼物
+        if (system.getCaptureHpFactor() < 0 || system.getCaptureHpFactor() > 1) {
+            errors.add("captureHpFactor 必须在 [0, 1] 范围内，当前值: " + system.getCaptureHpFactor());
+        }
+        if (system.getStatusCaptureBonus() < 0) {
+            errors.add("statusCaptureBonus 必须 >= 0，当前值: " + system.getStatusCaptureBonus());
+        }
+        if (system.getCaptureStatusMaxCount() < 0) {
+            errors.add("captureStatusMaxCount 必须 >= 0，当前值: " + system.getCaptureStatusMaxCount());
+        }
+        if (system.getEliteCaptureMultiplier() <= 0) {
+            errors.add("eliteCaptureMultiplier 必须 > 0，当前值: " + system.getEliteCaptureMultiplier());
+        }
+        if (system.getFleeSuccessRate() < 0 || system.getFleeSuccessRate() > 1) {
+            errors.add("fleeSuccessRate 必须在 [0, 1] 范围内，当前值: " + system.getFleeSuccessRate());
+        }
+        if (system.getRareSkillChance() < 0 || system.getRareSkillChance() > 1) {
+            errors.add("rareSkillChance 必须在 [0, 1] 范围内，当前值: " + system.getRareSkillChance());
+        }
+        if (system.getSpecialAppearanceChance() < 0 || system.getSpecialAppearanceChance() > 1) {
+            errors.add("specialAppearanceChance 必须在 [0, 1] 范围内，当前值: "
+                    + system.getSpecialAppearanceChance());
+        }
+        validateRarityIntMap("releaseGiftBaseValue", system.getReleaseGiftBaseValue(), errors);
+        if (system.getReleaseLevelFactorPerLevel() < 0) {
+            errors.add("releaseLevelFactorPerLevel 必须 >= 0，当前值: " + system.getReleaseLevelFactorPerLevel());
+        }
+        if (system.getReleaseLevelFactorCap() < 1.0) {
+            errors.add("releaseLevelFactorCap 必须 >= 1.0，当前值: " + system.getReleaseLevelFactorCap());
+        }
+        if (system.getReleaseCultivationFactorMax() < 1.0) {
+            errors.add("releaseCultivationFactorMax 必须 >= 1.0，当前值: " + system.getReleaseCultivationFactorMax());
+        }
+        if (system.getReleaseCultivationPointsCap() <= 0) {
+            errors.add("releaseCultivationPointsCap 必须 > 0，当前值: " + system.getReleaseCultivationPointsCap());
+        }
+        if (system.getReleaseWarningAptitudeThreshold() < 0
+                || system.getReleaseWarningAptitudeThreshold() > system.getAptitudeMax()) {
+            errors.add("releaseWarningAptitudeThreshold 必须在 [0, aptitudeMax] 范围内，当前值: "
+                    + system.getReleaseWarningAptitudeThreshold());
+        }
+        validateRarityDoubleMap("wildRewardRarityMultiplier", system.getWildRewardRarityMultiplier(), errors);
     }
 
-    private void validateInitialPets(InitialPetsConfig config, GameElementsConfig elements,
-                                     SystemRuleConfig system, List<String> errors) {
+    /** 稀有度 → 整数映射的键与数值校验（如放生礼物基础点数）。 */
+    private void validateRarityIntMap(String fieldName, Map<String, Integer> map, List<String> errors) {
+        if (map == null || map.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            if (!VALID_RARITIES.contains(entry.getKey())) {
+                errors.add(fieldName + " 稀有度键非法: " + entry.getKey());
+            }
+            if (entry.getValue() == null || entry.getValue() < 0) {
+                errors.add(fieldName + "[" + entry.getKey() + "] 必须 >= 0");
+            }
+        }
+    }
+
+    /** 稀有度 → 浮点映射的键与数值校验（如野生奖励系数）。 */
+    private void validateRarityDoubleMap(String fieldName, Map<String, Double> map, List<String> errors) {
+        if (map == null || map.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Double> entry : map.entrySet()) {
+            if (!VALID_RARITIES.contains(entry.getKey())) {
+                errors.add(fieldName + " 稀有度键非法: " + entry.getKey());
+            }
+            if (entry.getValue() == null || entry.getValue() <= 0) {
+                errors.add(fieldName + "[" + entry.getKey() + "] 必须 > 0");
+            }
+        }
+    }
+
+    private void validateInitialPets(InitialPetsConfig config, PetsConfig pets, ItemsConfig items,
+                                     List<String> errors) {
         if (config.getInitialPets() == null || config.getInitialPets().isEmpty()) {
             errors.add("initialPets 列表不能为空");
             return;
@@ -196,35 +285,20 @@ public class GameConfigValidator {
             errors.add("initialPets 必须恰好 3 个选项，当前: " + config.getInitialPets().size());
         }
         Set<String> speciesIds = new HashSet<>();
-        Set<String> validElementIds = new HashSet<>();
-        for (GameElementConfig elem : elements.getElements()) {
-            validElementIds.add(elem.getId());
+        Set<String> validSpeciesIds = new HashSet<>();
+        if (pets != null) {
+            for (PetSpeciesConfig species : pets.getSpecies()) {
+                validSpeciesIds.add(species.getId());
+            }
         }
         for (InitialPetsConfig.InitialPetOption pet : config.getInitialPets()) {
             if (pet.getSpeciesId() == null || pet.getSpeciesId().isBlank()) {
                 errors.add("initialPet 缺少 speciesId");
+            } else if (!validSpeciesIds.isEmpty() && !validSpeciesIds.contains(pet.getSpeciesId())) {
+                errors.add("initialPet 引用不存在的种族: " + pet.getSpeciesId());
             }
-            if (!speciesIds.add(pet.getSpeciesId())) {
+            if (pet.getSpeciesId() != null && !speciesIds.add(pet.getSpeciesId())) {
                 errors.add("initialPet speciesId 重复: " + pet.getSpeciesId());
-            }
-            if (pet.getElement() != null && !validElementIds.contains(pet.getElement())) {
-                errors.add("initialPet 引用不存在的属性: " + pet.getElement());
-            }
-            if (pet.getRarity() == null || !VALID_RARITIES.contains(pet.getRarity())) {
-                errors.add("initialPet " + pet.getSpeciesId() + " rarity 非法: " + pet.getRarity());
-            }
-            // 技能解锁等级校验（阶段 4）
-            if (pet.getSkills() != null) {
-                for (InitialPetsConfig.InitialSkillSlot slot : pet.getSkills()) {
-                    if (slot.getUnlockLevel() < 1) {
-                        errors.add("initialPet " + pet.getSpeciesId()
-                                + " 技能 " + slot.getSkillId() + " unlockLevel 必须 >= 1");
-                    }
-                    if (slot.getUnlockLevel() > system.getLevelCap()) {
-                        errors.add("initialPet " + pet.getSpeciesId()
-                                + " 技能 " + slot.getSkillId() + " unlockLevel 超过 levelCap");
-                    }
-                }
             }
             // 初始宠物资质至少 A（各项 >= 80）
             int[] apts = {pet.getAptitudeHp(), pet.getAptitudeStrength(), pet.getAptitudeSpirit(),
@@ -233,6 +307,24 @@ public class GameConfigValidator {
                 if (apt < 80) {
                     errors.add("initialPet " + pet.getSpeciesId() + " 资质必须 >= 80，当前值: " + apt);
                     break;
+                }
+            }
+        }
+        // 初始道具引用校验（阶段 5）
+        Set<String> validItemIds = new HashSet<>();
+        if (items != null && items.getItems() != null) {
+            for (ItemConfig item : items.getItems()) {
+                validItemIds.add(item.getId());
+            }
+        }
+        if (config.getInitialItems() != null) {
+            for (InitialPetsConfig.InitialItemEntry entry : config.getInitialItems()) {
+                if (entry.getItemId() == null
+                        || (!validItemIds.isEmpty() && !validItemIds.contains(entry.getItemId()))) {
+                    errors.add("initialItem 引用不存在的道具: " + entry.getItemId());
+                }
+                if (entry.getQuantity() <= 0) {
+                    errors.add("initialItem " + entry.getItemId() + " quantity 必须 > 0");
                 }
             }
         }
@@ -292,6 +384,7 @@ public class GameConfigValidator {
     private static final Set<String> VALID_ITEM_TYPES =
             Set.of("HEAL_HP", "REVIVE", "CAPTURE_BALL", "MATERIAL", "SKILL_BOOK", "KEY_ITEM");
     private static final Set<String> VALID_RARITIES = Set.of("COMMON", "RARE", "EPIC", "LEGENDARY");
+    private static final Set<String> VALID_GIFT_TYPES = Set.of("GOLD", "EXP", "ITEM");
 
     /** 校验状态配置：ID 唯一、类别合法、数值字段范围、联动引用合法。 */
     private void validateStatuses(StatusesConfig statuses, List<String> errors) {
@@ -429,34 +522,182 @@ public class GameConfigValidator {
         }
     }
 
-    /** 校验初始宠物的技能/被动引用存在且槽位不重复。 */
-    private void validateInitialPetSkillRefs(InitialPetsConfig initialPets, SkillsConfig skills, List<String> errors) {
+    /** 校验初始宠物的技能/被动引用存在且槽位不重复（阶段 4 起废弃：种族数据统一来源为 pets 配置）。 */
+    private void validatePets(PetsConfig pets, SkillsConfig skills, GameElementsConfig elements,
+                              SystemRuleConfig system, List<String> errors) {
+        if (pets.getSpecies() == null || pets.getSpecies().isEmpty()) {
+            errors.add("pets species 列表不能为空");
+            return;
+        }
+        Set<String> validElementIds = new HashSet<>();
+        for (GameElementConfig elem : elements.getElements()) {
+            validElementIds.add(elem.getId());
+        }
         Set<String> skillIds = new HashSet<>();
-        for (SkillConfig skill : skills.getSkills()) {
-            skillIds.add(skill.getId());
+        if (skills != null) {
+            for (SkillConfig skill : skills.getSkills()) {
+                skillIds.add(skill.getId());
+            }
         }
         Set<String> passiveIds = new HashSet<>();
-        for (PassiveSkillConfig passive : skills.getPassives()) {
-            passiveIds.add(passive.getId());
+        if (skills != null) {
+            for (PassiveSkillConfig passive : skills.getPassives()) {
+                passiveIds.add(passive.getId());
+            }
         }
-        for (InitialPetsConfig.InitialPetOption pet : initialPets.getInitialPets()) {
-            if (pet.getSkills() == null || pet.getSkills().isEmpty()) {
-                errors.add("initialPet " + pet.getSpeciesId() + " 未配置初始技能");
+        Set<String> speciesIds = new HashSet<>();
+        Map<String, Integer> rarityCounts = new HashMap<>();
+        for (PetSpeciesConfig species : pets.getSpecies()) {
+            if (species.getId() == null || species.getId().isBlank()) {
+                errors.add("pet species 缺少 id 字段");
                 continue;
             }
-            Set<Integer> slots = new HashSet<>();
-            for (InitialPetsConfig.InitialSkillSlot slot : pet.getSkills()) {
-                if (slot.getSkillId() == null || !skillIds.contains(slot.getSkillId())) {
-                    errors.add("initialPet " + pet.getSpeciesId() + " 引用不存在的技能: " + slot.getSkillId());
-                }
-                if (slot.getSlot() != null && !slots.add(slot.getSlot())) {
-                    errors.add("initialPet " + pet.getSpeciesId() + " 技能槽位重复: " + slot.getSlot());
+            if (!speciesIds.add(species.getId())) {
+                errors.add("pet species ID 重复: " + species.getId());
+            }
+            if (!validElementIds.contains(species.getElement())) {
+                errors.add("pet species " + species.getId() + " 引用不存在的属性: " + species.getElement());
+            }
+            if (species.getRarity() == null || !VALID_RARITIES.contains(species.getRarity())) {
+                errors.add("pet species " + species.getId() + " rarity 非法: " + species.getRarity());
+            } else {
+                rarityCounts.merge(species.getRarity(), 1, Integer::sum);
+            }
+            if (species.getCaptureRate() <= 0 || species.getCaptureRate() > 1) {
+                errors.add("pet species " + species.getId()
+                        + " captureRate 必须在 (0, 1] 范围内，当前值: " + species.getCaptureRate());
+            }
+            if (species.getBaseHp() <= 0) {
+                errors.add("pet species " + species.getId() + " baseHp 必须 > 0");
+            }
+            if (species.getBaseStrength() < 0 || species.getBaseSpirit() < 0 || species.getBaseDefense() < 0
+                    || species.getBaseResistance() < 0 || species.getBaseSpeed() < 0) {
+                errors.add("pet species " + species.getId() + " 六维基础值必须 >= 0");
+            }
+            if (species.getSkills() == null || species.getSkills().isEmpty()) {
+                errors.add("pet species " + species.getId() + " 未配置种族技能");
+            } else {
+                Set<Integer> slots = new HashSet<>();
+                for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
+                    if (slot.getSkillId() == null || !skillIds.contains(slot.getSkillId())) {
+                        errors.add("pet species " + species.getId()
+                                + " 引用不存在的技能: " + slot.getSkillId());
+                    }
+                    if (slot.getSlot() != null && !slots.add(slot.getSlot())) {
+                        errors.add("pet species " + species.getId() + " 技能槽位重复: " + slot.getSlot());
+                    }
+                    if (slot.getUnlockLevel() < 1) {
+                        errors.add("pet species " + species.getId() + " 技能 " + slot.getSkillId()
+                                + " unlockLevel 必须 >= 1");
+                    }
+                    if (slot.getUnlockLevel() > system.getLevelCap()) {
+                        errors.add("pet species " + species.getId() + " 技能 " + slot.getSkillId()
+                                + " unlockLevel 超过 levelCap");
+                    }
                 }
             }
-            for (String passiveId : pet.getPassives()) {
-                if (!passiveIds.contains(passiveId)) {
-                    errors.add("initialPet " + pet.getSpeciesId() + " 引用不存在的被动: " + passiveId);
+            for (String skillId : species.getRareSkills()) {
+                if (!skillIds.contains(skillId)) {
+                    errors.add("pet species " + species.getId() + " rareSkills 引用不存在的技能: " + skillId);
                 }
+            }
+            for (String passiveId : species.getPassives()) {
+                if (!passiveIds.contains(passiveId)) {
+                    errors.add("pet species " + species.getId() + " 引用不存在的被动: " + passiveId);
+                }
+            }
+        }
+        // 规模与稀有度分布（需求 §59/§60：27 种 = 普通 12 / 稀有 9 / 珍稀 5 / 传说 1）
+        if (speciesIds.size() != 27) {
+            errors.add("pets 种族数量必须为 27（需求 §59），当前: " + speciesIds.size());
+        }
+        String[] rarities = {"COMMON", "RARE", "EPIC", "LEGENDARY"};
+        int[] expected = {12, 9, 5, 1};
+        for (int i = 0; i < rarities.length; i++) {
+            int actual = rarityCounts.getOrDefault(rarities[i], 0);
+            if (actual != expected[i]) {
+                errors.add("pets 稀有度 " + rarities[i] + " 数量应为 " + expected[i]
+                        + "（需求 §60），当前: " + actual);
+            }
+        }
+    }
+
+    /** 校验野生遭遇配置（阶段 5）：组 ID 唯一、阵容范围合法、种族引用与权重合法。 */
+    private void validateEncounters(EncountersConfig encounters, PetsConfig pets, List<String> errors) {
+        if (encounters.getEncounterGroups() == null || encounters.getEncounterGroups().isEmpty()) {
+            errors.add("encounterGroups 列表不能为空");
+            return;
+        }
+        Set<String> validSpeciesIds = new HashSet<>();
+        if (pets != null) {
+            for (PetSpeciesConfig species : pets.getSpecies()) {
+                validSpeciesIds.add(species.getId());
+            }
+        }
+        Set<String> groupIds = new HashSet<>();
+        for (EncountersConfig.EncounterGroup group : encounters.getEncounterGroups()) {
+            if (group.getId() == null || group.getId().isBlank()) {
+                errors.add("encounterGroup 缺少 id 字段");
+                continue;
+            }
+            if (!groupIds.add(group.getId())) {
+                errors.add("encounterGroup ID 重复: " + group.getId());
+            }
+            if (group.getTeamSizeMin() < 1 || group.getTeamSizeMax() < group.getTeamSizeMin()) {
+                errors.add("encounterGroup " + group.getId() + " teamSize 范围非法");
+            }
+            if (group.getExpPerLevel() < 0 || group.getGoldPerLevel() < 0) {
+                errors.add("encounterGroup " + group.getId() + " expPerLevel/goldPerLevel 必须 >= 0");
+            }
+            if (group.getSpecies() == null || group.getSpecies().isEmpty()) {
+                errors.add("encounterGroup " + group.getId() + " species 列表不能为空");
+            } else {
+                for (EncountersConfig.SpeciesEntry entry : group.getSpecies()) {
+                    if (entry.getSpeciesId() == null || !validSpeciesIds.contains(entry.getSpeciesId())) {
+                        errors.add("encounterGroup " + group.getId()
+                                + " 引用不存在的种族: " + entry.getSpeciesId());
+                    }
+                    if (entry.getWeight() <= 0) {
+                        errors.add("encounterGroup " + group.getId() + " 种族 " + entry.getSpeciesId()
+                                + " weight 必须 > 0");
+                    }
+                    if (entry.getLevelMin() < 1 || entry.getLevelMax() < entry.getLevelMin()) {
+                        errors.add("encounterGroup " + group.getId() + " 种族 " + entry.getSpeciesId()
+                                + " 等级范围非法");
+                    }
+                }
+            }
+        }
+    }
+
+    /** 校验放生礼物配置（阶段 5）：礼物池非空、类型与数值合法、道具引用存在。 */
+    private void validateReleaseGifts(ReleaseGiftsConfig releaseGifts, ItemsConfig items, List<String> errors) {
+        if (releaseGifts.getGifts() == null || releaseGifts.getGifts().isEmpty()) {
+            errors.add("releaseGifts gifts 列表不能为空");
+            return;
+        }
+        Set<String> validItemIds = new HashSet<>();
+        if (items != null && items.getItems() != null) {
+            for (ItemConfig item : items.getItems()) {
+                validItemIds.add(item.getId());
+            }
+        }
+        for (ReleaseGiftsConfig.GiftEntry gift : releaseGifts.getGifts()) {
+            if (gift.getType() == null || !VALID_GIFT_TYPES.contains(gift.getType())) {
+                errors.add("releaseGift type 非法: " + gift.getType());
+            }
+            if (gift.getUnitValue() <= 0) {
+                errors.add("releaseGift unitValue 必须 > 0");
+            }
+            if (gift.getWeight() <= 0) {
+                errors.add("releaseGift weight 必须 > 0");
+            }
+            if ("ITEM".equals(gift.getType())
+                    && (gift.getItemId() == null || !validItemIds.contains(gift.getItemId()))) {
+                errors.add("releaseGift 引用不存在的道具: " + gift.getItemId());
+            }
+            if ("ITEM".equals(gift.getType()) && gift.getQuantity() <= 0) {
+                errors.add("releaseGift 道具 quantity 必须 > 0");
             }
         }
     }
@@ -532,10 +773,10 @@ public class GameConfigValidator {
             if (!itemIds.add(item.getId())) {
                 errors.add("item ID 重复: " + item.getId());
             }
-            if (!VALID_ITEM_CATEGORIES.contains(item.getCategory())) {
+            if (item.getCategory() == null || !VALID_ITEM_CATEGORIES.contains(item.getCategory())) {
                 errors.add("item " + item.getId() + " category 非法: " + item.getCategory());
             }
-            if (!VALID_ITEM_TYPES.contains(item.getItemType())) {
+            if (item.getItemType() == null || !VALID_ITEM_TYPES.contains(item.getItemType())) {
                 errors.add("item " + item.getId() + " itemType 非法: " + item.getItemType());
             }
             // 恢复类道具数值应 > 0

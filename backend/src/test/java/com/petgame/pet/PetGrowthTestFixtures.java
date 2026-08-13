@@ -2,6 +2,8 @@ package com.petgame.pet;
 
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.PetSpeciesConfig;
+import com.petgame.config.model.PetsConfig;
 import com.petgame.config.model.SystemRuleConfig;
 
 import java.lang.reflect.Field;
@@ -35,19 +37,27 @@ public final class PetGrowthTestFixtures {
 
     /**
      * 构建测试用配置注册中心。
+     * <p>
+     * 阶段 5 起种族配置使用 PetSpeciesConfig（pets/pets.yml 模型）。
      *
-     * @param initialPets 初始宠物选项（种族配置）
+     * @param speciesList 种族配置列表
      */
-    public static GameConfigRegistry buildRegistry(List<InitialPetsConfig.InitialPetOption> initialPets) {
+    public static GameConfigRegistry buildRegistry(List<PetSpeciesConfig> speciesList) {
         SystemRuleConfig system = defaultSystemRules();
 
-        InitialPetsConfig initialPetsConfig = new InitialPetsConfig();
-        initialPetsConfig.setInitialPets(initialPets);
+        PetsConfig petsConfig = new PetsConfig();
+        petsConfig.setSpecies(speciesList);
 
         try {
             GameConfigRegistry registry = new GameConfigRegistry(null, null);
             setField(registry, "systemRules", system);
-            setField(registry, "initialPetsConfig", initialPetsConfig);
+            setField(registry, "petsConfig", petsConfig);
+            // 种族索引（getSpecies 依赖）
+            LinkedHashMap<String, PetSpeciesConfig> speciesIndex = new LinkedHashMap<>();
+            for (PetSpeciesConfig species : speciesList) {
+                speciesIndex.put(species.getId(), species);
+            }
+            setField(registry, "speciesIndex", speciesIndex);
             // 初始化空索引，避免 PetService.getSkill/getItem 等查询触发 NPE
             setField(registry, "skillIndex", new LinkedHashMap<>());
             setField(registry, "itemIndex", new LinkedHashMap<>());
@@ -78,40 +88,34 @@ public final class PetGrowthTestFixtures {
     }
 
     /**
-     * 构建测试用种族配置。
+     * 构建测试用种族配置（阶段 5：PetSpeciesConfig 模型）。
      *
      * @param speciesId  种族 ID
      * @param rarity     稀有度
-     * @param aptitude   六维资质（统一值，便于断言）
+     * @param aptitude   资质参数（阶段 5 资质属个体属性，此处保留签名兼容，不再写入种族配置）
      * @param skillSlots 技能槽（含 unlockLevel）
      */
-    public static InitialPetsConfig.InitialPetOption species(
+    public static PetSpeciesConfig species(
             String speciesId, String rarity, int aptitude,
-            List<InitialPetsConfig.InitialSkillSlot> skillSlots) {
-        InitialPetsConfig.InitialPetOption option = new InitialPetsConfig.InitialPetOption();
-        option.setSpeciesId(speciesId);
-        option.setName(speciesId);
-        option.setElement("WATER");
-        option.setRarity(rarity);
-        option.setBaseHp(100);
-        option.setBaseStrength(20);
-        option.setBaseSpirit(20);
-        option.setBaseDefense(20);
-        option.setBaseResistance(20);
-        option.setBaseSpeed(20);
-        option.setAptitudeHp(aptitude);
-        option.setAptitudeStrength(aptitude);
-        option.setAptitudeSpirit(aptitude);
-        option.setAptitudeDefense(aptitude);
-        option.setAptitudeResistance(aptitude);
-        option.setAptitudeSpeed(aptitude);
-        option.setSkills(skillSlots);
-        return option;
+            List<PetSpeciesConfig.SpeciesSkillSlot> skillSlots) {
+        PetSpeciesConfig species = new PetSpeciesConfig();
+        species.setId(speciesId);
+        species.setName(speciesId);
+        species.setElement("WATER");
+        species.setRarity(rarity);
+        species.setBaseHp(100);
+        species.setBaseStrength(20);
+        species.setBaseSpirit(20);
+        species.setBaseDefense(20);
+        species.setBaseResistance(20);
+        species.setBaseSpeed(20);
+        species.setSkills(skillSlots);
+        return species;
     }
 
     /** 构建技能槽。 */
-    public static InitialPetsConfig.InitialSkillSlot skillSlot(String skillId, int unlockLevel) {
-        InitialPetsConfig.InitialSkillSlot slot = new InitialPetsConfig.InitialSkillSlot();
+    public static PetSpeciesConfig.SpeciesSkillSlot skillSlot(String skillId, int unlockLevel) {
+        PetSpeciesConfig.SpeciesSkillSlot slot = new PetSpeciesConfig.SpeciesSkillSlot();
         slot.setSkillId(skillId);
         slot.setUnlockLevel(unlockLevel);
         return slot;

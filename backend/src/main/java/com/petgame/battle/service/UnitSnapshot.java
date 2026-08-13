@@ -36,6 +36,9 @@ public class UnitSnapshot {
     private int position;
     private boolean defending;
 
+    /** 是否已被捕捉（野生战斗）。 */
+    private boolean captured;
+
     /** 蓄力中（chargingSkillId 非空）。 */
     private boolean charging;
     private String chargingSkillId;

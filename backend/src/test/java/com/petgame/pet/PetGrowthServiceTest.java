@@ -1,7 +1,7 @@
 package com.petgame.pet;
 
 import com.petgame.config.GameConfigRegistry;
-import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.pet.domain.PetGrowthService;
 import com.petgame.pet.domain.PetPanelStats;
 import com.petgame.pet.entity.PlayerPetEntity;
@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class PetGrowthServiceTest {
 
-    private PetGrowthService service(List<InitialPetsConfig.InitialPetOption> pets) {
+    private PetGrowthService service(List<PetSpeciesConfig> pets) {
         return new PetGrowthService(buildRegistry(pets));
     }
 
@@ -59,7 +59,7 @@ class PetGrowthServiceTest {
     @Test
     void panelStats_level1_aptitudeDoesNotAffect() {
         // Lv.1：资质不影响（levelBonus=0，资质修正基于等级成长 → 0）
-        InitialPetsConfig.InitialPetOption species =
+        PetSpeciesConfig species =
                 species("SPEC_TEST", "COMMON", 50, List.of());
         PetGrowthService svc = service(List.of(species));
 
@@ -96,7 +96,7 @@ class PetGrowthServiceTest {
     @Test
     void panelStats_level10_aptitudeDifferentiallyAffects() {
         // Lv.10：资质 100 比 50 多出 growth*(50/100) 的资质修正
-        InitialPetsConfig.InitialPetOption species =
+        PetSpeciesConfig species =
                 species("SPEC_TEST", "COMMON", 50, List.of());
         PetGrowthService svc = service(List.of(species));
 
@@ -120,7 +120,7 @@ class PetGrowthServiceTest {
     @Test
     void panelStats_individualVarianceAddedToBase() {
         // 个体浮动直接加到基础值上（捕获时固化）
-        InitialPetsConfig.InitialPetOption species =
+        PetSpeciesConfig species =
                 species("SPEC_TEST", "COMMON", 50, List.of());
         PetGrowthService svc = service(List.of(species));
 
@@ -140,7 +140,7 @@ class PetGrowthServiceTest {
     @Test
     void panelStats_freePointsContributeByDimension() {
         // 自由点数：HP 每点 +5，非 HP 每点 +1，速度每点 +1
-        InitialPetsConfig.InitialPetOption species =
+        PetSpeciesConfig species =
                 species("SPEC_TEST", "COMMON", 50, List.of());
         PetGrowthService svc = service(List.of(species));
 
@@ -223,7 +223,7 @@ class PetGrowthServiceTest {
 
     @Test
     void freePointsAvailable_earnedMinusAllocated() {
-        InitialPetsConfig.InitialPetOption species =
+        PetSpeciesConfig species =
                 species("SPEC_TEST", "RARE", 50, List.of());
         PetGrowthService svc = service(List.of(species));
 
@@ -270,7 +270,7 @@ class PetGrowthServiceTest {
 
     @Test
     void skillsUnlockedBetween_rangeInclusiveToLevel() {
-        InitialPetsConfig.InitialPetOption species = species("SPEC_TEST", "COMMON", 50,
+        PetSpeciesConfig species = species("SPEC_TEST", "COMMON", 50,
                 List.of(
                         skillSlot("SKILL_A", 1),   // 初始技能
                         skillSlot("SKILL_B", 5),  // 5 级解锁
@@ -294,7 +294,7 @@ class PetGrowthServiceTest {
 
     @Test
     void learnedSpeciesSkills_filterByLevel() {
-        InitialPetsConfig.InitialPetOption species = species("SPEC_TEST", "COMMON", 50,
+        PetSpeciesConfig species = species("SPEC_TEST", "COMMON", 50,
                 List.of(
                         skillSlot("SKILL_A", 1),
                         skillSlot("SKILL_B", 5),
@@ -310,7 +310,7 @@ class PetGrowthServiceTest {
 
     @Test
     void skillsUnlockedBetween_nullSkillsReturnsEmpty() {
-        InitialPetsConfig.InitialPetOption species = species("SPEC_TEST", "COMMON", 50, null);
+        PetSpeciesConfig species = species("SPEC_TEST", "COMMON", 50, null);
         PetGrowthService svc = service(List.of(species));
 
         assertTrue(svc.skillsUnlockedBetween(species, 1, 10).isEmpty());
@@ -320,7 +320,7 @@ class PetGrowthServiceTest {
 
     @Test
     void previewLevelUp_expAndPointsAndSkills() {
-        InitialPetsConfig.InitialPetOption species = species("SPEC_TEST", "RARE", 50,
+        PetSpeciesConfig species = species("SPEC_TEST", "RARE", 50,
                 List.of(
                         skillSlot("SKILL_A", 1),
                         skillSlot("SKILL_B", 10)
@@ -350,7 +350,7 @@ class PetGrowthServiceTest {
 
     @Test
     void previewLevelUp_invalidTargetThrows() {
-        InitialPetsConfig.InitialPetOption species = species("SPEC_TEST", "COMMON", 50, List.of());
+        PetSpeciesConfig species = species("SPEC_TEST", "COMMON", 50, List.of());
         PetGrowthService svc = service(List.of(species));
 
         PlayerPetEntity pet = pet(5, 50);
@@ -364,7 +364,7 @@ class PetGrowthServiceTest {
 
     @Test
     void previewLevelUp_toCapValid() {
-        InitialPetsConfig.InitialPetOption species = species("SPEC_TEST", "COMMON", 50, List.of());
+        PetSpeciesConfig species = species("SPEC_TEST", "COMMON", 50, List.of());
         PetGrowthService svc = service(List.of(species));
 
         PlayerPetEntity pet = pet(48, 50);

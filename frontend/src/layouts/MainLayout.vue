@@ -7,7 +7,7 @@
     <header class="app-header">
       <div class="header-brand">
         <h1 class="header-title">宠物精灵</h1>
-        <span class="header-badge">Phase 4</span>
+        <span class="header-badge">Phase 5</span>
       </div>
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>
@@ -15,6 +15,7 @@
         <RouterLink to="/battle">战斗</RouterLink>
         <RouterLink to="/pets">宠物</RouterLink>
         <RouterLink to="/team">队伍</RouterLink>
+        <RouterLink to="/storage">仓库</RouterLink>
         <RouterLink to="/pokedex">图鉴</RouterLink>
         <RouterLink to="/boss">Boss</RouterLink>
         <RouterLink to="/inventory">背包</RouterLink>

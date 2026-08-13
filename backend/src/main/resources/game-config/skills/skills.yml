@@ -206,6 +206,382 @@ skills:
     effects:
       - { type: APPLY_STATUS, statusId: SILENCE, chance: 0.70 }
 
+  # ---------- 阶段 5：27 种基础宠物种族技能 ----------
+
+  - id: SKILL_METAL_CLAW
+    name: 金属爪
+    description: 金属性物理攻击。
+    element: METAL
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 40
+    scaling: { strength: 1.00 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_ARMOR_CRUSH
+    name: 破甲击
+    description: 金属性物理攻击，40% 概率破甲。
+    element: METAL
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 45
+    scaling: { strength: 1.10 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: ARMOR_BREAK, chance: 0.40 }
+
+  - id: SKILL_BLADE_STORM
+    name: 刃暴
+    description: 金属性群体物理攻击。
+    element: METAL
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 28
+    scaling: { strength: 0.75 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_GOLDEN_GUARD
+    name: 金御
+    description: 为自身附加金属性护盾。
+    element: METAL
+    rarity: RARE
+    damageType: NONE
+    effectType: SHIELD
+    target: SELF
+    baseValue: 45
+    scaling: { defense: 1.40 }
+    cooldown: 2
+    accuracy: 1.0
+
+  - id: SKILL_HEAL_SPORE
+    name: 治愈孢子
+    description: 治疗己方单体。
+    element: WOOD
+    rarity: NORMAL
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_SINGLE
+    baseValue: 25
+    scaling: { spirit: 1.00 }
+    cooldown: 1
+    accuracy: 1.0
+
+  - id: SKILL_THORN_BIND
+    name: 荆棘缠绕
+    description: 木属性物理攻击，30% 概率使目标中毒。
+    element: WOOD
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 30
+    scaling: { strength: 0.75 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: POISON, chance: 0.30 }
+
+  - id: SKILL_AQUA_JET
+    name: 水跃击
+    description: 水属性物理攻击。
+    element: WATER
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 38
+    scaling: { strength: 0.95 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_TIDAL_WAVE
+    name: 潮涌
+    description: 水属性群体法术攻击。
+    element: WATER
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 26
+    scaling: { spirit: 0.65 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_PURIFY
+    name: 净化之水
+    description: 治疗己方单体。
+    element: WATER
+    rarity: NORMAL
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_SINGLE
+    baseValue: 40
+    scaling: { spirit: 1.25 }
+    cooldown: 2
+    accuracy: 1.0
+
+  - id: SKILL_EMBER_BITE
+    name: 火牙
+    description: 火属性物理攻击，15% 概率灼烧目标。
+    element: FIRE
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 42
+    scaling: { strength: 1.05 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: BURN, chance: 0.15 }
+
+  - id: SKILL_BLAZING_SPIRIT
+    name: 炎灵
+    description: 火属性强力单体法术攻击。
+    element: FIRE
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 52
+    scaling: { spirit: 1.30 }
+    cooldown: 1
+    accuracy: 0.95
+
+  - id: SKILL_ROCK_THROW
+    name: 落岩
+    description: 土属性物理攻击。
+    element: EARTH
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 40
+    scaling: { strength: 1.00 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_EARTHQUAKE
+    name: 地震
+    description: 土属性群体物理攻击。
+    element: EARTH
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 26
+    scaling: { strength: 0.70 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_TAUNT
+    name: 嘲讽
+    description: 嘲讽敌方单体，使其单体技能强制指向自身。
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: TAUNT, chance: 1.0 }
+
+  - id: SKILL_WIND_BLADE
+    name: 风刃
+    description: 风属性物理攻击。
+    element: WIND
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 42
+    scaling: { strength: 1.05 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_GALE
+    name: 疾风骤起
+    description: 风属性群体法术攻击。
+    element: WIND
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 26
+    scaling: { spirit: 0.65 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_GUST_TRAP
+    name: 气流禁锢
+    description: 80% 概率禁锢敌方单体，使其无法行动。
+    element: WIND
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 0.85
+    effects:
+      - { type: APPLY_STATUS, statusId: ROOT, chance: 0.80 }
+
+  - id: SKILL_THUNDER_WAVE
+    name: 雷波
+    description: 75% 概率麻痹敌方单体。
+    element: THUNDER
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: PARALYSIS, chance: 0.75 }
+
+  - id: SKILL_VOLT_TACKLE
+    name: 电光一闪
+    description: 雷属性高速物理攻击。
+    element: THUNDER
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 45
+    scaling: { strength: 1.10 }
+    cooldown: 1
+    accuracy: 0.95
+
+  - id: SKILL_THUNDER_STORM
+    name: 雷暴
+    description: 雷属性群体法术攻击。
+    element: THUNDER
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 30
+    scaling: { spirit: 0.75 }
+    cooldown: 2
+    accuracy: 0.90
+
+  - id: SKILL_HOLY_LIGHT
+    name: 圣光
+    description: 治疗己方单体。
+    element: LIGHT
+    rarity: NORMAL
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_SINGLE
+    baseValue: 35
+    scaling: { spirit: 1.20 }
+    cooldown: 1
+    accuracy: 1.0
+
+  - id: SKILL_LIGHT_RADIANCE
+    name: 光耀
+    description: 光属性法术攻击。
+    element: LIGHT
+    rarity: NORMAL
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 48
+    scaling: { spirit: 1.20 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_LIGHT_BURST
+    name: 光爆
+    description: 光属性群体法术攻击。
+    element: LIGHT
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 30
+    scaling: { spirit: 0.75 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_SHADOW_BALL
+    name: 暗影球
+    description: 暗属性法术攻击。
+    element: DARK
+    rarity: NORMAL
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 45
+    scaling: { spirit: 1.10 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_SHADOW_STRIKE
+    name: 暗袭
+    description: 暗属性物理攻击。
+    element: DARK
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 48
+    scaling: { strength: 1.20 }
+    cooldown: 1
+    accuracy: 0.95
+
+  - id: SKILL_CURSE
+    name: 诅咒
+    description: 80% 概率诅咒敌方单体，使其受到伤害提高。
+    element: DARK
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 0.90
+    effects:
+      - { type: APPLY_STATUS, statusId: CURSE, chance: 0.80 }
+
+  - id: SKILL_HEADBUTT
+    name: 头槌
+    description: 无属性基础物理攻击。
+    element: NONE
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 35
+    scaling: { strength: 0.90 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_QUICK_ATTACK
+    name: 迅捷攻击
+    description: 无属性高速物理攻击。
+    element: NONE
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 28
+    scaling: { strength: 0.70 }
+    cooldown: 0
+    accuracy: 1.0
+
   # ---------- 敌方技能 ----------
 
   - id: SKILL_ENEMY_BITE
@@ -286,3 +662,10 @@ passives:
     element: FIRE
     value: 10
     spiritScale: 0.20
+
+  - id: PASSIVE_REGENERATE
+    name: 再生
+    description: 每回合结束时恢复少量生命。
+    trigger: ON_ROUND_END
+    effectType: HEAL_SELF
+    value: 8

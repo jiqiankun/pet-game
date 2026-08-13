@@ -29,6 +29,8 @@ export interface UnitSnapshot {
   active: boolean
   position: number
   defending: boolean
+  /** 是否已被捕捉（野生战斗，阶段 5）。 */
+  captured: boolean
   charging: boolean
   chargingSkillId: string | null
   chargeRemaining: number
@@ -54,10 +56,14 @@ export interface BattleEvent {
 /** 战斗快照。 */
 export interface BattleSnapshot {
   battleId: string
+  /** 战斗类型：TEST / WILD。 */
+  battleType: 'TEST' | 'WILD' | string
   seed: number
   currentRound: number
   finished: boolean
   winner: 'PLAYER' | 'ENEMY' | null
+  /** 玩家是否逃跑成功（野生战斗，同战败结算）。 */
+  fled: boolean
   playerUnits: UnitSnapshot[]
   enemyUnits: UnitSnapshot[]
   events: BattleEvent[]
@@ -65,11 +71,22 @@ export interface BattleSnapshot {
 
 /** 行动意图（前端提交）。 */
 export interface BattleAction {
-  type: 'SKILL' | 'DEFEND' | 'SWITCH'
+  type: 'SKILL' | 'DEFEND' | 'SWITCH' | 'CAPTURE' | 'FLEE'
   petId: string
   skillId?: string
   targetId?: string
   switchPetId?: string
+  /** CAPTURE 行动使用的捕捉球道具 ID。 */
+  itemId?: string
+}
+
+/** 捕捉率视图（野生战斗，后端计算）。 */
+export interface CaptureRateView {
+  unitId: string
+  unitName: string
+  ballItemId: string
+  ballName: string
+  rate: number
 }
 
 /** 技能配置（前端展示用）。 */

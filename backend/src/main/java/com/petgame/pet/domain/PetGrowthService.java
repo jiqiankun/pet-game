@@ -1,7 +1,7 @@
 package com.petgame.pet.domain;
 
 import com.petgame.config.GameConfigRegistry;
-import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import com.petgame.pet.entity.PlayerPetEntity;
 import org.springframework.stereotype.Component;
@@ -33,7 +33,7 @@ public class PetGrowthService {
      * 计算宠物当前面板属性（需求 §9）。
      * 最终属性 = 种族基础（含个体浮动） + 等级固定成长 + 资质成长修正 + 自由属性点。
      */
-    public PetPanelStats computePanelStats(PlayerPetEntity pet, InitialPetsConfig.InitialPetOption species) {
+    public PetPanelStats computePanelStats(PlayerPetEntity pet, PetSpeciesConfig species) {
         return computePanelStatsAtLevel(pet, species, pet.getLevel());
     }
 
@@ -41,7 +41,7 @@ public class PetGrowthService {
      * 计算宠物在指定等级的面板属性（用于升级预览，自由点数不变）。
      */
     public PetPanelStats computePanelStatsAtLevel(PlayerPetEntity pet,
-                                                   InitialPetsConfig.InitialPetOption species, int level) {
+                                                   PetSpeciesConfig species, int level) {
         SystemRuleConfig rules = registry.getSystemRules();
         int levelBonus = Math.max(0, level - 1);
 
@@ -173,7 +173,7 @@ public class PetGrowthService {
     /**
      * 计算宠物剩余可分配自由点数 = 已获得 - 已消耗（按需求 §20 转换表折算，速度每点次消耗 2）。
      */
-    public int freePointsAvailable(PlayerPetEntity pet, InitialPetsConfig.InitialPetOption species) {
+    public int freePointsAvailable(PlayerPetEntity pet, PetSpeciesConfig species) {
         int earned = freePointsEarned(pet.getLevel(), species.getRarity());
         return earned - consumedFreePoints(pet);
     }
@@ -234,13 +234,13 @@ public class PetGrowthService {
     /**
      * 返回 (fromLevel, toLevel] 区间新解锁的技能（需求 §23 等级解锁）。
      */
-    public List<UnlockedSkill> skillsUnlockedBetween(InitialPetsConfig.InitialPetOption species,
+    public List<UnlockedSkill> skillsUnlockedBetween(PetSpeciesConfig species,
                                                       int fromLevel, int toLevel) {
         List<UnlockedSkill> unlocked = new ArrayList<>();
         if (species.getSkills() == null) {
             return unlocked;
         }
-        for (InitialPetsConfig.InitialSkillSlot slot : species.getSkills()) {
+        for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
             int ul = slot.getUnlockLevel();
             if (ul > fromLevel && ul <= toLevel) {
                 unlocked.add(new UnlockedSkill(slot.getSkillId(), ul));
@@ -250,10 +250,10 @@ public class PetGrowthService {
     }
 
     /** 已解锁的全部技能（unlockLevel <= level），含等级解锁的种族技能。 */
-    public List<InitialPetsConfig.InitialSkillSlot> learnedSpeciesSkills(
-            InitialPetsConfig.InitialPetOption species, int level) {
-        List<InitialPetsConfig.InitialSkillSlot> learned = new ArrayList<>();
-        for (InitialPetsConfig.InitialSkillSlot slot : species.getSkills()) {
+    public List<PetSpeciesConfig.SpeciesSkillSlot> learnedSpeciesSkills(
+            PetSpeciesConfig species, int level) {
+        List<PetSpeciesConfig.SpeciesSkillSlot> learned = new ArrayList<>();
+        for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
             if (slot.getUnlockLevel() <= level) {
                 learned.add(slot);
             }
@@ -271,7 +271,7 @@ public class PetGrowthService {
      * @param targetLevel 目标等级（必须 > 当前等级且 <= levelCap）
      */
     public LevelUpPreview previewLevelUp(PlayerPetEntity pet,
-                                           InitialPetsConfig.InitialPetOption species, int targetLevel) {
+                                           PetSpeciesConfig species, int targetLevel) {
         SystemRuleConfig rules = registry.getSystemRules();
         int currentLevel = pet.getLevel();
         if (targetLevel <= currentLevel) {

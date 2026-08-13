@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.petgame.config.GameProperties;
+import com.petgame.config.model.EncountersConfig;
 import com.petgame.config.model.GameElementsConfig;
 import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemsConfig;
+import com.petgame.config.model.PetsConfig;
+import com.petgame.config.model.ReleaseGiftsConfig;
 import com.petgame.config.model.SkillsConfig;
 import com.petgame.config.model.StatusesConfig;
 import com.petgame.config.model.SystemRuleConfig;
@@ -40,6 +43,9 @@ public class GameConfigLoader {
     private static final String STATUSES_YML = "statuses/statuses.yml";
     private static final String TEST_BATTLE_YML = "test-battle.yml";
     private static final String ITEMS_YML = "items/items.yml";
+    private static final String PETS_YML = "pets/pets.yml";
+    private static final String ENCOUNTERS_YML = "encounters/encounters.yml";
+    private static final String RELEASE_GIFTS_YML = "drops/release-gifts.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -148,7 +154,7 @@ public class GameConfigLoader {
     }
 
     /**
-     * 加载道具配置（阶段 4 恢复道具基础）。
+     * 加载道具配置（阶段 4 恢复道具基础，阶段 5 补入捕捉球）。
      */
     public ItemsConfig loadItemsConfig() {
         ItemsConfig config = loadInternalYaml(ITEMS_YML, ItemsConfig.class);
@@ -160,6 +166,54 @@ public class GameConfigLoader {
         ItemsConfig external = loadExternalYaml(ITEMS_YML, ItemsConfig.class);
         if (external != null) {
             log.info("已加载外部 items/items.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载宠物种族配置（阶段 5：27 种基础宠物的唯一数据来源）。
+     */
+    public PetsConfig loadPetsConfig() {
+        PetsConfig config = loadInternalYaml(PETS_YML, PetsConfig.class);
+        if (config == null) {
+            throw new IllegalStateException("内部 pets/pets.yml 未找到，无法启动");
+        }
+        PetsConfig external = loadExternalYaml(PETS_YML, PetsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 pets/pets.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载野生遭遇配置（阶段 5：按权重生成野生阵容）。
+     */
+    public EncountersConfig loadEncountersConfig() {
+        EncountersConfig config = loadInternalYaml(ENCOUNTERS_YML, EncountersConfig.class);
+        if (config == null) {
+            throw new IllegalStateException("内部 encounters/encounters.yml 未找到，无法启动");
+        }
+        EncountersConfig external = loadExternalYaml(ENCOUNTERS_YML, EncountersConfig.class);
+        if (external != null) {
+            log.info("已加载外部 encounters/encounters.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载放生礼物配置（阶段 5：按价值点数从礼物池抽取）。
+     */
+    public ReleaseGiftsConfig loadReleaseGiftsConfig() {
+        ReleaseGiftsConfig config = loadInternalYaml(RELEASE_GIFTS_YML, ReleaseGiftsConfig.class);
+        if (config == null) {
+            throw new IllegalStateException("内部 drops/release-gifts.yml 未找到，无法启动");
+        }
+        ReleaseGiftsConfig external = loadExternalYaml(RELEASE_GIFTS_YML, ReleaseGiftsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 drops/release-gifts.yml 覆盖内部配置");
             config = external;
         }
         return config;

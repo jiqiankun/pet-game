@@ -5,6 +5,7 @@ import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.GameProperties;
 import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SkillConfig;
 import com.petgame.inventory.entity.PlayerInventoryEntity;
 import com.petgame.inventory.mapper.PlayerInventoryMapper;
@@ -39,6 +40,9 @@ import java.util.UUID;
 public class GameService {
 
     private static final Logger log = LoggerFactory.getLogger(GameService.class);
+
+    /** 初始宠物等级（用户裁决：5 级，避免初始状态打不过野生宠物）。 */
+    public static final int STARTER_LEVEL = 5;
 
     private final PlayerMapper playerMapper;
     private final PlayerPetMapper playerPetMapper;
@@ -104,6 +108,11 @@ public class GameService {
                 .filter(p -> p.getSpeciesId().equals(petChoiceId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("无效的初始宠物选择: " + petChoiceId));
+        // 种族数据从 pets 配置读取（阶段 5 起唯一来源）
+        PetSpeciesConfig species = configRegistry.getSpecies(chosenPet.getSpeciesId());
+        if (species == null) {
+            throw new IllegalStateException("初始宠物种族配置缺失: " + chosenPet.getSpeciesId());
+        }
 
         String saveId = UUID.randomUUID().toString();
 
@@ -120,12 +129,12 @@ public class GameService {
         player.setPlayTimeSeconds(0L);
         playerMapper.insert(player);
 
-        // 2. 创建初始宠物
+        // 2. 创建初始宠物（用户裁决：初始等级 5 级，避免初始状态打不过野生宠物）
         PlayerPetEntity pet = new PlayerPetEntity();
         pet.setSaveId(saveId);
         pet.setSpeciesId(chosenPet.getSpeciesId());
-        pet.setLevel(1);
-        pet.setCapturedLevel(1);
+        pet.setLevel(STARTER_LEVEL);
+        pet.setCapturedLevel(STARTER_LEVEL);
         // 初始宠物不生成个体浮动，base_offset 全部使用默认 0
         pet.setBaseHpOffset(0);
         pet.setBaseStrengthOffset(0);
@@ -145,7 +154,7 @@ public class GameService {
         pet.setFreePointDefense(0);
         pet.setFreePointResistance(0);
         pet.setFreePointSpeed(0);
-        pet.setCurrentHp(chosenPet.getBaseHp());
+        pet.setCurrentHp(growthService.computePanelStats(pet, species).getMaxHp());
         pet.setIsStarter(true);
         pet.setLocked(true);
         pet.setFavorite(true);
@@ -153,9 +162,9 @@ public class GameService {
         pet.setWinCount(0);
         playerPetMapper.insert(pet);
 
-        // 2.1 学习初始技能（unlockLevel <= 1 的种族技能），按配置槽位装备
-        for (InitialPetsConfig.InitialSkillSlot skillSlot : chosenPet.getSkills()) {
-            if (skillSlot.getUnlockLevel() > 1) {
+        // 2.1 学习初始技能（unlockLevel <= 初始等级的种族技能），按配置槽位装备
+        for (PetSpeciesConfig.SpeciesSkillSlot skillSlot : species.getSkills()) {
+            if (skillSlot.getUnlockLevel() > STARTER_LEVEL) {
                 continue;
             }
             PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
@@ -164,6 +173,17 @@ public class GameService {
             petSkill.setSourceType("LEVEL_UP");
             petSkill.setSlot(skillSlot.getSlot());
             playerPetSkillMapper.insert(petSkill);
+        }
+
+        // 2.2 发放初始道具（阶段 5：新游戏赠送三档捕捉球）
+        if (initialPets.getInitialItems() != null) {
+            for (InitialPetsConfig.InitialItemEntry entry : initialPets.getInitialItems()) {
+                PlayerInventoryEntity inv = new PlayerInventoryEntity();
+                inv.setSaveId(saveId);
+                inv.setItemId(entry.getItemId());
+                inv.setQuantity(entry.getQuantity());
+                playerInventoryMapper.insert(inv);
+            }
         }
 
         // 3. 创建默认队伍（预设 1，激活）
@@ -264,7 +284,7 @@ public class GameService {
 
     /** 构建宠物摘要：种族信息 + 面板属性 + 装备技能。 */
     private PetSummary buildPetSummary(PlayerPetEntity pet) {
-        InitialPetsConfig.InitialPetOption species = configRegistry.getSpecies(pet.getSpeciesId());
+        PetSpeciesConfig species = configRegistry.getSpecies(pet.getSpeciesId());
         PetSummary summary = new PetSummary();
         summary.setPet(pet);
         if (species != null) {

@@ -2,9 +2,9 @@ package com.petgame.inventory;
 
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
-import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.ItemsConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.inventory.entity.PlayerInventoryEntity;
 import com.petgame.inventory.mapper.PlayerInventoryMapper;
 import com.petgame.inventory.service.InventoryService;
@@ -60,7 +60,7 @@ class InventoryServiceTest {
     @BeforeEach
     void setUp() {
         // 构建种族配置（用于面板公式计算 maxHp）
-        InitialPetsConfig.InitialPetOption speciesOption =
+        PetSpeciesConfig speciesOption =
                 species(SPECIES_ID, "COMMON", 50, List.of());
         // 构建道具配置
         ItemConfig healPotion = item(ITEM_HEAL, "RECOVERY", "HEAL_HP", 50, true);
@@ -468,7 +468,7 @@ class InventoryServiceTest {
 
     /** 构建带道具配置的 GameConfigRegistry。 */
     private GameConfigRegistry buildRegistryWithItems(
-            List<InitialPetsConfig.InitialPetOption> pets,
+            List<PetSpeciesConfig> pets,
             List<ItemConfig> items) {
         try {
             GameConfigRegistry registry =

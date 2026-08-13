@@ -17,6 +17,9 @@ public class BattleSnapshot {
 
     private String battleId;
 
+    /** 战斗类型：TEST / WILD。 */
+    private String battleType;
+
     /** 随机种子（开发者模式可用于复现）。 */
     private long seed;
 
@@ -25,8 +28,11 @@ public class BattleSnapshot {
 
     private boolean finished;
 
-    /** 胜方：PLAYER / ENEMY / null（未结束）。 */
+    /** 胜方：PLAYER / ENEMY / null（未结束或逃跑）。 */
     private String winner;
+
+    /** 玩家是否已逃跑（野生战斗，同战败结算）。 */
+    private boolean fled;
 
     private List<UnitSnapshot> playerUnits = new ArrayList<>();
 

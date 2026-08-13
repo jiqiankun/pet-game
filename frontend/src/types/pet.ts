@@ -214,13 +214,30 @@ export interface PetHpWriteback {
   alive: boolean
 }
 
+/** 被捕捉宠物摘要（野生战斗结算，阶段 5）。 */
+export interface CapturedPetView {
+  petId: number
+  speciesId: string
+  name: string
+  rarity: string
+  level: number
+  specialAppearance: string | null
+  extraSkillIds: string[]
+  /** 直接入队时的队伍位置（null = 未入队，留在仓库）。 */
+  teamPosition: number | null
+}
+
 /** 战斗结算结果。 */
 export interface BattleSettlement {
   battleId: string
   winner: string
   playerWon: boolean
+  /** 玩家是否逃跑成功（同战败结算）。 */
+  fled: boolean
   expGained: number
   goldGained: number
   drops: DropResult[]
+  /** 本场被捕捉的宠物列表（野生战斗）。 */
+  capturedPets: CapturedPetView[]
   hpWritebacks: PetHpWriteback[]
 }

@@ -6,6 +6,7 @@ import type {
   BattleAction,
   BattleEvent,
   BattleSnapshot,
+  CaptureRateView,
   SkillConfigView,
   SkillsConfigView,
   UnitSnapshot,
@@ -28,6 +29,8 @@ export const useBattleStore = defineStore('battle', () => {
   const error = ref('')
   /** 战斗结算结果（战斗结束后调用 settle 获得）。 */
   const settlement = ref<BattleSettlement | null>(null)
+  /** 野生战斗捕捉率（后端计算，选择捕捉球时展示）。 */
+  const captureRates = ref<CaptureRateView[]>([])
 
   const inBattle = computed(() => snapshot.value !== null && !snapshot.value.finished)
 
@@ -80,6 +83,55 @@ export const useBattleStore = defineStore('battle', () => {
     }
   }
 
+  /** 开始野生战斗（阶段 5：可捕捉可逃跑的简化遭遇入口）。 */
+  async function startWildBattle(seed?: number) {
+    loading.value = true
+    error.value = ''
+    try {
+      const res = await apiPost<BattleSnapshot>('/api/wild/battles', {
+        seed: seed ?? null,
+      })
+      snapshot.value = (res as ApiResponse<BattleSnapshot>).data
+      pendingActions.value = []
+      actionOrder.value = []
+      captureRates.value = []
+      settlement.value = null
+      eventLog.value = [`遭遇野生宠物！（种子 ${snapshot.value.seed}）`]
+      appendEvents(snapshot.value.events)
+    } catch (e: any) {
+      error.value = e.message || '野生遭遇创建失败'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /** 加载捕捉率（后端实时计算：目标状态变化后需重新加载）。 */
+  async function loadCaptureRates() {
+    if (!snapshot.value || snapshot.value.battleType !== 'WILD') {
+      captureRates.value = []
+      return
+    }
+    try {
+      const res = await apiGet<CaptureRateView[]>(
+        `/api/wild/battles/${snapshot.value.battleId}/capture-rates`,
+      )
+      captureRates.value = (res as ApiResponse<CaptureRateView[]>).data
+    } catch (e: any) {
+      // 捕捉率加载失败不阻断战斗，按钮降级为不显示概率
+      console.warn('捕捉率加载失败', e)
+      captureRates.value = []
+    }
+  }
+
+  /** 指定单位×指定捕捉球的捕捉率（展示用，计算仍在后端）。 */
+  function captureRateOf(unitId: string, ballItemId: string): number | null {
+    const found = captureRates.value.find(
+      (r) => r.unitId === unitId && r.ballItemId === ballItemId,
+    )
+    return found ? found.rate : null
+  }
+
   /** 提交行动意图并结算回合。 */
   async function submitActions() {
     if (!snapshot.value || snapshot.value.finished) return
@@ -95,7 +147,11 @@ export const useBattleStore = defineStore('battle', () => {
       appendEvents(snapshot.value.events)
       if (snapshot.value.finished) {
         eventLog.value.push(
-          snapshot.value.winner === 'PLAYER' ? '战斗胜利！' : '战斗失败……',
+          snapshot.value.fled
+            ? '逃跑成功，战斗结束。'
+            : snapshot.value.winner === 'PLAYER'
+              ? '战斗胜利！'
+              : '战斗失败……',
         )
       }
     } catch (e: any) {
@@ -123,15 +179,17 @@ export const useBattleStore = defineStore('battle', () => {
     actionOrder.value = []
     eventLog.value = []
     settlement.value = null
+    captureRates.value = []
     error.value = ''
   }
 
   /**
-   * 战斗结算（阶段 4）。
-   * 战斗结束后调用后端 settle 接口，落库 HP 回写、经验/金币/掉落发放。
-   * 已结算的战斗重复调用会被后端拒绝（BATTLE_ALREADY_SETTLED）。
+   * 战斗结算（阶段 4；阶段 5 扩展捕捉去向）。
+   * 战斗结束后调用后端 settle 接口，落库 HP 回写、经验/金币/掉落发放；
+   * 野生战斗另含捕捉落库与捕捉球扣除。
+   * joinTeam=true 且队伍未满 6 只时，被捕捉宠物直接入队（需求 §48）。
    */
-  async function settleBattle() {
+  async function settleBattle(joinTeam = false) {
     if (!snapshot.value || !snapshot.value.finished) return
     if (settlement.value) return  // 已结算，避免重复调用
     loading.value = true
@@ -139,6 +197,7 @@ export const useBattleStore = defineStore('battle', () => {
     try {
       const res = await apiPost<BattleSettlement>(
         `/api/battles/${snapshot.value.battleId}/settle`,
+        { joinTeam },
       )
       settlement.value = (res as ApiResponse<BattleSettlement>).data
     } catch (e: any) {
@@ -232,9 +291,23 @@ export const useBattleStore = defineStore('battle', () => {
         return `${target} 失去战斗能力`
       case 'PET_REPLACED':
         return `${target} 补位上场`
+      case 'CAPTURE_ATTEMPT': {
+        const rate = event.data?.rate
+        const rateText = typeof rate === 'number' ? `（成功率 ${(rate * 100).toFixed(1)}%）` : ''
+        return `${source} 向 ${target} 投出捕捉球${rateText}`
+      }
+      case 'CAPTURE_SUCCESS':
+        return `捕捉成功！${target} 加入了队伍`
+      case 'CAPTURE_FAIL':
+        return `可恶！${target} 从捕捉球中逃了出来`
+      case 'FLEE_SUCCESS':
+        return `${source} 成功逃离了战斗`
+      case 'FLEE_FAIL':
+        return `${source} 逃跑失败！`
       case 'PASSIVE_TRIGGERED':
         return `${source} 触发被动`
       case 'BATTLE_ENDED':
+        if (event.data?.winner === 'FLEE') return '战斗结束（逃跑）'
         return `战斗结束，胜方：${event.data?.winner === 'PLAYER' ? '玩家' : '敌方'}`
       case 'TURN_ENDED':
         return ''
@@ -253,8 +326,12 @@ export const useBattleStore = defineStore('battle', () => {
     error,
     inBattle,
     settlement,
+    captureRates,
     loadSkillConfig,
     startTestBattle,
+    startWildBattle,
+    loadCaptureRates,
+    captureRateOf,
     submitActions,
     setAction,
     getAction,

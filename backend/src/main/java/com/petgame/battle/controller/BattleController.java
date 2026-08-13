@@ -57,14 +57,19 @@ public class BattleController {
     }
 
     /**
-     * 战斗结算（阶段 4 需求 §17/§85）。
+     * 战斗结算（阶段 4 需求 §17/§85；阶段 5 扩展捕捉去向）。
      * <p>
      * 必须在战斗已结束（snapshot.finished=true）后调用。同事务完成 HP 回写、经验池/金币/掉落发放、
-     * 参战宠物 battle_count/win_count 累加。已结算的战斗不可重复结算。
+     * 参战宠物 battle_count/win_count 累加；野生战斗另含捕捉落库、捕捉球扣除与奖励。
+     * joinTeam=true 且队伍未满 6 只时，被捕捉宠物直接入队（需求 §48），否则留在仓库。
+     * 已结算的战斗不可重复结算。
      */
     @PostMapping("/{battleId}/settle")
-    public ApiResponse<BattleService.BattleSettlement> settleBattle(@PathVariable String battleId) {
-        return ApiResponse.success(battleService.settleBattle(battleId));
+    public ApiResponse<BattleService.BattleSettlement> settleBattle(
+            @PathVariable String battleId,
+            @RequestBody(required = false) SettleRequest request) {
+        boolean joinTeam = request != null && Boolean.TRUE.equals(request.getJoinTeam());
+        return ApiResponse.success(battleService.settleBattle(battleId, joinTeam));
     }
 
     @Data
@@ -76,5 +81,11 @@ public class BattleController {
     @Data
     public static class SubmitActionsRequest {
         private List<BattleAction> actions;
+    }
+
+    @Data
+    public static class SettleRequest {
+        /** 捕捉成功后是否直接加入队伍（队伍未满时生效，需求 §48）。 */
+        private Boolean joinTeam;
     }
 }

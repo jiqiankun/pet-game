@@ -51,6 +51,11 @@ public class BattleSide {
         return units.stream().noneMatch(BattleUnit::isAlive);
     }
 
+    /** 全部单位是否均已退出战斗（倒下或被捕捉，阶段 5 捕捉）。 */
+    public boolean isAllGone() {
+        return units.stream().noneMatch(u -> u.isAlive() && !u.isCaptured());
+    }
+
     /** 按战斗内 ID 查找单位（含候补）。 */
     public BattleUnit findUnit(String unitId) {
         for (BattleUnit unit : units) {

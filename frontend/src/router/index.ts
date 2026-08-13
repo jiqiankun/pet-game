@@ -32,6 +32,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Team/TeamView.vue'),
   },
   {
+    path: '/storage',
+    name: 'Storage',
+    component: () => import('../views/Storage/StorageView.vue'),
+  },
+  {
     path: '/pokedex',
     name: 'Pokedex',
     component: () => import('../views/Pokedex/PokedexView.vue'),

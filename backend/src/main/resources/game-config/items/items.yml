@@ -1,8 +1,8 @@
 # ============================================================
 # 宠物精灵游戏 - 道具配置（阶段 4：恢复道具基础）
 # ============================================================
-# 阶段 4 仅实现恢复道具（需求 §92/§93）。
-# 捕捉球（阶段 5）、技能书（阶段 10）、材料（掉落）后续阶段补入。
+# 阶段 4 恢复道具；阶段 5 补入捕捉球（需求 §48）。
+# 技能书（阶段 10）、材料（掉落）后续阶段补入。
 # 玩家存档只存道具 ID 与数量（player_inventory），不复制配置内容。
 # ============================================================
 
@@ -37,5 +37,36 @@ items:
     itemType: REVIVE
     value: 50
     usableOutsideBattle: true
+    usableInBattle: true
+    discardable: true
+
+  # ---------- 捕捉类（阶段 5：仅 3 档，需求 §48） ----------
+  - id: ITEM_CAPTURE_BALL_NORMAL
+    name: 普通捕捉球
+    description: 基础捕捉球，捕获倍率 ×1.0。捕捉失败时被消耗。
+    category: CAPTURE
+    itemType: CAPTURE_BALL
+    value: 1.0
+    usableOutsideBattle: false
+    usableInBattle: true
+    discardable: true
+
+  - id: ITEM_CAPTURE_BALL_GREAT
+    name: 高级捕捉球
+    description: 进阶捕捉球，捕获倍率 ×1.5。捕捉失败时被消耗。
+    category: CAPTURE
+    itemType: CAPTURE_BALL
+    value: 1.5
+    usableOutsideBattle: false
+    usableInBattle: true
+    discardable: true
+
+  - id: ITEM_CAPTURE_BALL_ULTRA
+    name: 特级捕捉球
+    description: 顶级捕捉球，捕获倍率 ×2.5。捕捉失败时被消耗。
+    category: CAPTURE
+    itemType: CAPTURE_BALL
+    value: 2.5
+    usableOutsideBattle: false
     usableInBattle: true
     discardable: true

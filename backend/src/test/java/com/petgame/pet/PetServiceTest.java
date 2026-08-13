@@ -2,7 +2,7 @@ package com.petgame.pet;
 
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
-import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.pet.domain.PetGrowthService;
 import com.petgame.pet.entity.PlayerPetEntity;
 import com.petgame.pet.entity.PlayerPetSkillEntity;
@@ -53,7 +53,7 @@ class PetServiceTest {
     @InjectMocks
     private PetService petService;
 
-    private InitialPetsConfig.InitialPetOption species;
+    private PetSpeciesConfig species;
 
     @BeforeEach
     void setUp() {

@@ -2,11 +2,14 @@ package com.petgame.battle.engine;
 
 import com.petgame.battle.event.BattleEvent;
 import com.petgame.battle.model.BattleSide;
+import com.petgame.battle.model.BattleUnit;
 import com.petgame.common.GameRandom;
 import lombok.Data;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 战斗上下文（技术方案 §20）。
@@ -32,6 +35,12 @@ public class BattleContext {
     /** 当前回合号（从 1 开始）。 */
     private int currentRound = 0;
 
+    /** 战斗类型：TEST（测试战斗）/ WILD（野生遭遇，可捕捉可逃跑）。 */
+    private String battleType = "TEST";
+
+    /** 野生战斗的遭遇组 ID（结算奖励与稀有度系数计算用）。 */
+    private String encounterGroupId;
+
     /** 玩家方。 */
     private BattleSide playerSide;
 
@@ -41,8 +50,20 @@ public class BattleContext {
     /** 战斗是否已结束。 */
     private boolean finished;
 
-    /** 胜方：PLAYER / ENEMY / null（未结束）。 */
+    /** 胜方：PLAYER / ENEMY / null（未结束或逃跑无胜方）。 */
     private String winner;
+
+    /** 本场战斗被捕捉的野生单位（结算时落库）。 */
+    private List<BattleUnit> capturedUnits = new ArrayList<>();
+
+    /** 本场战斗已使用的捕捉球：itemId → 数量（战斗过程不落库，结算时统一扣除）。 */
+    private Map<String, Integer> consumedCaptureBalls = new HashMap<>();
+
+    /** 开战时玩家背包捕捉球存量快照：itemId → 数量（用于战斗内数量校验）。 */
+    private Map<String, Integer> availableCaptureBalls = new HashMap<>();
+
+    /** 玩家是否逃跑成功（同战败结算：HP 回写、无奖励、无胜方）。 */
+    private boolean fled;
 
     /** 本场战斗全部事件序列。 */
     private List<BattleEvent> events = new ArrayList<>();

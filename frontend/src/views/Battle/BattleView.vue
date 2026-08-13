@@ -2,7 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useBattleStore, isActiveAlive } from '../../stores/battle'
 import { useGameStore } from '../../stores/game'
+import { apiGet } from '../../api/client'
+import type { ApiResponse } from '../../types/api'
 import type { BattleAction, UnitSnapshot } from '../../types/battle'
+import type { InventoryItemView } from '../../types/pet'
 
 const battleStore = useBattleStore()
 const gameStore = useGameStore()
@@ -13,21 +16,72 @@ const seedInput = ref('')
 // 目标选择：正在等待选目标的单位与技能
 const targeting = ref<{ petId: string; skillId: string } | null>(null)
 
+// 捕捉流程（阶段 5）：发起单位 + 球选择 + 目标选择
+const captureMode = ref<{ petId: string } | null>(null)
+const selectedBall = ref<InventoryItemView | null>(null)
+const captureBalls = ref<InventoryItemView[]>([])
+
+// 捕捉成功去向选择（需求 §48：队伍未满 6 只可直接入队）
+const joinTeamChoice = ref(false)
+
 const snapshot = computed(() => battleStore.snapshot)
 const settlement = computed(() => battleStore.settlement)
 const playerActive = computed(() => snapshot.value?.playerUnits.filter(isActiveAlive) ?? [])
 const playerBench = computed(() => snapshot.value?.playerUnits.filter((u) => u.alive && !u.active) ?? [])
+const isWild = computed(() => snapshot.value?.battleType === 'WILD')
+
+/** 是否需要捕捉去向选择：野生战斗、有被捕捉宠物且队伍未满 6 只。 */
+const needDestChoice = computed(() => {
+  if (!snapshot.value || snapshot.value.battleType !== 'WILD') return false
+  const hasCaptured = snapshot.value.enemyUnits.some((u) => u.captured)
+  return hasCaptured && gameStore.teamMembers.length < 6
+})
 
 onMounted(() => {
   battleStore.loadSkillConfig()
 })
 
-/** 战斗结束时自动结算（阶段 4：击败敌人后看到经验池与金币增加）。 */
+/** 加载背包中的捕捉球（野生战斗用）。 */
+async function loadCaptureBalls() {
+  try {
+    const res = await apiGet<{ items: InventoryItemView[]; gold: number }>('/api/inventory')
+    captureBalls.value = ((res as ApiResponse<{ items: InventoryItemView[] }>).data.items || [])
+      .filter((i) => i.itemType === 'CAPTURE_BALL' && i.quantity > 0)
+  } catch {
+    captureBalls.value = []
+  }
+}
+
+// 进入野生战斗时加载捕捉球存量
+watch(
+  () => snapshot.value?.battleType,
+  (type) => {
+    if (type === 'WILD') loadCaptureBalls()
+  },
+  { immediate: true },
+)
+
+// 野生战斗回合变化后实时刷新捕捉率（需求 §47：宠物状态变化后实时更新）
+watch(
+  () => snapshot.value?.currentRound,
+  () => {
+    if (captureMode.value && !snapshot.value?.finished) {
+      battleStore.loadCaptureRates()
+    }
+  },
+)
+
+/** 战斗结束时自动结算；需去向选择时等待玩家确认（阶段 5）。 */
 watch(
   () => snapshot.value?.finished,
   (finished) => {
     if (finished && !settlement.value) {
-      battleStore.settleBattle()
+      captureMode.value = null
+      if (needDestChoice.value) {
+        joinTeamChoice.value = false
+      } else {
+        battleStore.settleBattle()
+      }
     }
   },
 )
@@ -39,6 +93,38 @@ async function startBattle() {
   } catch {
     // 错误已写入 store.error
   }
+}
+
+async function startWildBattle() {
+  const seed = seedInput.value.trim() ? Number(seedInput.value.trim()) : undefined
+  try {
+    await battleStore.startWildBattle(Number.isFinite(seed as number) ? seed : undefined)
+  } catch {
+    // 错误已写入 store.error
+  }
+}
+
+/** 进入捕捉模式：加载捕捉球与后端实时捕捉率。 */
+async function enterCaptureMode(unit: UnitSnapshot) {
+  await loadCaptureBalls()
+  if (captureBalls.value.length === 0) {
+    battleStore.error = '没有可用的捕捉球'
+    return
+  }
+  await battleStore.loadCaptureRates()
+  captureMode.value = { petId: unit.unitId }
+  selectedBall.value = captureBalls.value[0] ?? null
+  targeting.value = null
+}
+
+function exitCaptureMode() {
+  captureMode.value = null
+  selectedBall.value = null
+}
+
+/** 确认结算（含捕捉去向选择）。 */
+async function confirmSettle() {
+  await battleStore.settleBattle(joinTeamChoice.value)
 }
 
 /** 点击技能按钮：单体敌方技能进入目标选择，其余直接收集行动。 */
@@ -57,8 +143,19 @@ function handleSkillClick(unit: UnitSnapshot, skillId: string) {
   }
 }
 
-/** 点击敌方单位：处于目标选择状态时提交行动。 */
+/** 点击敌方单位：捕捉模式下提交捕捉行动；否则技能目标选择。 */
 function handleEnemyClick(enemy: UnitSnapshot) {
+  if (captureMode.value) {
+    if (!selectedBall.value || !enemy.alive || !enemy.active || enemy.captured) return
+    battleStore.setAction({
+      type: 'CAPTURE',
+      petId: captureMode.value.petId,
+      itemId: selectedBall.value.itemId,
+      targetId: enemy.unitId,
+    })
+    exitCaptureMode()
+    return
+  }
   if (!targeting.value) return
   const action: BattleAction = {
     type: 'SKILL',
@@ -80,6 +177,12 @@ function handleSwitch(unit: UnitSnapshot, bench: UnitSnapshot) {
   targeting.value = null
 }
 
+/** 逃跑行动（野生战斗，用户裁决：必定成功、同战败结算）。 */
+function handleFlee(unit: UnitSnapshot) {
+  battleStore.setAction({ type: 'FLEE', petId: unit.unitId })
+  targeting.value = null
+}
+
 function cancelTargeting() {
   targeting.value = null
 }
@@ -90,6 +193,13 @@ function hpPercent(unit: UnitSnapshot): number {
 
 function cooldownOf(unit: UnitSnapshot, skillId: string): number {
   return unit.cooldowns[skillId] ?? 0
+}
+
+/** 当前选中捕捉球对指定敌方单位的捕捉率（后端计算）。 */
+function captureRateText(unit: UnitSnapshot): string {
+  if (!selectedBall.value) return ''
+  const rate = battleStore.captureRateOf(unit.unitId, selectedBall.value.itemId)
+  return rate === null ? '' : `${(rate * 100).toFixed(1)}%`
 }
 
 /** 返回：结算完成后刷新首页数据（经验池/金币/宠物 HP）。 */
@@ -105,17 +215,23 @@ async function handleLeave() {
   <div class="battle-view">
     <!-- 未开始：入口面板 -->
     <div v-if="!snapshot" class="start-panel">
-      <h2 class="panel-title">战斗测试</h2>
+      <h2 class="panel-title">战斗</h2>
       <p class="panel-desc">
-        阶段 3 测试战斗：当前激活队伍 VS 固定敌方阵容。战斗结果全部由后端 BattleEngine 计算。
+        测试战斗：当前激活队伍 VS 固定敌方阵容；野生遭遇：可捕捉可逃跑（阶段 5 临时遭遇入口）。
+        战斗结果全部由后端 BattleEngine 计算。
       </p>
       <div class="seed-row">
         <label for="seed-input">随机种子（可选，复现战斗）</label>
         <input id="seed-input" v-model="seedInput" type="text" placeholder="留空则随机" />
       </div>
-      <button class="btn-primary" :disabled="battleStore.loading" @click="startBattle">
-        {{ battleStore.loading ? '正在创建战斗...' : '开始测试战斗' }}
-      </button>
+      <div class="start-buttons">
+        <button class="btn-primary" :disabled="battleStore.loading" @click="startBattle">
+          {{ battleStore.loading ? '正在创建战斗...' : '开始测试战斗' }}
+        </button>
+        <button class="btn-wild" :disabled="battleStore.loading" @click="startWildBattle">
+          野生遭遇（捕捉）
+        </button>
+      </div>
       <p v-if="battleStore.error" class="error-text">{{ battleStore.error }}</p>
     </div>
 
@@ -123,21 +239,50 @@ async function handleLeave() {
     <div v-else class="battle-panel">
       <div class="battle-header">
         <span class="round-badge">回合 {{ snapshot.currentRound }}</span>
-        <span v-if="snapshot.finished" class="result-badge" :class="snapshot.winner === 'PLAYER' ? 'win' : 'lose'">
-          {{ snapshot.winner === 'PLAYER' ? '胜利' : '失败' }}
+        <span v-if="isWild" class="wild-badge">野生遭遇</span>
+        <span v-if="snapshot.finished" class="result-badge" :class="snapshot.fled ? 'flee' : snapshot.winner === 'PLAYER' ? 'win' : 'lose'">
+          {{ snapshot.fled ? '已逃跑' : snapshot.winner === 'PLAYER' ? '胜利' : '失败' }}
         </span>
-        <button v-if="snapshot.finished" class="btn-secondary small" :disabled="battleStore.loading" @click="handleLeave">
+        <button v-if="snapshot.finished && !needDestChoice" class="btn-secondary small" :disabled="battleStore.loading" @click="handleLeave">
           {{ settlement ? '返回' : '结算中...' }}
         </button>
       </div>
 
-      <!-- 战斗结算结果（阶段 4） -->
+      <!-- 捕捉去向选择（需求 §48：队伍未满 6 只可直接入队） -->
+      <div v-if="snapshot.finished && needDestChoice && !settlement" class="dest-choice-panel">
+        <h3>捕捉成功！</h3>
+        <p class="dest-desc">
+          队伍当前 {{ gameStore.teamMembers.length }}/6 只，被捕捉的宠物可以直接加入队伍，也可以留在仓库。
+        </p>
+        <label class="dest-checkbox">
+          <input v-model="joinTeamChoice" type="checkbox" />
+          捕捉后直接加入队伍
+        </label>
+        <button class="btn-primary" :disabled="battleStore.loading" @click="confirmSettle">
+          {{ battleStore.loading ? '结算中...' : '确认结算' }}
+        </button>
+      </div>
+
+      <!-- 战斗结算结果（阶段 4；阶段 5 含捕捉结果） -->
       <div v-if="settlement" class="settlement-panel">
         <h3>战斗结算</h3>
         <div class="settlement-summary">
-          <span v-if="settlement.playerWon" class="reward-item exp">经验 +{{ settlement.expGained }}</span>
-          <span v-if="settlement.playerWon" class="reward-item gold">金币 +{{ settlement.goldGained }}</span>
-          <span v-if="!settlement.playerWon" class="reward-item none">无奖励（战败）</span>
+          <span v-if="settlement.fled" class="reward-item none">逃跑成功，无奖励</span>
+          <template v-else>
+            <span v-if="settlement.playerWon" class="reward-item exp">经验 +{{ settlement.expGained }}</span>
+            <span v-if="settlement.playerWon" class="reward-item gold">金币 +{{ settlement.goldGained }}</span>
+            <span v-if="!settlement.playerWon" class="reward-item none">无奖励（战败）</span>
+          </template>
+        </div>
+        <div v-if="settlement.capturedPets.length" class="captured-section">
+          <span class="captured-label">捕捉成功：</span>
+          <div v-for="cp in settlement.capturedPets" :key="cp.petId" class="captured-item">
+            {{ cp.name }} Lv.{{ cp.level }}（{{ cp.rarity }}）
+            <span v-if="cp.specialAppearance" class="tag special">特殊外观</span>
+            <span v-if="cp.extraSkillIds.length" class="tag rare-skill">稀有技能</span>
+            <span v-if="cp.teamPosition" class="tag team">已入队 · 位置 {{ cp.teamPosition }}</span>
+            <span v-else class="tag storage">已进仓库</span>
+          </div>
         </div>
         <div v-if="settlement.drops.length" class="drops-section">
           <span class="drops-label">掉落道具：</span>
@@ -167,6 +312,21 @@ async function handleLeave() {
         </span>
       </div>
 
+      <!-- 捕捉球选择条（捕捉模式） -->
+      <div v-if="captureMode" class="capture-bar">
+        <span class="capture-bar-label">选择捕捉球，然后点击目标（捕捉失败时球被消耗）：</span>
+        <button
+          v-for="ball in captureBalls"
+          :key="ball.itemId"
+          class="ball-btn"
+          :class="{ selected: selectedBall?.itemId === ball.itemId }"
+          @click="selectedBall = ball"
+        >
+          {{ ball.name }} ×{{ ball.quantity }}
+        </button>
+        <button class="btn-link" @click="exitCaptureMode">取消</button>
+      </div>
+
       <!-- 敌方阵容 -->
       <div class="side-section enemy">
         <h3>敌方</h3>
@@ -177,8 +337,9 @@ async function handleLeave() {
             class="unit-card"
             :class="{
               dead: !unit.alive,
-              bench: !unit.active && unit.alive,
-              clickable: targeting !== null && unit.alive && unit.active,
+              bench: !unit.active && unit.alive && !unit.captured,
+              captured: unit.captured,
+              clickable: (targeting !== null || captureMode !== null) && unit.alive && unit.active && !unit.captured,
             }"
             @click="handleEnemyClick(unit)"
           >
@@ -196,6 +357,10 @@ async function handleLeave() {
               </span>
               <span v-if="unit.charging" class="status-tag charging">蓄力中</span>
               <span v-if="unit.defending" class="status-tag defending">防御</span>
+              <span v-if="unit.captured" class="status-tag captured-tag">已捕捉</span>
+              <span v-if="captureMode && unit.alive && unit.active && !unit.captured && captureRateText(unit)" class="capture-rate-tag">
+                捕捉率 {{ captureRateText(unit) }}
+              </span>
             </div>
           </div>
         </div>
@@ -241,6 +406,8 @@ async function handleLeave() {
                     {{ battleStore.skillName(battleStore.getAction(unit.unitId)!.skillId) }}
                   </template>
                   <template v-else-if="battleStore.getAction(unit.unitId)!.type === 'SWITCH'">换宠</template>
+                  <template v-else-if="battleStore.getAction(unit.unitId)!.type === 'CAPTURE'">捕捉</template>
+                  <template v-else-if="battleStore.getAction(unit.unitId)!.type === 'FLEE'">逃跑</template>
                   <template v-else>防御</template>
                 </template>
                 <template v-else>选择行动</template>
@@ -262,6 +429,19 @@ async function handleLeave() {
                 <button class="skill-btn defend" :disabled="battleStore.loading" @click="handleDefend(unit)">
                   防御
                 </button>
+                <!-- 野生战斗：捕捉与逃跑（阶段 5） -->
+                <template v-if="isWild">
+                  <button
+                    class="skill-btn capture"
+                    :disabled="battleStore.loading || captureMode !== null"
+                    @click="enterCaptureMode(unit)"
+                  >
+                    捕捉
+                  </button>
+                  <button class="skill-btn flee" :disabled="battleStore.loading" @click="handleFlee(unit)">
+                    逃跑
+                  </button>
+                </template>
               </div>
               <!-- 换宠：存在存活候补时可用 -->
               <div v-if="playerBench.length > 0" class="switch-row">
@@ -397,6 +577,149 @@ async function handleLeave() {
 
 .result-badge.win { background-color: #7ED321; }
 .result-badge.lose { background-color: #d32f2f; }
+.result-badge.flee { background-color: #8e8e93; }
+
+.wild-badge {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.start-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-wild {
+  padding: 10px 28px;
+  background-color: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn-wild:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 捕捉球选择条 */
+.capture-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background-color: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.capture-bar-label {
+  color: #2e7d32;
+}
+
+.ball-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #2e7d32;
+  background-color: #fff;
+  color: #2e7d32;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ball-btn.selected {
+  background-color: #2e7d32;
+  color: #fff;
+}
+
+.capture-rate-tag {
+  font-size: 11px;
+  background-color: #2e7d32;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.unit-card.captured {
+  opacity: 0.5;
+  border: 1px solid #2e7d32;
+}
+
+.status-tag.captured-tag {
+  background-color: #2e7d32;
+  color: #fff;
+}
+
+.skill-btn.capture { background-color: #2e7d32; }
+.skill-btn.flee { background-color: #b87800; }
+
+/* 捕捉去向选择 */
+.dest-choice-panel {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-1);
+  border-left: 4px solid #2e7d32;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.dest-choice-panel h3 {
+  font-size: 16px;
+  color: #2e7d32;
+}
+
+.dest-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.dest-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 结算捕捉结果 */
+.captured-section {
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.captured-label {
+  color: var(--text-secondary);
+}
+
+.captured-item {
+  padding: 2px 0;
+}
+
+.tag {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+.tag.special { background-color: #f3e5f5; color: #7b1fa2; }
+.tag.rare-skill { background-color: #fff3cd; color: #856404; }
+.tag.team { background-color: #e8f1ff; color: #2b5fa8; }
+.tag.storage { background-color: #f0f0f0; color: #555; }
 
 .side-section h3 {
   font-size: 14px;

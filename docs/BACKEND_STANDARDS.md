@@ -331,4 +331,56 @@ battle/service/BattleService      # 新增 settleBattle：战斗结算落库（H
 - `category`：分类（CAPTURE / RECOVERY / MATERIAL / SKILL_BOOK / KEY_ITEM）。
 - `usableOutsideBattle`：战斗外是否可用。
 - `usableInBattle`：战斗内是否可用（第一阶段不实现战斗内使用，字段仅用于配置完备性）。
-- `value`：恢复量（HP 点数或百分比）。
+- `value`：恢复量（HP 点数或百分比）；捕捉球（itemType=CAPTURE_BALL）时为捕获倍率（1.0/1.5/2.5）。
+
+---
+
+## 16. 捕捉与仓库系统实现约定（阶段 5 起）
+
+### 16.1 模块结构与职责
+
+```text
+capture/
+├── WildEncounterService             # 野生遭遇生成（刷新组权重/等级/资质/个体浮动/稀有技能/特殊外观）
+└── controller/WildBattleController  # POST /api/wild/battles、GET capture-rates、开发者补球入口
+
+storage/
+├── PetStorageService                # 仓库筛选排序/昵称/锁定/收藏/放生预览与执行
+├── ReleaseGiftCalculator            # 放生礼物价值点数与抽取（纯函数）
+└── controller/PetStorageController  # /api/storage/**
+
+battle/calculator/CaptureCalculator  # 捕捉率公式（纯函数，需求 §46）
+battle/service/BattleService         # 扩展 startWildBattle/getCaptureRates/settleBattle(WILD)
+```
+
+### 16.2 种族配置唯一来源
+
+- 种族数据唯一来源为 `game-config/pets/pets.yml`（`registry.getSpecies()`）；`initial-pets.yml` 仅声明「speciesId + 资质覆盖 + 初始道具」，不复制种族数值。
+- 野生单位与玩家宠物共用同一面板公式（`PetGrowthService.computePanelStats`），保证捕捉前后属性一致。
+
+### 16.3 捕捉规则
+
+- 捕捉率 = 基础捕获率（种族配置）× (1 − captureHpFactor × HP比例) × (1 + statusCaptureBonus × min(异常数, captureStatusMaxCount)) × 球倍率 × 精英系数，clamp [0,1]；**不添加文档之外修正项**。
+- 捕捉/逃跑是 BattleEngine 的普通行动类型（CAPTURE/FLEE，仅 WILD 战斗可用），禁止另建捕捉专用战斗逻辑。
+- 捕捉球无论成败均消耗：战斗内只记入 BattleContext（consumedCaptureBalls），结算时同事务从背包扣除；开战时快照背包存量供战斗内数量校验。
+- 捕捉成功目标立即退出敌方队伍（不触发倒下/击败被动），候补补位；被捕捉宠物不结算击败掉落、不参与野生奖励。
+- 逃跑成功率 `fleeSuccessRate` 配置化（当前裁决为必定成功），同战败结算（HP 回写、无奖励、无胜方）。
+
+### 16.4 捕捉结算与去向
+
+- 野生战斗结算（`POST /api/battles/{id}/settle`，可选 body `{ joinTeam }`）同事务完成：HP 回写、捕捉落库、捕捉球扣除、野生奖励。
+- 捕捉落库：等级=捕获等级、六维资质/个体浮动/特殊外观=遭遇生成时固化数据、HP 保留捕捉时余量、已解锁种族技能按配置槽位装备、稀有技能 sourceType=CAPTURE 仅学习不装备、capturedMapId/capturedAt 记录。
+- 去向选择：joinTeam=true 且队伍未满 6 只时直接入队（TeamService.addPetToActiveTeam），否则留在仓库；队伍已满时静默留仓库不阻断结算。
+- 野生奖励 = 遭遇组每级基础值 × 敌等级 × 稀有度系数（wildRewardRarityMultiplier）。
+
+### 16.5 仓库与放生
+
+- 仓库不限容量，直接查询 player_pet 全量（筛选/排序在服务层内存完成）。
+- 稀有技能定义：`player_pet_skill.source_type = 'CAPTURE'` 的技能记录。
+- 放生保护：锁定/收藏/在队宠物禁止放生；单只受保护明确报错，批量自动排除并返回 skipped 明细。
+- 放生礼物（决策七）：应得点数 = 稀有度基础值（releaseGiftBaseValue）× 捕获等级系数（1+等级×releaseLevelFactorPerLevel，上限 releaseLevelFactorCap）× 培养系数（1.0～releaseCultivationFactorMax，以已分配自由点数/releaseCultivationPointsCap 度量）；从 release-gifts.yml 池按权重抽取至累计单位价值 ≥ 应得点数。
+- 放生同事务：删除宠物与技能记录 + 发放礼物（GOLD/EXP/ITEM）；无任何放生记录写回（第一阶段无统计需求）。
+
+### 16.6 数据库
+
+- 阶段 5 无新增 Flyway 迁移：仓库字段（locked/favorite/specialAppearance/captured_map_id/captured_at）已在 V2 迁移建立，captured_level/base_*_offset 已在 V3 建立。

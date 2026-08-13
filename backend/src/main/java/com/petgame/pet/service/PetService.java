@@ -3,7 +3,7 @@ package com.petgame.pet.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
-import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SkillConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import com.petgame.pet.domain.PetGrowthService;
@@ -68,12 +68,12 @@ public class PetService {
      */
     public PetDetail getPetDetail(Long petId) {
         PlayerPetEntity pet = requirePet(petId);
-        InitialPetsConfig.InitialPetOption species = requireSpecies(pet.getSpeciesId());
+        PetSpeciesConfig species = requireSpecies(pet.getSpeciesId());
         PlayerEntity player = requirePlayer();
 
         PetDetail detail = new PetDetail();
         detail.setPet(pet);
-        detail.setSpecies(toSpeciesView(species));
+        detail.setSpecies(toSpeciesView(species, pet));
         detail.setPanelStats(growthService.computePanelStats(pet, species));
         detail.setLearnedSkills(loadLearnedSkills(pet.getId(), species));
         detail.setAvailableSkills(loadAvailableSkills(species, pet.getLevel()));
@@ -94,7 +94,7 @@ public class PetService {
      */
     public PetGrowthService.LevelUpPreview previewLevelUp(Long petId, int targetLevel) {
         PlayerPetEntity pet = requirePet(petId);
-        InitialPetsConfig.InitialPetOption species = requireSpecies(pet.getSpeciesId());
+        PetSpeciesConfig species = requireSpecies(pet.getSpeciesId());
         PlayerEntity player = requirePlayer();
 
         PetGrowthService.LevelUpPreview preview;
@@ -127,7 +127,7 @@ public class PetService {
             throw new BusinessException("INVALID_LEVEL_UP", "升级请求缺少 mode");
         }
         PlayerPetEntity pet = requirePet(petId);
-        InitialPetsConfig.InitialPetOption species = requireSpecies(pet.getSpeciesId());
+        PetSpeciesConfig species = requireSpecies(pet.getSpeciesId());
         PlayerEntity player = requirePlayer();
         SystemRuleConfig rules = registry.getSystemRules();
 
@@ -261,7 +261,7 @@ public class PetService {
             throw new BusinessException("INVALID_POINTS", "分配点数必须为正数");
         }
         PlayerPetEntity pet = requirePet(petId);
-        InitialPetsConfig.InitialPetOption species = requireSpecies(pet.getSpeciesId());
+        PetSpeciesConfig species = requireSpecies(pet.getSpeciesId());
 
         int available = growthService.freePointsAvailable(pet, species);
         int cost = growthService.pointCostForStat(statKey, points);
@@ -399,8 +399,8 @@ public class PetService {
         return pet;
     }
 
-    private InitialPetsConfig.InitialPetOption requireSpecies(String speciesId) {
-        InitialPetsConfig.InitialPetOption species = registry.getSpecies(speciesId);
+    private PetSpeciesConfig requireSpecies(String speciesId) {
+        PetSpeciesConfig species = registry.getSpecies(speciesId);
         if (species == null) {
             throw new BusinessException("SPECIES_CONFIG_MISSING", "种族配置缺失: " + speciesId);
         }
@@ -417,7 +417,7 @@ public class PetService {
 
     /** 加载宠物已学技能视图（含槽位与技能配置摘要）。 */
     private List<PetDetail.LearnedSkillView> loadLearnedSkills(Long petId,
-                                                                  InitialPetsConfig.InitialPetOption species) {
+                                                                  PetSpeciesConfig species) {
         List<PlayerPetSkillEntity> records = playerPetSkillMapper.selectList(
                 new LambdaQueryWrapper<PlayerPetSkillEntity>()
                         .eq(PlayerPetSkillEntity::getPetId, petId));
@@ -445,12 +445,12 @@ public class PetService {
 
     /** 加载尚未学习但未来可解锁的种族技能（unlockLevel > currentLevel），按解锁等级升序。 */
     private List<PetDetail.AvailableSkillView> loadAvailableSkills(
-            InitialPetsConfig.InitialPetOption species, int currentLevel) {
+            PetSpeciesConfig species, int currentLevel) {
         List<PetDetail.AvailableSkillView> list = new ArrayList<>();
         if (species.getSkills() == null) {
             return list;
         }
-        for (InitialPetsConfig.InitialSkillSlot slot : species.getSkills()) {
+        for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
             if (slot.getUnlockLevel() <= currentLevel) {
                 continue;
             }
@@ -469,9 +469,9 @@ public class PetService {
         return list;
     }
 
-    private PetDetail.SpeciesView toSpeciesView(InitialPetsConfig.InitialPetOption species) {
+    private PetDetail.SpeciesView toSpeciesView(PetSpeciesConfig species, PlayerPetEntity pet) {
         PetDetail.SpeciesView view = new PetDetail.SpeciesView();
-        view.setSpeciesId(species.getSpeciesId());
+        view.setSpeciesId(species.getId());
         view.setName(species.getName());
         view.setElement(species.getElement());
         view.setRarity(species.getRarity());
@@ -482,12 +482,13 @@ public class PetService {
         view.setBaseDefense(species.getBaseDefense());
         view.setBaseResistance(species.getBaseResistance());
         view.setBaseSpeed(species.getBaseSpeed());
-        view.setAptitudeHp(species.getAptitudeHp());
-        view.setAptitudeStrength(species.getAptitudeStrength());
-        view.setAptitudeSpirit(species.getAptitudeSpirit());
-        view.setAptitudeDefense(species.getAptitudeDefense());
-        view.setAptitudeResistance(species.getAptitudeResistance());
-        view.setAptitudeSpeed(species.getAptitudeSpeed());
+        // 资质是个体属性（宠物存档字段），阶段 5 起从实体读取而非种族配置
+        view.setAptitudeHp(nz(pet.getHpAptitude()));
+        view.setAptitudeStrength(nz(pet.getStrengthAptitude()));
+        view.setAptitudeSpirit(nz(pet.getSpiritAptitude()));
+        view.setAptitudeDefense(nz(pet.getDefenseAptitude()));
+        view.setAptitudeResistance(nz(pet.getResistanceAptitude()));
+        view.setAptitudeSpeed(nz(pet.getSpeedAptitude()));
         return view;
     }
 

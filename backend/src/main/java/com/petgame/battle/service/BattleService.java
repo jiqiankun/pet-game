@@ -2,6 +2,7 @@ package com.petgame.battle.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.petgame.battle.ai.WildEnemyDecisionProvider;
+import com.petgame.battle.calculator.CaptureCalculator;
 import com.petgame.battle.engine.BattleContext;
 import com.petgame.battle.engine.BattleEngine;
 import com.petgame.battle.engine.TurnResult;
@@ -10,11 +11,14 @@ import com.petgame.battle.model.BattleAction;
 import com.petgame.battle.model.BattleSide;
 import com.petgame.battle.model.BattleUnit;
 import com.petgame.battle.model.StatusInstance;
+import com.petgame.capture.WildEncounterService;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
+import com.petgame.config.model.EncountersConfig;
 import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.PassiveSkillConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.StatusEffectConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import com.petgame.config.model.TestBattleConfig;
@@ -32,12 +36,15 @@ import com.petgame.team.entity.PlayerTeamEntity;
 import com.petgame.team.entity.PlayerTeamMemberEntity;
 import com.petgame.team.mapper.PlayerTeamMapper;
 import com.petgame.team.mapper.PlayerTeamMemberMapper;
+import com.petgame.team.service.TeamService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -73,6 +80,8 @@ public class BattleService {
     private final PlayerTeamMemberMapper playerTeamMemberMapper;
     private final PlayerInventoryMapper playerInventoryMapper;
     private final PetGrowthService growthService;
+    private final WildEncounterService wildEncounterService;
+    private final TeamService teamService;
 
     /** 战斗上下文内存池：battleId → BattleContext。不落库。 */
     private final Map<String, BattleContext> battles = new ConcurrentHashMap<>();
@@ -88,7 +97,9 @@ public class BattleService {
                          PlayerTeamMapper playerTeamMapper,
                          PlayerTeamMemberMapper playerTeamMemberMapper,
                          PlayerInventoryMapper playerInventoryMapper,
-                         PetGrowthService growthService) {
+                         PetGrowthService growthService,
+                         WildEncounterService wildEncounterService,
+                         TeamService teamService) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.playerMapper = playerMapper;
@@ -98,6 +109,8 @@ public class BattleService {
         this.playerTeamMemberMapper = playerTeamMemberMapper;
         this.playerInventoryMapper = playerInventoryMapper;
         this.growthService = growthService;
+        this.wildEncounterService = wildEncounterService;
+        this.teamService = teamService;
     }
 
     /**
@@ -135,6 +148,137 @@ public class BattleService {
     }
 
     /**
+     * 开始野生战斗（阶段 5 捕捉）：当前激活队伍 VS 刷新组生成的野生阵容。
+     * <p>
+     * 开战时快照玩家背包捕捉球存量到战斗上下文（战斗内数量校验用，
+     * 战斗过程零数据库写入，结算时统一扣除）。
+     */
+    public BattleSnapshot startWildBattle(String groupId, Long seed) {
+        PlayerEntity player = requirePlayer();
+        List<PlayerPetEntity> teamPets = loadActiveTeamPets(player.getSaveId());
+        if (teamPets.isEmpty()) {
+            throw new BusinessException("NO_BATTLE_UNITS", "当前激活队伍没有可参战宠物");
+        }
+
+        long battleSeed = seed != null ? seed : System.nanoTime();
+        String battleId = UUID.randomUUID().toString();
+        BattleContext ctx = new BattleContext(battleId, battleSeed);
+        ctx.setBattleType("WILD");
+        ctx.setEncounterGroupId(groupId);
+        ctx.setPlayerSide(buildPlayerSide(teamPets));
+
+        // 野生敌方：与测试敌人同一引擎入口（野生单位携带捕捉落库数据）
+        BattleSide enemySide = new BattleSide("ENEMY");
+        enemySide.getUnits().addAll(
+                wildEncounterService.generateEncounter(groupId, ctx.getRandom()));
+        ctx.setEnemySide(enemySide);
+
+        // 捕捉球存量快照（仅捕捉球道具）
+        for (PlayerInventoryEntity inv : loadCaptureBalls(player.getSaveId())) {
+            ctx.getAvailableCaptureBalls().put(inv.getItemId(), inv.getQuantity());
+        }
+
+        engine.startBattle(ctx);
+        battles.put(battleId, ctx);
+
+        log.info("野生战斗开始：battleId={}, groupId={}, seed={}, 玩家单位={}, 敌方单位={}",
+                battleId, groupId, battleSeed, ctx.getPlayerSide().getUnits().size(),
+                ctx.getEnemySide().getUnits().size());
+
+        return toSnapshot(ctx, new ArrayList<>(ctx.getEvents()));
+    }
+
+    /**
+     * 查询当前野生战斗内、玩家存量足够的捕捉球对各存活上场野生单位的捕捉率（前端展示用）。
+     */
+    public List<CaptureRateView> getCaptureRates(String battleId) {
+        BattleContext ctx = requireBattle(battleId);
+        if (!"WILD".equals(ctx.getBattleType())) {
+            return List.of();
+        }
+        SystemRuleConfig rules = registry.getSystemRules();
+        List<CaptureRateView> views = new ArrayList<>();
+        for (BattleUnit target : ctx.getEnemySide().getActiveAliveUnits()) {
+            PetSpeciesConfig species = registry.getSpecies(target.getSpeciesId());
+            if (species == null || target.isCaptured()) {
+                continue;
+            }
+            double hpRatio = target.getMaxHp() > 0
+                    ? (double) target.getCurrentHp() / target.getMaxHp() : 0.0;
+            int statusCount = CaptureCalculator.countCaptureBonusStatuses(target, registry.getStatusIndex());
+            for (Map.Entry<String, Integer> entry : ctx.getAvailableCaptureBalls().entrySet()) {
+                int used = ctx.getConsumedCaptureBalls().getOrDefault(entry.getKey(), 0);
+                if (used >= entry.getValue()) {
+                    continue; // 本场已用完该球
+                }
+                ItemConfig ball = registry.getItem(entry.getKey());
+                if (ball == null || !"CAPTURE_BALL".equals(ball.getItemType())) {
+                    continue;
+                }
+                double rate = CaptureCalculator.computeCaptureRate(species.getCaptureRate(), hpRatio,
+                        statusCount, ball.getValue(), 1.0, rules);
+                CaptureRateView view = new CaptureRateView();
+                view.setUnitId(target.getUnitId());
+                view.setUnitName(target.getName());
+                view.setBallItemId(ball.getId());
+                view.setBallName(ball.getName());
+                view.setRate(Math.round(rate * 1000.0) / 1000.0);
+                views.add(view);
+            }
+        }
+        return views;
+    }
+
+    /**
+     * 开发者模式临时补充捕捉球（阶段 5 过渡方案）。
+     * <p>
+     * 捕捉球正式获取途径（商店/掉落）属后续阶段，本阶段仅新游戏赠送；
+     * 为避免球用完后无法继续体验捕捉，提供开发者模式入口：每种捕捉球 +5。
+     *
+     * @return itemId → 补充后的存量
+     */
+    @Transactional
+    public Map<String, Integer> devRefillCaptureBalls() {
+        PlayerEntity player = requirePlayer();
+        Map<String, Integer> result = new HashMap<>();
+        for (ItemConfig item : registry.getItemsConfig().getItems()) {
+            if (!"CAPTURE_BALL".equals(item.getItemType())) {
+                continue;
+            }
+            addInventoryItem(player.getSaveId(), item.getId(), 5);
+            PlayerInventoryEntity inv = playerInventoryMapper.selectOne(
+                    new LambdaQueryWrapper<PlayerInventoryEntity>()
+                            .eq(PlayerInventoryEntity::getSaveId, player.getSaveId())
+                            .eq(PlayerInventoryEntity::getItemId, item.getId()));
+            result.put(item.getId(), inv != null ? inv.getQuantity() : 0);
+        }
+        return result;
+    }
+
+    /** 查询玩家背包中的捕捉球存量。 */
+    private List<PlayerInventoryEntity> loadCaptureBalls(String saveId) {
+        List<PlayerInventoryEntity> all = playerInventoryMapper.selectList(
+                new LambdaQueryWrapper<PlayerInventoryEntity>()
+                        .eq(PlayerInventoryEntity::getSaveId, saveId));
+        List<PlayerInventoryEntity> balls = new ArrayList<>();
+        for (PlayerInventoryEntity inv : all) {
+            ItemConfig item = registry.getItem(inv.getItemId());
+            if (item != null && "CAPTURE_BALL".equals(item.getItemType())) {
+                balls.add(inv);
+            }
+        }
+        return balls;
+    }
+
+    private PlayerEntity requirePlayer() {
+        PlayerEntity player = playerMapper.selectOne(null);
+        if (player == null) {
+            throw new BusinessException("NO_SAVE", "不存在存档，请先创建新游戏");
+        }
+        return player;
+    }
+
+    /**
      * 提交玩家行动意图，结算一整个回合。
      */
     public BattleSnapshot submitActions(String battleId, List<BattleAction> actions) {
@@ -169,6 +313,11 @@ public class BattleService {
      */
     @Transactional
     public BattleSettlement settleBattle(String battleId) {
+        return settleBattle(battleId, false);
+    }
+
+    @Transactional
+    public BattleSettlement settleBattle(String battleId, boolean joinTeam) {
         BattleContext ctx = requireBattle(battleId);
         if (!ctx.isFinished()) {
             throw new BusinessException("BATTLE_NOT_FINISHED", "战斗尚未结束，无法结算");
@@ -177,16 +326,14 @@ public class BattleService {
             throw new BusinessException("BATTLE_ALREADY_SETTLED", "战斗已结算，不可重复结算: " + battleId);
         }
 
-        PlayerEntity player = playerMapper.selectOne(null);
-        if (player == null) {
-            throw new BusinessException("NO_SAVE", "不存在存档，请先创建新游戏");
-        }
+        PlayerEntity player = requirePlayer();
 
         boolean playerWon = "PLAYER".equals(ctx.getWinner());
         BattleSettlement settlement = new BattleSettlement();
         settlement.setBattleId(battleId);
         settlement.setWinner(ctx.getWinner());
         settlement.setPlayerWon(playerWon);
+        settlement.setFled(ctx.isFled());
 
         // 1. HP 回写 + 统计累加（所有参战玩家宠物，胜负均执行）
         List<BattleSettlement.PetHpWriteback> hpWritebacks = new ArrayList<>();
@@ -218,52 +365,229 @@ public class BattleService {
         }
         settlement.setHpWritebacks(hpWritebacks);
 
-        // 2. 奖励发放（仅 PLAYER 胜方）
+        // 2. 奖励发放（仅 PLAYER 胜方；逃跑/战败均无奖励）
         if (playerWon) {
-            TestBattleConfig.BattleReward rewards = registry.getTestBattleConfig().getRewards();
-            int expGained = rewards.getExp();
-            int goldGained = rewards.getGold();
-
-            if (expGained > 0) {
-                player.setExpPool(player.getExpPool() + expGained);
+            if ("WILD".equals(ctx.getBattleType())) {
+                settleWildRewards(ctx, player, settlement);
+            } else {
+                settleTestRewards(ctx, player, settlement);
             }
-            if (goldGained > 0) {
-                player.setGold(player.getGold() + goldGained);
-            }
-            playerMapper.updateById(player);
+        }
 
-            settlement.setExpGained(expGained);
-            settlement.setGoldGained(goldGained);
-
-            // 掉落：按 chance 概率掉落，使用战斗上下文随机源保证可复现
-            List<BattleSettlement.DropResult> drops = new ArrayList<>();
-            for (TestBattleConfig.DropEntry drop : rewards.getDrops()) {
-                if (ctx.getRandom().chance(drop.getChance())) {
-                    ItemConfig item = registry.getItem(drop.getItemId());
-                    if (item == null) {
-                        log.warn("掉落道具配置缺失，跳过: {}", drop.getItemId());
-                        continue;
-                    }
-                    addInventoryItem(player.getSaveId(), drop.getItemId(), drop.getQuantity());
-                    BattleSettlement.DropResult dr = new BattleSettlement.DropResult();
-                    dr.setItemId(drop.getItemId());
-                    dr.setName(item.getName());
-                    dr.setQuantity(drop.getQuantity());
-                    drops.add(dr);
-                }
-            }
-            settlement.setDrops(drops);
+        // 2.5 野生战斗：捕捉落库（被捕捉宠物）+ 捕捉球扣除（无论成败均消耗）
+        if ("WILD".equals(ctx.getBattleType())) {
+            settleCaptures(ctx, player, settlement, joinTeam);
+            consumeCaptureBalls(ctx, player);
         }
 
         // 3. 标记已结算并清理内存
         settledBattles.add(battleId);
         // 保留战斗上下文一段时间，供前端再次查询最终状态；定期清理交给后续阶段或重启
-        log.info("战斗结算完成：battleId={}, 胜方={}, 经验+{}, 金币+{}, 掉落 {} 项, HP 回写 {} 只",
-                battleId, ctx.getWinner(),
+        log.info("战斗结算完成：battleId={}, 胜方={}, 逃跑={}, 经验+{}, 金币+{}, 掉落 {} 项, "
+                        + "捕捉 {} 只, HP 回写 {} 只",
+                battleId, ctx.getWinner(), ctx.isFled(),
                 settlement.getExpGained(), settlement.getGoldGained(),
-                settlement.getDrops().size(), hpWritebacks.size());
+                settlement.getDrops().size(), settlement.getCapturedPets().size(), hpWritebacks.size());
 
         return settlement;
+    }
+
+    /** 测试战斗奖励：test-battle.yml 固定奖励（阶段 3/4 路径）。 */
+    private void settleTestRewards(BattleContext ctx, PlayerEntity player, BattleSettlement settlement) {
+        TestBattleConfig.BattleReward rewards = registry.getTestBattleConfig().getRewards();
+        int expGained = rewards.getExp();
+        int goldGained = rewards.getGold();
+
+        if (expGained > 0) {
+            player.setExpPool(player.getExpPool() + expGained);
+        }
+        if (goldGained > 0) {
+            player.setGold(player.getGold() + goldGained);
+        }
+        playerMapper.updateById(player);
+
+        settlement.setExpGained(expGained);
+        settlement.setGoldGained(goldGained);
+
+        // 掉落：按 chance 概率掉落，使用战斗上下文随机源保证可复现
+        List<BattleSettlement.DropResult> drops = new ArrayList<>();
+        for (TestBattleConfig.DropEntry drop : rewards.getDrops()) {
+            if (ctx.getRandom().chance(drop.getChance())) {
+                ItemConfig item = registry.getItem(drop.getItemId());
+                if (item == null) {
+                    log.warn("掉落道具配置缺失，跳过: {}", drop.getItemId());
+                    continue;
+                }
+                addInventoryItem(player.getSaveId(), drop.getItemId(), drop.getQuantity());
+                BattleSettlement.DropResult dr = new BattleSettlement.DropResult();
+                dr.setItemId(drop.getItemId());
+                dr.setName(item.getName());
+                dr.setQuantity(drop.getQuantity());
+                drops.add(dr);
+            }
+        }
+        settlement.setDrops(drops);
+    }
+
+    /**
+     * 野生战斗奖励（用户裁决：遭遇组配置）。
+     * 奖励 = expPerLevel/goldPerLevel × 敌等级 × 稀有度系数（system.yml），
+     * 被捕捉宠物不参与奖励计算（需求 §50）。
+     */
+    private void settleWildRewards(BattleContext ctx, PlayerEntity player, BattleSettlement settlement) {
+        EncountersConfig.EncounterGroup group = wildEncounterService.getEncounterGroup(ctx.getEncounterGroupId());
+        SystemRuleConfig rules = registry.getSystemRules();
+
+        double expGained = 0;
+        double goldGained = 0;
+        for (BattleUnit unit : ctx.getEnemySide().getUnits()) {
+            if (unit.isCaptured()) {
+                continue; // 被捕捉宠物不参与奖励
+            }
+            PetSpeciesConfig species = registry.getSpecies(unit.getSpeciesId());
+            double rarityMultiplier = species == null ? 1.0
+                    : rules.getWildRewardRarityMultiplier().getOrDefault(species.getRarity(), 1.0);
+            expGained += group.getExpPerLevel() * unit.getLevel() * rarityMultiplier;
+            goldGained += group.getGoldPerLevel() * unit.getLevel() * rarityMultiplier;
+        }
+        int expInt = (int) Math.round(expGained);
+        int goldInt = (int) Math.round(goldGained);
+
+        if (expInt > 0) {
+            player.setExpPool(player.getExpPool() + expInt);
+        }
+        if (goldInt > 0) {
+            player.setGold(player.getGold() + goldInt);
+        }
+        playerMapper.updateById(player);
+
+        settlement.setExpGained(expInt);
+        settlement.setGoldGained(goldInt);
+    }
+
+    /**
+     * 捕捉落库（需求 §48/§49）：为每只被捕捉野生单位创建玩家宠物并学习技能。
+     * <ul>
+     *   <li>等级 = 野生单位等级；资质/个体浮动/特殊外观 = 遭遇生成时固化的数据；</li>
+     *   <li>HP 保留捕捉时余量（HP 跨战斗保留原则）；</li>
+     *   <li>已解锁种族技能按配置槽位自动装备，稀有技能仅学习不装备；</li>
+     *   <li>自由属性点全 0（玩家可自由分配已获得点数）。</li>
+     * </ul>
+     */
+    private void settleCaptures(BattleContext ctx, PlayerEntity player, BattleSettlement settlement,
+                                boolean joinTeam) {
+        for (BattleUnit captured : ctx.getCapturedUnits()) {
+            PetSpeciesConfig species = registry.getSpecies(captured.getSpeciesId());
+            BattleUnit.WildUnitData wd = captured.getWildData();
+            if (species == null || wd == null) {
+                log.warn("被捕捉单位数据缺失，跳过: {}", captured.getUnitId());
+                continue;
+            }
+
+            PlayerPetEntity pet = new PlayerPetEntity();
+            pet.setSaveId(player.getSaveId());
+            pet.setSpeciesId(captured.getSpeciesId());
+            pet.setLevel(captured.getLevel());
+            pet.setCapturedLevel(captured.getLevel());
+            pet.setHpAptitude(wd.getHpAptitude());
+            pet.setStrengthAptitude(wd.getStrengthAptitude());
+            pet.setSpiritAptitude(wd.getSpiritAptitude());
+            pet.setDefenseAptitude(wd.getDefenseAptitude());
+            pet.setResistanceAptitude(wd.getResistanceAptitude());
+            pet.setSpeedAptitude(wd.getSpeedAptitude());
+            pet.setBaseHpOffset(wd.getBaseHpOffset());
+            pet.setBaseStrengthOffset(wd.getBaseStrengthOffset());
+            pet.setBaseSpiritOffset(wd.getBaseSpiritOffset());
+            pet.setBaseDefenseOffset(wd.getBaseDefenseOffset());
+            pet.setBaseResistanceOffset(wd.getBaseResistanceOffset());
+            pet.setBaseSpeedOffset(wd.getBaseSpeedOffset());
+            pet.setFreePointHp(0);
+            pet.setFreePointStrength(0);
+            pet.setFreePointSpirit(0);
+            pet.setFreePointDefense(0);
+            pet.setFreePointResistance(0);
+            pet.setFreePointSpeed(0);
+            pet.setCurrentHp(Math.max(0, Math.min(captured.getCurrentHp(), captured.getMaxHp())));
+            pet.setIsStarter(false);
+            pet.setLocked(false);
+            pet.setFavorite(false);
+            pet.setSpecialAppearance(wd.getSpecialAppearance());
+            pet.setCapturedMapId(player.getCurrentMapId());
+            pet.setCapturedAt(LocalDateTime.now());
+            pet.setBattleCount(0);
+            pet.setWinCount(0);
+            playerPetMapper.insert(pet);
+
+            // 已解锁种族技能：按配置槽位自动装备
+            for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
+                if (slot.getUnlockLevel() > captured.getLevel()) {
+                    continue;
+                }
+                PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
+                petSkill.setPetId(pet.getId());
+                petSkill.setSkillId(slot.getSkillId());
+                petSkill.setSourceType("LEVEL_UP");
+                petSkill.setSlot(slot.getSlot());
+                playerPetSkillMapper.insert(petSkill);
+            }
+            // 稀有技能：仅学习不装备
+            for (String extraSkillId : wd.getExtraSkillIds()) {
+                boolean learned = species.getSkills().stream()
+                        .anyMatch(s -> s.getSkillId().equals(extraSkillId));
+                if (learned) {
+                    continue;
+                }
+                PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
+                petSkill.setPetId(pet.getId());
+                petSkill.setSkillId(extraSkillId);
+                petSkill.setSourceType("CAPTURE");
+                petSkill.setSlot(null);
+                playerPetSkillMapper.insert(petSkill);
+            }
+
+            BattleSettlement.CapturedPetView view = new BattleSettlement.CapturedPetView();
+            view.setPetId(pet.getId());
+            view.setSpeciesId(species.getId());
+            view.setName(species.getName());
+            view.setRarity(species.getRarity());
+            view.setLevel(pet.getLevel());
+            view.setSpecialAppearance(wd.getSpecialAppearance());
+            view.setExtraSkillIds(wd.getExtraSkillIds());
+
+            // 捕捉成功去向选择（需求 §48）：队伍未满 6 只且前端选择入队时直接加入队伍，
+            // 否则留在仓库（宠物已落库，未入队即在仓库）
+            if (joinTeam) {
+                try {
+                    int position = teamService.addPetToActiveTeam(pet.getId());
+                    view.setTeamPosition(position);
+                } catch (BusinessException e) {
+                    // 队伍已满/已在队伍：静默留在仓库，不阻断结算
+                    log.info("捕捉宠物未入队（{}）：petId={}", e.getErrorCode(), pet.getId());
+                }
+            }
+            settlement.getCapturedPets().add(view);
+        }
+    }
+
+    /** 捕捉球扣除：战斗内消耗（无论成败）统一在结算时从背包扣除。 */
+    private void consumeCaptureBalls(BattleContext ctx, PlayerEntity player) {
+        for (Map.Entry<String, Integer> entry : ctx.getConsumedCaptureBalls().entrySet()) {
+            PlayerInventoryEntity inv = playerInventoryMapper.selectOne(
+                    new LambdaQueryWrapper<PlayerInventoryEntity>()
+                            .eq(PlayerInventoryEntity::getSaveId, player.getSaveId())
+                            .eq(PlayerInventoryEntity::getItemId, entry.getKey()));
+            if (inv == null || inv.getQuantity() < entry.getValue()) {
+                throw new BusinessException("CAPTURE_BALL_MISSING",
+                        "捕捉球库存不足，无法扣除: " + entry.getKey());
+            }
+            int remaining = inv.getQuantity() - entry.getValue();
+            if (remaining <= 0) {
+                playerInventoryMapper.deleteById(inv.getId());
+            } else {
+                inv.setQuantity(remaining);
+                playerInventoryMapper.updateById(inv);
+            }
+        }
     }
 
     /** 增加玩家背包道具数量（已存在则累加，不存在则新增）。 */
@@ -328,21 +652,19 @@ public class BattleService {
             if (index >= rules.getMaxCarryPets()) {
                 break;
             }
-            InitialPetsConfig.InitialPetOption option = findSpeciesOption(pet.getSpeciesId());
-            if (option == null) {
+            PetSpeciesConfig species = findSpecies(pet.getSpeciesId());
+            if (species == null) {
                 throw new BusinessException("SPECIES_CONFIG_MISSING",
                         "宠物种族配置缺失: " + pet.getSpeciesId());
             }
-            side.getUnits().add(buildPlayerUnit(pet, option, index < activeSlots ? index : -1));
+            side.getUnits().add(buildPlayerUnit(pet, species, index < activeSlots ? index : -1));
             index++;
         }
         return side;
     }
 
-    private InitialPetsConfig.InitialPetOption findSpeciesOption(String speciesId) {
-        return registry.getInitialPetsConfig().getInitialPets().stream()
-                .filter(p -> p.getSpeciesId().equals(speciesId))
-                .findFirst().orElse(null);
+    private PetSpeciesConfig findSpecies(String speciesId) {
+        return registry.getSpecies(speciesId);
     }
 
     /**
@@ -352,18 +674,18 @@ public class BattleService {
      * 种族基础（含个体浮动）+ 等级固定成长 + 资质成长修正 + 自由属性点。
      * 战斗 Buff/Debuff 由引擎状态体系在运行时叠加，不进面板。
      */
-    private BattleUnit buildPlayerUnit(PlayerPetEntity pet, InitialPetsConfig.InitialPetOption option,
+    private BattleUnit buildPlayerUnit(PlayerPetEntity pet, PetSpeciesConfig species,
                                        int position) {
         BattleUnit unit = new BattleUnit();
         unit.setUnitId("P_" + pet.getId());
         unit.setPetDbId(pet.getId());
         unit.setName(pet.getNickname() != null && !pet.getNickname().isBlank()
-                ? pet.getNickname() : option.getName());
-        unit.setElement(option.getElement());
+                ? pet.getNickname() : species.getName());
+        unit.setElement(species.getElement());
         unit.setLevel(pet.getLevel());
 
         // 统一面板公式：与 PetService 详情页、加点预览完全一致
-        PetPanelStats stats = growthService.computePanelStats(pet, option);
+        PetPanelStats stats = growthService.computePanelStats(pet, species);
         unit.setMaxHp(stats.getMaxHp());
         unit.setStrength(stats.getStrength());
         unit.setSpirit(stats.getSpirit());
@@ -391,7 +713,7 @@ public class BattleService {
             }
         }
         // 被动技能按种族配置自动生效（不进 player_pet_skill 表）
-        for (String passiveId : option.getPassives()) {
+        for (String passiveId : species.getPassives()) {
             PassiveSkillConfig passive = registry.getPassive(passiveId);
             if (passive != null) {
                 unit.getPassives().add(passive);
@@ -440,10 +762,12 @@ public class BattleService {
     private BattleSnapshot toSnapshot(BattleContext ctx, List<BattleEvent> events) {
         BattleSnapshot snapshot = new BattleSnapshot();
         snapshot.setBattleId(ctx.getBattleId());
+        snapshot.setBattleType(ctx.getBattleType());
         snapshot.setSeed(ctx.getRandomSeed());
         snapshot.setCurrentRound(ctx.getCurrentRound());
         snapshot.setFinished(ctx.isFinished());
         snapshot.setWinner(ctx.getWinner());
+        snapshot.setFled(ctx.isFled());
         snapshot.setPlayerUnits(ctx.getPlayerSide().getUnits().stream().map(this::toUnitSnapshot).toList());
         snapshot.setEnemyUnits(ctx.getEnemySide().getUnits().stream().map(this::toUnitSnapshot).toList());
         snapshot.setEvents(events);
@@ -468,6 +792,7 @@ public class BattleService {
         snapshot.setActive(unit.isActive());
         snapshot.setPosition(unit.getPosition());
         snapshot.setDefending(unit.isDefending());
+        snapshot.setCaptured(unit.isCaptured());
         snapshot.setCharging(unit.getChargingSkillId() != null);
         snapshot.setChargingSkillId(unit.getChargingSkillId());
         snapshot.setChargeRemaining(unit.getChargeRemaining());
@@ -490,6 +815,17 @@ public class BattleService {
 
     // ==================== 结算 DTO ====================
 
+    /** 野生战斗捕捉率视图（前端展示用）。 */
+    @lombok.Data
+    public static class CaptureRateView {
+        private String unitId;
+        private String unitName;
+        private String ballItemId;
+        private String ballName;
+        /** 捕捉率（0~1）。 */
+        private double rate;
+    }
+
     /** 战斗结算结果摘要。 */
     @lombok.Data
     public static class BattleSettlement {
@@ -503,6 +839,9 @@ public class BattleService {
         /** 玩家是否获胜。 */
         private boolean playerWon;
 
+        /** 玩家是否逃跑成功（同战败结算）。 */
+        private boolean fled;
+
         /** 经验池增加量（仅胜方 > 0）。 */
         private int expGained;
 
@@ -511,6 +850,9 @@ public class BattleService {
 
         /** 掉落道具列表。 */
         private List<DropResult> drops = new ArrayList<>();
+
+        /** 本场被捕捉的宠物列表（野生战斗）。 */
+        private List<CapturedPetView> capturedPets = new ArrayList<>();
 
         /** 参战宠物 HP 回写明细。 */
         private List<PetHpWriteback> hpWritebacks = new ArrayList<>();
@@ -521,6 +863,20 @@ public class BattleService {
             private String itemId;
             private String name;
             private int quantity;
+        }
+
+        /** 被捕捉宠物摘要。 */
+        @lombok.Data
+        public static class CapturedPetView {
+            private Long petId;
+            private String speciesId;
+            private String name;
+            private String rarity;
+            private int level;
+            private String specialAppearance;
+            private List<String> extraSkillIds = new ArrayList<>();
+            /** 直接入队时的队伍位置（null = 未入队，留在仓库）。 */
+            private Integer teamPosition;
         }
 
         /** 单只宠物 HP 回写明细。 */

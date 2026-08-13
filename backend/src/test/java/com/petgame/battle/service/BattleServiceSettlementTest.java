@@ -4,12 +4,13 @@ import com.petgame.battle.engine.BattleContext;
 import com.petgame.battle.model.BattleSide;
 import com.petgame.battle.model.BattleUnit;
 import com.petgame.battle.ai.WildEnemyDecisionProvider;
+import com.petgame.capture.WildEncounterService;
 import com.petgame.common.BusinessException;
 import com.petgame.common.GameRandom;
 import com.petgame.config.GameConfigRegistry;
-import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.ItemsConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.TestBattleConfig;
 import com.petgame.inventory.entity.PlayerInventoryEntity;
 import com.petgame.inventory.mapper.PlayerInventoryMapper;
@@ -21,6 +22,7 @@ import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.team.mapper.PlayerTeamMapper;
 import com.petgame.team.mapper.PlayerTeamMemberMapper;
+import com.petgame.team.service.TeamService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,6 +68,10 @@ class BattleServiceSettlementTest {
     private PlayerInventoryMapper playerInventoryMapper;
     @Mock
     private WildEnemyDecisionProvider enemyDecisionProvider;
+    @Mock
+    private WildEncounterService wildEncounterService;
+    @Mock
+    private TeamService teamService;
 
     private GameConfigRegistry registry;
     private PetGrowthService growthService;
@@ -76,7 +82,7 @@ class BattleServiceSettlementTest {
 
     @BeforeEach
     void setUp() {
-        InitialPetsConfig.InitialPetOption speciesOption =
+        PetSpeciesConfig speciesOption =
                 species(SPECIES_ID, "COMMON", 50, List.of());
         ItemConfig dropItem = item(ITEM_DROP, "RECOVERY", "HEAL_HP", 50, true);
 
@@ -89,7 +95,7 @@ class BattleServiceSettlementTest {
         battleService = new BattleService(registry, enemyDecisionProvider,
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                growthService);
+                growthService, wildEncounterService, teamService);
     }
 
     // ==================== 玩家胜：HP 回写 + 奖励发放 ====================
@@ -260,7 +266,7 @@ class BattleServiceSettlementTest {
     @Test
     void settleBattle_dropChanceZero_neverDrops() {
         // 配置 chance=0.0 的掉落
-        InitialPetsConfig.InitialPetOption speciesOption =
+        PetSpeciesConfig speciesOption =
                 species(SPECIES_ID, "COMMON", 50, List.of());
         ItemConfig dropItem = item(ITEM_DROP, "RECOVERY", "HEAL_HP", 50, true);
         GameConfigRegistry customRegistry = buildRegistryWithRewards(
@@ -271,7 +277,7 @@ class BattleServiceSettlementTest {
         BattleService customService = new BattleService(customRegistry, enemyDecisionProvider,
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                customGrowth);
+                customGrowth, wildEncounterService, teamService);
 
         BattleUnit unit1 = playerUnit("P_1", 1L, 100, 50);
         BattleContext ctx = finishedBattle("BATTLE_7", 1L, "PLAYER", unit1);
@@ -567,7 +573,7 @@ class BattleServiceSettlementTest {
 
     /** 构建带奖励配置的 GameConfigRegistry。 */
     private GameConfigRegistry buildRegistryWithRewards(
-            List<InitialPetsConfig.InitialPetOption> pets,
+            List<PetSpeciesConfig> pets,
             List<ItemConfig> items,
             TestBattleConfig.BattleReward rewards) {
         try {

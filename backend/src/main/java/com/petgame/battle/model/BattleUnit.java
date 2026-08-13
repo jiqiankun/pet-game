@@ -20,8 +20,17 @@ public class BattleUnit {
     /** 战斗内唯一 ID（玩家宠用 "P_" + 存档宠物 ID，测试敌人用配置 unitId）。 */
     private String unitId;
 
-    /** 存档宠物 DB ID（测试敌方单位为 null）。 */
+    /** 存档宠物 DB ID（测试/野生敌方单位为 null）。 */
     private Long petDbId;
+
+    /** 种族 ID（玩家单位为其宠物种族，野生单位为物种配置 ID）。 */
+    private String speciesId;
+
+    /** 是否已被捕捉（捕捉成功后立即退出敌方队伍，不再参与战斗）。 */
+    private boolean captured;
+
+    /** 野生单位捕捉落库数据（仅野生单位非 null）。 */
+    private WildUnitData wildData;
 
     /** 显示名称（昵称优先）。 */
     private String name;
@@ -117,5 +126,30 @@ public class BattleUnit {
     /** 移除指定状态实例。 */
     public void removeStatus(String statusId) {
         statuses.removeIf(s -> s.getStatusId().equals(statusId));
+    }
+
+    /**
+     * 野生单位捕捉落库数据。
+     * <p>
+     * 捕捉成功结算时据此创建玩家宠物：六维资质、个体浮动、额外技能（稀有技能）、特殊外观。
+     */
+    @Data
+    public static class WildUnitData {
+        private int hpAptitude;
+        private int strengthAptitude;
+        private int spiritAptitude;
+        private int defenseAptitude;
+        private int resistanceAptitude;
+        private int speedAptitude;
+        private int baseHpOffset;
+        private int baseStrengthOffset;
+        private int baseSpiritOffset;
+        private int baseDefenseOffset;
+        private int baseResistanceOffset;
+        private int baseSpeedOffset;
+        /** 额外技能 ID（低概率携带的稀有技能）。 */
+        private List<String> extraSkillIds = new ArrayList<>();
+        /** 特殊外观标记（null = 无）。 */
+        private String specialAppearance;
     }
 }

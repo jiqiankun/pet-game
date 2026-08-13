@@ -119,6 +119,50 @@ public class SystemRuleConfig {
     /** 放生培养加成上限（默认 50% = 0.50）。 */
     private double releaseBonusMax = 0.50;
 
+    // ---- 捕捉（阶段 5）----
+
+    /** HP 系数参数：捕获率 = 基础捕获率 × (1 - captureHpFactor × 当前HP比例)，满血惩罚、空血 1.0（默认 0.5）。 */
+    private double captureHpFactor = 0.5;
+
+    /** 每个异常状态（DEBUFF/CONTROL）的捕获率加成（默认 +0.15）。 */
+    private double statusCaptureBonus = 0.15;
+
+    /** 异常状态捕获加成最多计数的状态个数（默认 2）。 */
+    private int captureStatusMaxCount = 2;
+
+    /** 精英个体捕捉倍率（决策一，默认 ×0.6；本阶段无精英个体固定 1.0）。 */
+    private double eliteCaptureMultiplier = 0.6;
+
+    /** 逃跑成功率（用户裁决：必定成功，默认 1.0，配置化可调）。 */
+    private double fleeSuccessRate = 1.0;
+
+    /** 野生宠物低概率携带稀有技能的概率（默认 0.05）。 */
+    private double rareSkillChance = 0.05;
+
+    /** 野生宠物极低概率特殊外观的概率（默认 0.01）。 */
+    private double specialAppearanceChance = 0.01;
+
+    /** 放生礼物价值点数基础值：key=稀有度（COMMON/RARE/EPIC/LEGENDARY），value=点数（决策七：20/60/150/400）。 */
+    private java.util.Map<String, Integer> releaseGiftBaseValue = new java.util.HashMap<>();
+
+    /** 捕获等级系数：每级加成比例（决策七，默认 0.01 = 1%）。 */
+    private double releaseLevelFactorPerLevel = 0.01;
+
+    /** 捕获等级系数上限（决策七，默认 ×1.5）。 */
+    private double releaseLevelFactorCap = 1.5;
+
+    /** 培养系数上限（决策七，对应培养加成 ≤50%，默认 1.5）。 */
+    private double releaseCultivationFactorMax = 1.5;
+
+    /** 培养系数满值所需已分配自由点数（培养系数 = 1 + min(已分配/该值, 1) × (上限-1)，默认 100）。 */
+    private int releaseCultivationPointsCap = 100;
+
+    /** 放生高资质额外警告阈值（平均资质 ≥ 该值时前端二次确认，默认 90，配置化）。 */
+    private int releaseWarningAptitudeThreshold = 90;
+
+    /** 野生战斗奖励稀有度系数：key=稀有度，value=系数（用户裁决：普通 1.0/稀有 1.2/珍稀 1.5/传说 2.0）。 */
+    private java.util.Map<String, Double> wildRewardRarityMultiplier = new java.util.HashMap<>();
+
     // ---- Boss ----
 
     /** Boss 幸运值兑换消耗（默认 100）。 */

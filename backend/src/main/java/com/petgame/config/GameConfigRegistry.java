@@ -37,6 +37,9 @@ public class GameConfigRegistry {
     private StatusesConfig statusesConfig;
     private TestBattleConfig testBattleConfig;
     private ItemsConfig itemsConfig;
+    private PetsConfig petsConfig;
+    private EncountersConfig encountersConfig;
+    private ReleaseGiftsConfig releaseGiftsConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -55,6 +58,9 @@ public class GameConfigRegistry {
 
     /** 道具 ID → 道具配置 的快速索引（阶段 4）。 */
     private Map<String, ItemConfig> itemIndex;
+
+    /** 种族 ID → 种族配置 的快速索引（阶段 5）。 */
+    private Map<String, PetSpeciesConfig> speciesIndex;
 
     public GameConfigRegistry(GameConfigLoader loader, GameConfigValidator validator) {
         this.loader = loader;
@@ -76,10 +82,14 @@ public class GameConfigRegistry {
         this.statusesConfig = loader.loadStatusesConfig();
         this.testBattleConfig = loader.loadTestBattleConfig();
         this.itemsConfig = loader.loadItemsConfig();
+        this.petsConfig = loader.loadPetsConfig();
+        this.encountersConfig = loader.loadEncountersConfig();
+        this.releaseGiftsConfig = loader.loadReleaseGiftsConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
-                skillsConfig, statusesConfig, testBattleConfig, itemsConfig);
+                skillsConfig, statusesConfig, testBattleConfig, itemsConfig,
+                petsConfig, encountersConfig, releaseGiftsConfig);
 
         // 构建索引
         buildElementIndex();
@@ -88,15 +98,18 @@ public class GameConfigRegistry {
         buildStatusIndex();
         buildPassiveIndex();
         buildItemIndex();
+        buildSpeciesIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
                 initialPetsConfig.getInitialPets().size(),
                 skillsConfig.getSkills().size(),
                 skillsConfig.getPassives().size(),
                 statusesConfig.getStatuses().size(),
-                itemsConfig.getItems().size());
+                itemsConfig.getItems().size(),
+                petsConfig.getSpecies().size(),
+                encountersConfig.getEncounterGroups().size());
     }
 
     // ---- 查询方法 ----
@@ -136,23 +149,37 @@ public class GameConfigRegistry {
         return itemsConfig;
     }
 
+    /** 获取宠物种族配置（只读使用，阶段 5）。 */
+    public PetsConfig getPetsConfig() {
+        return petsConfig;
+    }
+
+    /** 获取野生遭遇配置（只读使用，阶段 5）。 */
+    public EncountersConfig getEncountersConfig() {
+        return encountersConfig;
+    }
+
+    /** 获取放生礼物配置（只读使用，阶段 5）。 */
+    public ReleaseGiftsConfig getReleaseGiftsConfig() {
+        return releaseGiftsConfig;
+    }
+
     /** 根据道具 ID 获取道具配置，不存在返回 null。 */
     public ItemConfig getItem(String itemId) {
         return itemId == null ? null : itemIndex.get(itemId);
     }
 
     /**
-     * 根据 speciesId 获取种族配置（阶段 4 起统一入口）。
-     * 当前种族配置来源为 initial-pets.yml（初始宠物三选一）。
+     * 根据 speciesId 获取种族配置（阶段 5 起统一来源为 pets/pets.yml）。
      * @return 对应种族配置，不存在返回 null
      */
-    public InitialPetsConfig.InitialPetOption getSpecies(String speciesId) {
-        if (speciesId == null) {
-            return null;
-        }
-        return initialPetsConfig.getInitialPets().stream()
-                .filter(p -> p.getSpeciesId().equals(speciesId))
-                .findFirst().orElse(null);
+    public PetSpeciesConfig getSpecies(String speciesId) {
+        return speciesId == null ? null : speciesIndex.get(speciesId);
+    }
+
+    /** 获取全部种族配置（只读，按配置顺序）。 */
+    public List<PetSpeciesConfig> getAllSpecies() {
+        return petsConfig.getSpecies();
     }
 
     /** 根据技能 ID 获取技能配置，不存在返回 null。 */
@@ -257,6 +284,13 @@ public class GameConfigRegistry {
             for (ItemConfig item : itemsConfig.getItems()) {
                 itemIndex.put(item.getId(), item);
             }
+        }
+    }
+
+    private void buildSpeciesIndex() {
+        speciesIndex = new LinkedHashMap<>();
+        for (PetSpeciesConfig species : petsConfig.getSpecies()) {
+            speciesIndex.put(species.getId(), species);
         }
     }
 }

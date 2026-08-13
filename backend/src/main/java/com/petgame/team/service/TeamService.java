@@ -157,6 +157,80 @@ public class TeamService {
 
     // ==================== 内部工具 ====================
 
+    /**
+     * 查询当前激活队伍全部成员宠物 ID（阶段 5：仓库「是否在队伍」筛选与放生排除用）。
+     * 无激活队伍时返回空集合。
+     */
+    public Set<Long> getActiveTeamPetIds() {
+        PlayerEntity player = requirePlayer();
+        PlayerTeamEntity team = playerTeamMapper.selectOne(
+                new LambdaQueryWrapper<PlayerTeamEntity>()
+                        .eq(PlayerTeamEntity::getSaveId, player.getSaveId())
+                        .eq(PlayerTeamEntity::getIsActive, true)
+                        .last("LIMIT 1"));
+        if (team == null) {
+            return Set.of();
+        }
+        List<PlayerTeamMemberEntity> members = playerTeamMemberMapper.selectList(
+                new LambdaQueryWrapper<PlayerTeamMemberEntity>()
+                        .eq(PlayerTeamMemberEntity::getTeamId, team.getId()));
+        Set<Long> petIds = new HashSet<>();
+        for (PlayerTeamMemberEntity m : members) {
+            petIds.add(m.getPetId());
+        }
+        return petIds;
+    }
+
+    /**
+     * 将宠物加入当前激活队伍首个空位（阶段 5：捕捉成功后直接入队）。
+     * <p>
+     * 校验：宠物属于当前存档、未在队伍中、队伍未满 6 只。
+     *
+     * @return 加入后的队伍位置（1~6）
+     */
+    @Transactional
+    public int addPetToActiveTeam(Long petId) {
+        PlayerEntity player = requirePlayer();
+        PlayerTeamEntity team = requireActiveTeam(player.getSaveId());
+
+        PlayerPetEntity pet = playerPetMapper.selectById(petId);
+        if (pet == null || !player.getSaveId().equals(pet.getSaveId())) {
+            throw new BusinessException("PET_NOT_OWNED", "宠物不存在或不属于当前存档: " + petId);
+        }
+
+        List<PlayerTeamMemberEntity> members = playerTeamMemberMapper.selectList(
+                new LambdaQueryWrapper<PlayerTeamMemberEntity>()
+                        .eq(PlayerTeamMemberEntity::getTeamId, team.getId())
+                        .orderByAsc(PlayerTeamMemberEntity::getPosition));
+        if (members.size() >= 6) {
+            throw new BusinessException("TEAM_FULL", "队伍已满 6 只，无法加入");
+        }
+        for (PlayerTeamMemberEntity m : members) {
+            if (m.getPetId().equals(petId)) {
+                throw new BusinessException("PET_ALREADY_IN_TEAM", "宠物已在队伍中: " + petId);
+            }
+        }
+
+        // 首个空位（位置 1~6）
+        Set<Integer> occupied = new HashSet<>();
+        for (PlayerTeamMemberEntity m : members) {
+            occupied.add(m.getPosition());
+        }
+        int position = 1;
+        while (occupied.contains(position)) {
+            position++;
+        }
+
+        PlayerTeamMemberEntity member = new PlayerTeamMemberEntity();
+        member.setTeamId(team.getId());
+        member.setPetId(petId);
+        member.setPosition(position);
+        playerTeamMemberMapper.insert(member);
+
+        log.info("捕捉宠物入队：petId={}, teamId={}, position={}", petId, team.getId(), position);
+        return position;
+    }
+
     private PlayerEntity requirePlayer() {
         PlayerEntity player = playerMapper.selectOne(null);
         if (player == null) {

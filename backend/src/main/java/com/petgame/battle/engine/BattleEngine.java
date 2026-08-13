@@ -2,6 +2,7 @@ package com.petgame.battle.engine;
 
 import com.petgame.battle.ai.DecisionProvider;
 import com.petgame.battle.calculator.AccuracyCalculator;
+import com.petgame.battle.calculator.CaptureCalculator;
 import com.petgame.battle.calculator.DamageCalculator;
 import com.petgame.battle.calculator.HealCalculator;
 import com.petgame.battle.calculator.StatusModifiers;
@@ -14,6 +15,8 @@ import com.petgame.battle.model.StatusInstance;
 import com.petgame.battle.passive.PassiveManager;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
+import com.petgame.config.model.ItemConfig;
+import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SkillConfig;
 import com.petgame.config.model.StatusEffectConfig;
 import com.petgame.config.model.SystemRuleConfig;
@@ -190,6 +193,10 @@ public class BattleEngine {
                 if (bench == null || !bench.isAlive() || bench.isActive()) {
                     throw new BusinessException("INVALID_SWITCH", "换宠目标不是存活候补单位: " + action.getSwitchPetId());
                 }
+            } else if ("CAPTURE".equalsIgnoreCase(action.getType())) {
+                validateCaptureAction(ctx, action);
+            } else if ("FLEE".equalsIgnoreCase(action.getType())) {
+                requireWildBattle(ctx);
             } else if (!"DEFEND".equalsIgnoreCase(action.getType())) {
                 throw new BusinessException("INVALID_ACTION", "未知行动类型: " + action.getType());
             }
@@ -229,6 +236,37 @@ public class BattleEngine {
         }
     }
 
+    /** 捕捉行动校验（阶段 5）：仅野生战斗可用，目标须为存活上场野生单位，捕捉球库存充足。 */
+    private void validateCaptureAction(BattleContext ctx, BattleAction action) {
+        requireWildBattle(ctx);
+        BattleUnit target = ctx.getEnemySide().findUnit(action.getTargetId());
+        if (target == null || !target.isAlive() || !target.isActive() || target.isCaptured()) {
+            throw new BusinessException("INVALID_TARGET", "捕捉目标不是存活上场野生单位: " + action.getTargetId());
+        }
+        ItemConfig ball = requireCaptureBall(ctx, action.getItemId());
+        int used = ctx.getConsumedCaptureBalls().getOrDefault(ball.getId(), 0);
+        int available = ctx.getAvailableCaptureBalls().getOrDefault(ball.getId(), 0);
+        if (used >= available) {
+            throw new BusinessException("CAPTURE_BALL_EXHAUSTED", "捕捉球已用完: " + ball.getId());
+        }
+    }
+
+    /** 仅野生遭遇允许捕捉/逃跑（测试战斗不开启阶段 5 行动）。 */
+    private void requireWildBattle(BattleContext ctx) {
+        if (!"WILD".equals(ctx.getBattleType())) {
+            throw new BusinessException("INVALID_ACTION", "当前战斗类型不支持该行动: " + ctx.getBattleType());
+        }
+    }
+
+    /** 校验捕捉球道具存在且类型为 CAPTURE_BALL。 */
+    private ItemConfig requireCaptureBall(BattleContext ctx, String itemId) {
+        ItemConfig ball = registry.getItem(itemId);
+        if (ball == null || !"CAPTURE_BALL".equals(ball.getItemType())) {
+            throw new BusinessException("INVALID_ITEM", "捕捉球道具不存在: " + itemId);
+        }
+        return ball;
+    }
+
     // ---- 行动执行 ----
 
     private void executeAction(BattleContext ctx, BattleUnit unit, BattleAction action) {
@@ -261,7 +299,93 @@ public class BattleEngine {
                 ctx.emit(BattleEvent.of(BattleEventType.DEFEND, ctx.getCurrentRound()).source(unit.getUnitId()));
             }
             case "SWITCH" -> executeSwitch(ctx, unit, action.getSwitchPetId());
+            case "CAPTURE" -> executeCapture(ctx, unit, action);
+            case "FLEE" -> executeFlee(ctx, unit);
             default -> log.warn("未知行动类型: {}", type);
+        }
+    }
+
+    /**
+     * 捕捉执行（阶段 5，需求 §46/§49）：
+     * <ul>
+     *   <li>捕捉球无论成败均消耗（记入战斗上下文，结算时统一扣除背包）。</li>
+     *   <li>捕捉率 = 基础捕获率 × HP 系数 × 异常加成 × 球倍率 × 精英系数。</li>
+     *   <li>成功：目标退出敌方队伍（不触发倒下/击败被动），进入 capturedUnits；若有候补则补位。</li>
+     * </ul>
+     */
+    private void executeCapture(BattleContext ctx, BattleUnit caster, BattleAction action) {
+        BattleUnit target = ctx.getEnemySide().findUnit(action.getTargetId());
+        if (target == null || !target.isAlive() || !target.isActive() || target.isCaptured()) {
+            throw new BusinessException("INVALID_TARGET", "捕捉目标不是存活上场野生单位: " + action.getTargetId());
+        }
+        ItemConfig ball = requireCaptureBall(ctx, action.getItemId());
+        int used = ctx.getConsumedCaptureBalls().getOrDefault(ball.getId(), 0);
+        int available = ctx.getAvailableCaptureBalls().getOrDefault(ball.getId(), 0);
+        if (used >= available) {
+            throw new BusinessException("CAPTURE_BALL_EXHAUSTED", "捕捉球已用完: " + ball.getId());
+        }
+        // 捕捉球消耗（无论成败）
+        ctx.getConsumedCaptureBalls().merge(ball.getId(), 1, Integer::sum);
+
+        PetSpeciesConfig species = registry.getSpecies(target.getSpeciesId());
+        if (species == null) {
+            throw new BusinessException("SPECIES_CONFIG_MISSING", "野生单位种族配置缺失: " + target.getSpeciesId());
+        }
+        double hpRatio = target.getMaxHp() > 0
+                ? (double) target.getCurrentHp() / target.getMaxHp() : 0.0;
+        int statusCount = CaptureCalculator.countCaptureBonusStatuses(target, registry.getStatusIndex());
+        // 精英个体捕捉倍率（决策一，本阶段无精英个体，固定 1.0）
+        double eliteMultiplier = 1.0;
+        double rate = CaptureCalculator.computeCaptureRate(species.getCaptureRate(), hpRatio,
+                statusCount, ball.getValue(), eliteMultiplier, registry.getSystemRules());
+
+        ctx.emit(BattleEvent.of(BattleEventType.CAPTURE_ATTEMPT, ctx.getCurrentRound())
+                .source(caster.getUnitId()).target(target.getUnitId())
+                .skill(ball.getId()).put("rate", rate));
+
+        if (ctx.getRandom().chance(rate)) {
+            // 成功：立即退出敌方队伍（需求 §49），不触发倒下/击败被动
+            int position = target.getPosition();
+            target.setCaptured(true);
+            target.setActive(false);
+            target.setPosition(-1);
+            ctx.getCapturedUnits().add(target);
+            ctx.emit(BattleEvent.of(BattleEventType.CAPTURE_SUCCESS, ctx.getCurrentRound())
+                    .source(caster.getUnitId()).target(target.getUnitId()));
+
+            // 候补补位（同倒下处理，不消耗行动）
+            BattleUnit replacement = ctx.getEnemySide().getBenchAliveUnits().stream()
+                    .findFirst().orElse(null);
+            if (replacement != null) {
+                replacement.setActive(true);
+                replacement.setPosition(position);
+                ctx.emit(BattleEvent.of(BattleEventType.PET_REPLACED, ctx.getCurrentRound())
+                        .target(replacement.getUnitId()).put("position", position)
+                        .put("capturedId", target.getUnitId()));
+                passiveManager.trigger(ctx, "ON_ENTER", replacement);
+            }
+        } else {
+            ctx.emit(BattleEvent.of(BattleEventType.CAPTURE_FAIL, ctx.getCurrentRound())
+                    .source(caster.getUnitId()).target(target.getUnitId()));
+        }
+    }
+
+    /**
+     * 逃跑执行（阶段 5，用户裁决：必定成功，同战败结算）。
+     * 成功：战斗立即结束、无胜方、fled=true；失败：消耗本次行动。
+     */
+    private void executeFlee(BattleContext ctx, BattleUnit unit) {
+        double rate = registry.getSystemRules().getFleeSuccessRate();
+        if (ctx.getRandom().chance(rate)) {
+            ctx.setFled(true);
+            ctx.setFinished(true);
+            ctx.emit(BattleEvent.of(BattleEventType.FLEE_SUCCESS, ctx.getCurrentRound())
+                    .source(unit.getUnitId()));
+            ctx.emit(BattleEvent.of(BattleEventType.BATTLE_ENDED, ctx.getCurrentRound())
+                    .put("winner", "FLEE"));
+        } else {
+            ctx.emit(BattleEvent.of(BattleEventType.FLEE_FAIL, ctx.getCurrentRound())
+                    .source(unit.getUnitId()));
         }
     }
 
@@ -608,7 +732,8 @@ public class BattleEngine {
             return;
         }
         String winner = null;
-        if (ctx.getEnemySide().isAllDefeated()) {
+        // 野生战斗：敌方全部退出战斗（倒下或被捕捉）即玩家获胜
+        if (ctx.getEnemySide().isAllGone()) {
             winner = "PLAYER";
         } else if (ctx.getPlayerSide().isAllDefeated()) {
             winner = "ENEMY";

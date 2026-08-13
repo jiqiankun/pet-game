@@ -1,0 +1,565 @@
+# ============================================================
+# 宠物精灵游戏 - 宠物种族配置（阶段 5）
+# ============================================================
+# 全部 27 种基础宠物的唯一数据来源（需求 §59：9 属性 × 每属性 3 种）。
+# 玩家存档只保存 speciesId 引用，不复制配置内容（数据分离原则）。
+# 稀有度分布（需求 §60）：普通 12 / 稀有 9 / 珍稀 5 / 传说 1。
+# 阶段 5 起取代 initial-pets.yml 中的种族快照，成为 registry.getSpecies() 的统一来源。
+# ============================================================
+
+configVersion: 1
+
+species:
+  # ========== 金（METAL）==========
+
+  - id: PET_METAL_001
+    name: 铄锋
+    element: METAL
+    description: 银白金属元素凝成的锋刃灵兽，擅长物理爆发。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 80
+    baseStrength: 92
+    baseSpirit: 58
+    baseDefense: 68
+    baseResistance: 55
+    baseSpeed: 78
+    skills:
+      - { skillId: SKILL_METAL_CLAW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_ARMOR_CRUSH, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_HEADBUTT, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_BLADE_STORM
+
+  - id: PET_METAL_002
+    name: 玄铠
+    element: METAL
+    description: 黑金厚甲与尖角组成的重型元素兽，擅长破甲输出。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 95
+    baseStrength: 88
+    baseSpirit: 55
+    baseDefense: 90
+    baseResistance: 72
+    baseSpeed: 60
+    skills:
+      - { skillId: SKILL_METAL_CLAW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_ARMOR_CRUSH, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_GOLDEN_GUARD, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_BLADE_STORM, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_UNYIELDING
+
+  - id: PET_METAL_003
+    name: 鎏刃灵
+    element: METAL
+    description: 流金刃翼环绕的悬浮元素生命，擅长防御反击。
+    rarity: EPIC
+    captureRate: 0.25
+    baseHp: 100
+    baseStrength: 85
+    baseSpirit: 75
+    baseDefense: 95
+    baseResistance: 85
+    baseSpeed: 70
+    skills:
+      - { skillId: SKILL_METAL_CLAW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_GOLDEN_GUARD, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_ARMOR_CRUSH, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_BLADE_STORM, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_UNYIELDING
+
+  # ========== 木（WOOD）==========
+
+  - id: PET_WOOD_001
+    name: 藤梦鹿
+    element: WOOD
+    description: 藤蔓鹿角、青绿色自然灵兽，擅长缠绕控制。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 88
+    baseStrength: 65
+    baseSpirit: 80
+    baseDefense: 80
+    baseResistance: 80
+    baseSpeed: 75
+    skills:
+      - { skillId: SKILL_VINE_WHIP, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_ENTANGLE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_POISON_STING, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_BATTLE_CRY, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_HEAL_SPORE
+    passives:
+      - PASSIVE_TAILWIND
+
+  - id: PET_WOOD_002
+    name: 青芽灵
+    element: WOOD
+    description: 嫩芽与柔光形成的小型生命精灵，擅长治疗辅助。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 85
+    baseStrength: 50
+    baseSpirit: 88
+    baseDefense: 68
+    baseResistance: 82
+    baseSpeed: 62
+    skills:
+      - { skillId: SKILL_VINE_WHIP, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_HEAL_SPORE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_HEAL_LIGHT, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_BATTLE_CRY, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_POISON_STING
+    passives:
+      - PASSIVE_REGENERATE
+
+  - id: PET_WOOD_003
+    name: 森蚀灵
+    element: WOOD
+    description: 深林孢子与幽绿色藤蔓构成的灵兽，擅长持续伤害。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 82
+    baseStrength: 60
+    baseSpirit: 85
+    baseDefense: 65
+    baseResistance: 70
+    baseSpeed: 68
+    skills:
+      - { skillId: SKILL_POISON_STING, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_THORN_BIND, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_VINE_WHIP, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_ENTANGLE, slot: 4, unlockLevel: 15 }
+
+  # ========== 水（WATER）==========
+
+  - id: PET_WATER_001
+    name: 汐月灵
+    element: WATER
+    description: 月牙形潮汐环绕的水元素生命，擅长治疗净化。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 90
+    baseStrength: 55
+    baseSpirit: 90
+    baseDefense: 75
+    baseResistance: 85
+    baseSpeed: 65
+    skills:
+      - { skillId: SKILL_WATER_PULSE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_HEAL_LIGHT, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_TACKLE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_ROCK_SHIELD, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_PURIFY
+    passives:
+      - PASSIVE_UNYIELDING
+
+  - id: PET_WATER_002
+    name: 涟歌灵
+    element: WATER
+    description: 水滴与涟漪凝聚的漂浮精灵，擅长灵力输出。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 75
+    baseStrength: 48
+    baseSpirit: 92
+    baseDefense: 60
+    baseResistance: 78
+    baseSpeed: 72
+    skills:
+      - { skillId: SKILL_WATER_PULSE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_AQUA_JET, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_TIDAL_WAVE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_PURIFY, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_HEAL_LIGHT
+
+  - id: PET_WATER_003
+    name: 雾澜兽
+    element: WATER
+    description: 半透明雾水构成的流体灵兽，擅长浸湿控制。
+    rarity: EPIC
+    captureRate: 0.25
+    baseHp: 98
+    baseStrength: 62
+    baseSpirit: 95
+    baseDefense: 78
+    baseResistance: 88
+    baseSpeed: 70
+    skills:
+      - { skillId: SKILL_WATER_PULSE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_AQUA_JET, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_TIDAL_WAVE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_PURIFY, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_REGENERATE
+
+  # ========== 火（FIRE）==========
+
+  - id: PET_FIRE_001
+    name: 烬牙兽
+    element: FIRE
+    description: 黑色炭纹与赤红火牙组合的灵兽，擅长物理爆发。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 85
+    baseStrength: 95
+    baseSpirit: 60
+    baseDefense: 70
+    baseResistance: 55
+    baseSpeed: 80
+    skills:
+      - { skillId: SKILL_FIRE_CLAW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_TACKLE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_FLAME_BURST, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_BLAZING_SPIRIT
+    passives:
+      - PASSIVE_EMBER
+
+  - id: PET_FIRE_002
+    name: 绯焰灵
+    element: FIRE
+    description: 绯红火焰组成的灵体生命，擅长灵力灼烧。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 80
+    baseStrength: 60
+    baseSpirit: 95
+    baseDefense: 62
+    baseResistance: 75
+    baseSpeed: 82
+    skills:
+      - { skillId: SKILL_EMBER_BITE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_FLAME_BURST, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_BLAZING_SPIRIT, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_EMBER
+
+  - id: PET_FIRE_003
+    name: 赤曜兽
+    element: FIRE
+    description: 红金曜光环绕的高速火灵兽，擅长高速输出。
+    rarity: EPIC
+    captureRate: 0.25
+    baseHp: 88
+    baseStrength: 92
+    baseSpirit: 78
+    baseDefense: 68
+    baseResistance: 62
+    baseSpeed: 95
+    skills:
+      - { skillId: SKILL_EMBER_BITE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_BLAZING_SPIRIT, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_TAILWIND
+
+  # ========== 土（EARTH）==========
+
+  - id: PET_EARTH_001
+    name: 岩魁
+    element: EARTH
+    description: 岩块和土晶组成的厚重巨灵，擅长坦克嘲讽。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 105
+    baseStrength: 68
+    baseSpirit: 45
+    baseDefense: 95
+    baseResistance: 85
+    baseSpeed: 45
+    skills:
+      - { skillId: SKILL_ROCK_THROW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_TAUNT, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_ROCK_SHIELD, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_EARTHQUAKE, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_GUARD_ALLY
+    passives:
+      - PASSIVE_UNYIELDING
+
+  - id: PET_EARTH_002
+    name: 岳灵
+    element: EARTH
+    description: 山岳核心与悬浮岩片构成的灵兽，擅长护盾辅助。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 100
+    baseStrength: 58
+    baseSpirit: 78
+    baseDefense: 92
+    baseResistance: 88
+    baseSpeed: 55
+    skills:
+      - { skillId: SKILL_ROCK_THROW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_ROCK_SHIELD, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_GUARD_ALLY, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_EARTHQUAKE, slot: 4, unlockLevel: 15 }
+
+  - id: PET_EARTH_003
+    name: 磐震兽
+    element: EARTH
+    description: 深色岩甲、震荡纹路明显的灵兽，擅长防御反击。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 98
+    baseStrength: 80
+    baseSpirit: 48
+    baseDefense: 92
+    baseResistance: 78
+    baseSpeed: 50
+    skills:
+      - { skillId: SKILL_ROCK_THROW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_ROCK_SHIELD, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_HEADBUTT, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_EARTHQUAKE, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_UNYIELDING
+
+  # ========== 风（WIND）==========
+
+  - id: PET_WIND_001
+    name: 岚羽
+    element: WIND
+    description: 青白风羽组成的轻盈灵体，擅长高速输出。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 72
+    baseStrength: 85
+    baseSpirit: 60
+    baseDefense: 55
+    baseResistance: 58
+    baseSpeed: 98
+    skills:
+      - { skillId: SKILL_WIND_BLADE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_GUST_TRAP, slot: 4, unlockLevel: 15 }
+    rareSkills:
+      - SKILL_BATTLE_CRY
+    passives:
+      - PASSIVE_TAILWIND
+
+  - id: PET_WIND_002
+    name: 逐风灵
+    element: WIND
+    description: 环形气流围绕的小型风精灵，擅长行动控制。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 78
+    baseStrength: 62
+    baseSpirit: 82
+    baseDefense: 60
+    baseResistance: 70
+    baseSpeed: 95
+    skills:
+      - { skillId: SKILL_GUST_TRAP, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_WIND_BLADE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_QUICK_ATTACK, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_TAILWIND
+
+  - id: PET_WIND_003
+    name: 空澜兽
+    element: WIND
+    description: 半透明天空色流风灵兽，擅长换宠辅助。
+    rarity: EPIC
+    captureRate: 0.25
+    baseHp: 90
+    baseStrength: 65
+    baseSpirit: 88
+    baseDefense: 70
+    baseResistance: 80
+    baseSpeed: 100
+    skills:
+      - { skillId: SKILL_WIND_BLADE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_GUARD_ALLY, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_GUST_TRAP, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_TAILWIND
+
+  # ========== 雷（THUNDER）==========
+
+  - id: PET_THUNDER_001
+    name: 霆跃兽
+    element: THUNDER
+    description: 黄色电弧覆盖的小型跳跃灵兽，擅长高速爆发。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 75
+    baseStrength: 88
+    baseSpirit: 60
+    baseDefense: 58
+    baseResistance: 55
+    baseSpeed: 92
+    skills:
+      - { skillId: SKILL_VOLT_TACKLE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_THUNDER_STRIKE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_THUNDER_STORM, slot: 4, unlockLevel: 15 }
+
+  - id: PET_THUNDER_002
+    name: 鸣霄灵
+    element: THUNDER
+    description: 雷云与电纹组成的浮空精灵，擅长麻痹控制。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 82
+    baseStrength: 60
+    baseSpirit: 85
+    baseDefense: 65
+    baseResistance: 72
+    baseSpeed: 88
+    skills:
+      - { skillId: SKILL_THUNDER_WAVE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_THUNDER_STRIKE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_VOLT_TACKLE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_THUNDER_STORM, slot: 4, unlockLevel: 15 }
+
+  - id: PET_THUNDER_003
+    name: 紫霄灵
+    element: THUNDER
+    description: 紫色雷霆环绕的高阶雷元素，擅长灵力群攻。
+    rarity: EPIC
+    captureRate: 0.25
+    baseHp: 88
+    baseStrength: 55
+    baseSpirit: 98
+    baseDefense: 68
+    baseResistance: 78
+    baseSpeed: 90
+    skills:
+      - { skillId: SKILL_THUNDER_STRIKE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_THUNDER_WAVE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_THUNDER_STORM, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_VOLT_TACKLE, slot: 4, unlockLevel: 15 }
+
+  # ========== 光（LIGHT）==========
+
+  - id: PET_LIGHT_001
+    name: 曜羽灵
+    element: LIGHT
+    description: 金白色光羽与光环构成的灵体，擅长增益辅助。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 82
+    baseStrength: 55
+    baseSpirit: 85
+    baseDefense: 70
+    baseResistance: 80
+    baseSpeed: 65
+    skills:
+      - { skillId: SKILL_HOLY_LIGHT, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_LIGHT_RADIANCE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_BATTLE_CRY, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_LIGHT_BURST, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_REGENERATE
+
+  - id: PET_LIGHT_002
+    name: 曦鹿
+    element: LIGHT
+    description: 晨曦色晶角与柔光形成的灵鹿，擅长治疗净化。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 95
+    baseStrength: 52
+    baseSpirit: 92
+    baseDefense: 75
+    baseResistance: 90
+    baseSpeed: 62
+    skills:
+      - { skillId: SKILL_HOLY_LIGHT, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_HEAL_LIGHT, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_LIGHT_RADIANCE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_LIGHT_BURST, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_REGENERATE
+
+  - id: PET_LIGHT_003
+    name: 辉星兽
+    element: LIGHT
+    description: 星辉核心与圣光构成的传奇生命，擅长灵力输出。
+    rarity: LEGENDARY
+    captureRate: 0.10
+    baseHp: 105
+    baseStrength: 75
+    baseSpirit: 105
+    baseDefense: 85
+    baseResistance: 92
+    baseSpeed: 88
+    skills:
+      - { skillId: SKILL_LIGHT_RADIANCE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_HOLY_LIGHT, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_LIGHT_BURST, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+    passives:
+      - PASSIVE_UNYIELDING
+
+  # ========== 暗（DARK）==========
+
+  - id: PET_DARK_001
+    name: 幽蚀灵
+    element: DARK
+    description: 黑紫雾气与幽光核心组成的灵体，擅长持续诅咒。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 80
+    baseStrength: 58
+    baseSpirit: 88
+    baseDefense: 62
+    baseResistance: 75
+    baseSpeed: 70
+    skills:
+      - { skillId: SKILL_CURSE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_SHADOW_BALL, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_SILENT_FOG, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_SHADOW_STRIKE, slot: 4, unlockLevel: 15 }
+
+  - id: PET_DARK_002
+    name: 夜缚兽
+    element: DARK
+    description: 深色锁链状能量环绕的暗灵兽，擅长削弱控制。
+    rarity: RARE
+    captureRate: 0.40
+    baseHp: 88
+    baseStrength: 72
+    baseSpirit: 82
+    baseDefense: 78
+    baseResistance: 82
+    baseSpeed: 68
+    skills:
+      - { skillId: SKILL_SILENT_FOG, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_SHADOW_STRIKE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_CURSE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_SHADOW_BALL, slot: 4, unlockLevel: 15 }
+
+  - id: PET_DARK_003
+    name: 冥刃灵
+    element: DARK
+    description: 暗影与弯刃形成的高速灵体，擅长爆发收割。
+    rarity: COMMON
+    captureRate: 0.55
+    baseHp: 78
+    baseStrength: 92
+    baseSpirit: 55
+    baseDefense: 60
+    baseResistance: 58
+    baseSpeed: 85
+    skills:
+      - { skillId: SKILL_SHADOW_STRIKE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_SHADOW_BALL, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_CURSE, slot: 4, unlockLevel: 15 }

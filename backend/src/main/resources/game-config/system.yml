@@ -68,5 +68,45 @@ levelHpGrowth: 8.0
 # ---- 放生 ----
 releaseBonusMax: 0.50
 
+# ---- 捕捉（阶段 5，需求 §46～§50） ----
+# 捕获率 = 基础捕获率 × (1 - captureHpFactor × 当前HP比例) × (1 + statusCaptureBonus × min(异常数, captureStatusMaxCount))
+#        × 捕捉球倍率 × 精英系数，最终 clamp 到 [0, 1]
+captureHpFactor: 0.5
+# 每个异常状态（DEBUFF/CONTROL）的捕获率加成
+statusCaptureBonus: 0.15
+# 异常状态捕获加成最多计数的状态个数
+captureStatusMaxCount: 2
+# 精英个体捕捉倍率（决策一 ×0.6；本阶段无精英个体）
+eliteCaptureMultiplier: 0.6
+# 逃跑成功率（用户裁决：必定成功）
+fleeSuccessRate: 1.0
+# 野生宠物低概率携带稀有技能的概率
+rareSkillChance: 0.05
+# 野生宠物极低概率特殊外观的概率
+specialAppearanceChance: 0.01
+
+# ---- 放生礼物（阶段 5，决策七） ----
+# 礼物价值点数 = 基础值(稀有度) × 捕获等级系数(1+等级×1%，上限 1.5) × 培养系数(1.0～1.5)
+releaseGiftBaseValue:
+  COMMON: 20
+  RARE: 60
+  EPIC: 150
+  LEGENDARY: 400
+releaseLevelFactorPerLevel: 0.01
+releaseLevelFactorCap: 1.5
+releaseCultivationFactorMax: 1.5
+# 培养系数满值所需已分配自由点数（培养系数 = 1 + min(已分配点数/该值, 1) × (上限-1)）
+releaseCultivationPointsCap: 100
+# 放生高资质额外警告阈值（平均资质 ≥ 该值时前端二次确认）
+releaseWarningAptitudeThreshold: 90
+
+# ---- 野生战斗奖励（阶段 5，用户裁决） ----
+# 奖励 = 每级基础值(刷新组) × 敌等级 × 稀有度系数；被捕捉宠物不参与奖励计算
+wildRewardRarityMultiplier:
+  COMMON: 1.0
+  RARE: 1.2
+  EPIC: 1.5
+  LEGENDARY: 2.0
+
 # ---- Boss ----
 luckyExchangeCost: 100

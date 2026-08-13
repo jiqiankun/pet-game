@@ -67,6 +67,21 @@ public enum BattleEventType {
     /** 防御。 */
     DEFEND,
 
+    /** 捕捉尝试（携带捕捉率）。 */
+    CAPTURE_ATTEMPT,
+
+    /** 捕捉成功。 */
+    CAPTURE_SUCCESS,
+
+    /** 捕捉失败。 */
+    CAPTURE_FAIL,
+
+    /** 逃跑成功。 */
+    FLEE_SUCCESS,
+
+    /** 逃跑失败。 */
+    FLEE_FAIL,
+
     /** 行动被跳过（控制状态）。 */
     ACTION_SKIPPED,
 

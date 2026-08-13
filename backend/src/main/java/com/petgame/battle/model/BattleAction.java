@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class BattleAction {
 
-    /** 行动类型：SKILL / DEFEND / SWITCH。 */
+    /** 行动类型：SKILL / DEFEND / SWITCH / CAPTURE / FLEE。 */
     private String type;
 
     /** 行动发起方单位 ID（战斗内唯一）。 */
@@ -22,11 +22,14 @@ public class BattleAction {
     /** SKILL 行动的技能 ID。 */
     private String skillId;
 
-    /** SKILL 行动的目标单位 ID（单体技能必填；群体/自身技能忽略）。 */
+    /** SKILL/CAPTURE 行动的目标单位 ID。 */
     private String targetId;
 
     /** SWITCH 行动的候补单位 ID。 */
     private String switchPetId;
+
+    /** CAPTURE 行动使用的捕捉球道具 ID。 */
+    private String itemId;
 
     public static BattleAction skill(String petId, String skillId, String targetId) {
         BattleAction action = new BattleAction();
@@ -49,6 +52,22 @@ public class BattleAction {
         action.setType("SWITCH");
         action.setPetId(petId);
         action.setSwitchPetId(switchPetId);
+        return action;
+    }
+
+    public static BattleAction capture(String petId, String itemId, String targetId) {
+        BattleAction action = new BattleAction();
+        action.setType("CAPTURE");
+        action.setPetId(petId);
+        action.setItemId(itemId);
+        action.setTargetId(targetId);
+        return action;
+    }
+
+    public static BattleAction flee(String petId) {
+        BattleAction action = new BattleAction();
+        action.setType("FLEE");
+        action.setPetId(petId);
         return action;
     }
 }
