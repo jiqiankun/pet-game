@@ -13,12 +13,19 @@ import com.petgame.battle.model.StatusInstance;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.PassiveSkillConfig;
 import com.petgame.config.model.StatusEffectConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import com.petgame.config.model.TestBattleConfig;
+import com.petgame.inventory.entity.PlayerInventoryEntity;
+import com.petgame.inventory.mapper.PlayerInventoryMapper;
+import com.petgame.pet.domain.PetGrowthService;
+import com.petgame.pet.domain.PetPanelStats;
 import com.petgame.pet.entity.PlayerPetEntity;
+import com.petgame.pet.entity.PlayerPetSkillEntity;
 import com.petgame.pet.mapper.PlayerPetMapper;
+import com.petgame.pet.mapper.PlayerPetSkillMapper;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.team.entity.PlayerTeamEntity;
@@ -28,20 +35,29 @@ import com.petgame.team.mapper.PlayerTeamMemberMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 战斗服务（阶段 3）。
+ * 战斗服务（阶段 3 起提供战斗流程；阶段 4 接入结算）。
  * <p>
  * 管理内存中的战斗上下文（技术方案 §20-§21）：战斗临时数据只存服务器内存，
  * 战斗过程零数据库写入，服务重启后未完成战斗直接丢弃。
  * <p>
- * 阶段 3 仅提供测试战斗入口（固定敌方阵容），玩家队伍取自当前激活队伍。
+ * 阶段 4 关键约束（需求 §17/§85）：
+ * <ul>
+ *   <li>面板属性公式统一走 {@link PetGrowthService#computePanelStats}，禁止多套公式。</li>
+ *   <li>战斗结算（HP 回写、经验池、金币、掉落）必须在同一事务内完成，避免部分成功脏数据。</li>
+ *   <li>所有战斗经验统一进入玩家公共经验池，不直接发给参战宠物。</li>
+ *   <li>HP 跨战斗保留：战斗结束后将 currentHp 回写到 player_pet。</li>
+ *   <li>已结算的战斗不可重复结算。</li>
+ * </ul>
  */
 @Service
 public class BattleService {
@@ -52,24 +68,36 @@ public class BattleService {
     private final BattleEngine engine;
     private final PlayerMapper playerMapper;
     private final PlayerPetMapper playerPetMapper;
+    private final PlayerPetSkillMapper playerPetSkillMapper;
     private final PlayerTeamMapper playerTeamMapper;
     private final PlayerTeamMemberMapper playerTeamMemberMapper;
+    private final PlayerInventoryMapper playerInventoryMapper;
+    private final PetGrowthService growthService;
 
     /** 战斗上下文内存池：battleId → BattleContext。不落库。 */
     private final Map<String, BattleContext> battles = new ConcurrentHashMap<>();
+
+    /** 已结算战斗 ID 集合，防止重复结算。 */
+    private final Set<String> settledBattles = ConcurrentHashMap.newKeySet();
 
     public BattleService(GameConfigRegistry registry,
                          WildEnemyDecisionProvider enemyDecisionProvider,
                          PlayerMapper playerMapper,
                          PlayerPetMapper playerPetMapper,
+                         PlayerPetSkillMapper playerPetSkillMapper,
                          PlayerTeamMapper playerTeamMapper,
-                         PlayerTeamMemberMapper playerTeamMemberMapper) {
+                         PlayerTeamMemberMapper playerTeamMemberMapper,
+                         PlayerInventoryMapper playerInventoryMapper,
+                         PetGrowthService growthService) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
+        this.playerPetSkillMapper = playerPetSkillMapper;
         this.playerTeamMapper = playerTeamMapper;
         this.playerTeamMemberMapper = playerTeamMemberMapper;
+        this.playerInventoryMapper = playerInventoryMapper;
+        this.growthService = growthService;
     }
 
     /**
@@ -121,6 +149,139 @@ public class BattleService {
     public BattleSnapshot getBattle(String battleId) {
         BattleContext ctx = requireBattle(battleId);
         return toSnapshot(ctx, List.of());
+    }
+
+    /**
+     * 战斗结算（阶段 4 需求 §17/§85）。
+     * <p>
+     * 必须在战斗已结束（finished=true）后调用，将战斗结果持久化到存档：
+     * <ul>
+     *   <li>HP 回写：所有参战玩家宠物 currentHp 写回 player_pet（HP 跨战斗保留，胜负均回写）。</li>
+     *   <li>奖励发放：仅 PLAYER 胜方发放，经验进公共经验池、金币进玩家金币、掉落进背包。</li>
+     *   <li>统计累加：参战宠物 battle_count +1；胜方宠物 win_count +1。</li>
+     * </ul>
+     * 以上全部在单个 {@code @Transactional} 事务内完成，任一失败回滚，避免部分成功脏数据。
+     * <p>
+     * 已结算的战斗不可重复结算（返回 BATTLE_ALREADY_SETTLED）。
+     *
+     * @param battleId 战斗 ID
+     * @return 结算结果摘要
+     */
+    @Transactional
+    public BattleSettlement settleBattle(String battleId) {
+        BattleContext ctx = requireBattle(battleId);
+        if (!ctx.isFinished()) {
+            throw new BusinessException("BATTLE_NOT_FINISHED", "战斗尚未结束，无法结算");
+        }
+        if (settledBattles.contains(battleId)) {
+            throw new BusinessException("BATTLE_ALREADY_SETTLED", "战斗已结算，不可重复结算: " + battleId);
+        }
+
+        PlayerEntity player = playerMapper.selectOne(null);
+        if (player == null) {
+            throw new BusinessException("NO_SAVE", "不存在存档，请先创建新游戏");
+        }
+
+        boolean playerWon = "PLAYER".equals(ctx.getWinner());
+        BattleSettlement settlement = new BattleSettlement();
+        settlement.setBattleId(battleId);
+        settlement.setWinner(ctx.getWinner());
+        settlement.setPlayerWon(playerWon);
+
+        // 1. HP 回写 + 统计累加（所有参战玩家宠物，胜负均执行）
+        List<BattleSettlement.PetHpWriteback> hpWritebacks = new ArrayList<>();
+        for (BattleUnit unit : ctx.getPlayerSide().getUnits()) {
+            if (unit.getPetDbId() == null) {
+                continue;
+            }
+            PlayerPetEntity pet = playerPetMapper.selectById(unit.getPetDbId());
+            if (pet == null) {
+                continue;
+            }
+            int beforeHp = pet.getCurrentHp() != null ? pet.getCurrentHp() : 0;
+            int afterHp = Math.max(0, Math.min(unit.getCurrentHp(), unit.getMaxHp()));
+            pet.setCurrentHp(afterHp);
+            pet.setBattleCount(nz(pet.getBattleCount()) + 1);
+            if (playerWon) {
+                pet.setWinCount(nz(pet.getWinCount()) + 1);
+            }
+            playerPetMapper.updateById(pet);
+
+            BattleSettlement.PetHpWriteback wb = new BattleSettlement.PetHpWriteback();
+            wb.setPetId(pet.getId());
+            wb.setName(unit.getName());
+            wb.setBeforeHp(beforeHp);
+            wb.setAfterHp(afterHp);
+            wb.setMaxHp(unit.getMaxHp());
+            wb.setAlive(unit.isAlive());
+            hpWritebacks.add(wb);
+        }
+        settlement.setHpWritebacks(hpWritebacks);
+
+        // 2. 奖励发放（仅 PLAYER 胜方）
+        if (playerWon) {
+            TestBattleConfig.BattleReward rewards = registry.getTestBattleConfig().getRewards();
+            int expGained = rewards.getExp();
+            int goldGained = rewards.getGold();
+
+            if (expGained > 0) {
+                player.setExpPool(player.getExpPool() + expGained);
+            }
+            if (goldGained > 0) {
+                player.setGold(player.getGold() + goldGained);
+            }
+            playerMapper.updateById(player);
+
+            settlement.setExpGained(expGained);
+            settlement.setGoldGained(goldGained);
+
+            // 掉落：按 chance 概率掉落，使用战斗上下文随机源保证可复现
+            List<BattleSettlement.DropResult> drops = new ArrayList<>();
+            for (TestBattleConfig.DropEntry drop : rewards.getDrops()) {
+                if (ctx.getRandom().chance(drop.getChance())) {
+                    ItemConfig item = registry.getItem(drop.getItemId());
+                    if (item == null) {
+                        log.warn("掉落道具配置缺失，跳过: {}", drop.getItemId());
+                        continue;
+                    }
+                    addInventoryItem(player.getSaveId(), drop.getItemId(), drop.getQuantity());
+                    BattleSettlement.DropResult dr = new BattleSettlement.DropResult();
+                    dr.setItemId(drop.getItemId());
+                    dr.setName(item.getName());
+                    dr.setQuantity(drop.getQuantity());
+                    drops.add(dr);
+                }
+            }
+            settlement.setDrops(drops);
+        }
+
+        // 3. 标记已结算并清理内存
+        settledBattles.add(battleId);
+        // 保留战斗上下文一段时间，供前端再次查询最终状态；定期清理交给后续阶段或重启
+        log.info("战斗结算完成：battleId={}, 胜方={}, 经验+{}, 金币+{}, 掉落 {} 项, HP 回写 {} 只",
+                battleId, ctx.getWinner(),
+                settlement.getExpGained(), settlement.getGoldGained(),
+                settlement.getDrops().size(), hpWritebacks.size());
+
+        return settlement;
+    }
+
+    /** 增加玩家背包道具数量（已存在则累加，不存在则新增）。 */
+    private void addInventoryItem(String saveId, String itemId, int quantity) {
+        PlayerInventoryEntity existing = playerInventoryMapper.selectOne(
+                new LambdaQueryWrapper<PlayerInventoryEntity>()
+                        .eq(PlayerInventoryEntity::getSaveId, saveId)
+                        .eq(PlayerInventoryEntity::getItemId, itemId));
+        if (existing != null) {
+            existing.setQuantity(existing.getQuantity() + quantity);
+            playerInventoryMapper.updateById(existing);
+        } else {
+            PlayerInventoryEntity inv = new PlayerInventoryEntity();
+            inv.setSaveId(saveId);
+            inv.setItemId(itemId);
+            inv.setQuantity(quantity);
+            playerInventoryMapper.insert(inv);
+        }
     }
 
     private BattleContext requireBattle(String battleId) {
@@ -187,15 +348,12 @@ public class BattleService {
     /**
      * 玩家宠物 → 战斗单位。
      * <p>
-     * 面板属性链路（需求 §9）：种族基础 + 等级固定成长 + 资质成长修正 + 自由属性点。
-     * 个体浮动在新游戏/捕获时已固化到存档，战斗内不再浮动。
+     * 面板属性统一走 {@link PetGrowthService#computePanelStats}（需求 §9/§12）：
+     * 种族基础（含个体浮动）+ 等级固定成长 + 资质成长修正 + 自由属性点。
      * 战斗 Buff/Debuff 由引擎状态体系在运行时叠加，不进面板。
      */
     private BattleUnit buildPlayerUnit(PlayerPetEntity pet, InitialPetsConfig.InitialPetOption option,
                                        int position) {
-        SystemRuleConfig rules = registry.getSystemRules();
-        int levelBonus = Math.max(0, pet.getLevel() - 1);
-
         BattleUnit unit = new BattleUnit();
         unit.setUnitId("P_" + pet.getId());
         unit.setPetDbId(pet.getId());
@@ -204,31 +362,35 @@ public class BattleService {
         unit.setElement(option.getElement());
         unit.setLevel(pet.getLevel());
 
-        unit.setMaxHp(computeHp(option.getBaseHp(), pet.getHpAptitude(),
-                pet.getFreePointHp(), levelBonus, rules));
-        unit.setStrength(computeStat(option.getBaseStrength(), pet.getStrengthAptitude(),
-                pet.getFreePointStrength(), levelBonus, rules));
-        unit.setSpirit(computeStat(option.getBaseSpirit(), pet.getSpiritAptitude(),
-                pet.getFreePointSpirit(), levelBonus, rules));
-        unit.setDefense(computeStat(option.getBaseDefense(), pet.getDefenseAptitude(),
-                pet.getFreePointDefense(), levelBonus, rules));
-        unit.setResistance(computeStat(option.getBaseResistance(), pet.getResistanceAptitude(),
-                pet.getFreePointResistance(), levelBonus, rules));
-        unit.setSpeed(computeStat(option.getBaseSpeed(), pet.getSpeedAptitude(),
-                pet.getFreePointSpeed(), levelBonus, rules));
+        // 统一面板公式：与 PetService 详情页、加点预览完全一致
+        PetPanelStats stats = growthService.computePanelStats(pet, option);
+        unit.setMaxHp(stats.getMaxHp());
+        unit.setStrength(stats.getStrength());
+        unit.setSpirit(stats.getSpirit());
+        unit.setDefense(stats.getDefense());
+        unit.setResistance(stats.getResistance());
+        unit.setSpeed(stats.getSpeed());
 
-        // HP 跨战斗保留：取存档当前 HP，非法值回满
+        // HP 跨战斗保留：取存档当前 HP，倒下宠物保持 0HP 参战（需求 §45，需恢复道具/营地恢复），
+        // 超出上限或负数的异常值封顶/归零
         int currentHp = pet.getCurrentHp() != null ? pet.getCurrentHp() : unit.getMaxHp();
-        unit.setCurrentHp(Math.min(Math.max(currentHp, 1), unit.getMaxHp()));
+        unit.setCurrentHp(Math.max(0, Math.min(currentHp, unit.getMaxHp())));
 
         unit.setActive(position >= 0);
         unit.setPosition(position);
 
-        for (InitialPetsConfig.InitialSkillSlot slot : option.getSkills()) {
-            if (registry.getSkill(slot.getSkillId()) != null) {
-                unit.getSkillIds().add(slot.getSkillId());
+        // 已装备技能从 player_pet_skill 表加载（slot 不为 null），最多 4 个主动技能参战
+        List<PlayerPetSkillEntity> equippedSkills = playerPetSkillMapper.selectList(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .isNotNull(PlayerPetSkillEntity::getSlot)
+                        .orderByAsc(PlayerPetSkillEntity::getSlot));
+        for (PlayerPetSkillEntity ps : equippedSkills) {
+            if (registry.getSkill(ps.getSkillId()) != null) {
+                unit.getSkillIds().add(ps.getSkillId());
             }
         }
+        // 被动技能按种族配置自动生效（不进 player_pet_skill 表）
         for (String passiveId : option.getPassives()) {
             PassiveSkillConfig passive = registry.getPassive(passiveId);
             if (passive != null) {
@@ -236,22 +398,6 @@ public class BattleService {
             }
         }
         return unit;
-    }
-
-    /** 非 HP 面板 = 基础 + 等级成长 + 资质修正（资质 50 为中性）+ 自由点。 */
-    private int computeStat(int base, int aptitude, int freePoints, int levelBonus, SystemRuleConfig rules) {
-        return (int) Math.round(base
-                + rules.getLevelStatGrowth() * levelBonus
-                + base * (aptitude - 50) / 100.0
-                + freePoints * rules.getFreePointStatValue());
-    }
-
-    /** HP 面板（独立成长与自由点系数）。 */
-    private int computeHp(int baseHp, int aptitude, int freePoints, int levelBonus, SystemRuleConfig rules) {
-        return (int) Math.round(baseHp
-                + rules.getLevelHpGrowth() * levelBonus
-                + baseHp * (aptitude - 50) / 100.0
-                + freePoints * rules.getFreePointHpValue());
     }
 
     /** 敌方阵容：test-battle.yml 配置，以与玩家单位完全相同的路径进入引擎。 */
@@ -336,5 +482,56 @@ public class BattleService {
                     status.getRemainingTurns()));
         }
         return snapshot;
+    }
+
+    private static int nz(Integer v) {
+        return v == null ? 0 : v;
+    }
+
+    // ==================== 结算 DTO ====================
+
+    /** 战斗结算结果摘要。 */
+    @lombok.Data
+    public static class BattleSettlement {
+
+        /** 战斗 ID。 */
+        private String battleId;
+
+        /** 胜方：PLAYER / ENEMY。 */
+        private String winner;
+
+        /** 玩家是否获胜。 */
+        private boolean playerWon;
+
+        /** 经验池增加量（仅胜方 > 0）。 */
+        private int expGained;
+
+        /** 金币增加量（仅胜方 > 0）。 */
+        private int goldGained;
+
+        /** 掉落道具列表。 */
+        private List<DropResult> drops = new ArrayList<>();
+
+        /** 参战宠物 HP 回写明细。 */
+        private List<PetHpWriteback> hpWritebacks = new ArrayList<>();
+
+        /** 单个掉落结果。 */
+        @lombok.Data
+        public static class DropResult {
+            private String itemId;
+            private String name;
+            private int quantity;
+        }
+
+        /** 单只宠物 HP 回写明细。 */
+        @lombok.Data
+        public static class PetHpWriteback {
+            private Long petId;
+            private String name;
+            private int beforeHp;
+            private int afterHp;
+            private int maxHp;
+            private boolean alive;
+        }
     }
 }

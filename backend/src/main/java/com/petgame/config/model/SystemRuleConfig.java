@@ -49,6 +49,24 @@ public class SystemRuleConfig {
     /** 每级自由属性点数（默认 3）。 */
     private int freePointsPerLevel = 3;
 
+    /** 稀有度每 10 级额外自由点数：key=稀有度 ID（COMMON/RARE/EPIC/LEGENDARY），value=每 10 级额外点数（需求 §19：0/2/4/6）。 */
+    private java.util.Map<String, Integer> rarityExtraPointsPer10Levels = new java.util.HashMap<>();
+
+    /** 升级经验公式基数：升到下一级所需经验 = expBase * expGrowthFactor^(当前等级-1)（需求 §17，数值设计缺失→配置化）。 */
+    private int expBase = 100;
+
+    /** 升级经验公式增长系数（默认 1.15）。 */
+    private double expGrowthFactor = 1.15;
+
+    /** 加 1 点自由属性到生命/力量/灵力/防御/抗性 消耗的自由点数（需求 §20，默认 1）。 */
+    private int statPointCost = 1;
+
+    /** 加 1 点自由属性到生命（+5HP）消耗的自由点数（默认 1）。 */
+    private int hpPointCost = 1;
+
+    /** 加 1 点速度消耗的自由点数（需求 §20，速度成本较高，默认 2）。 */
+    private int speedPointCost = 2;
+
     // ---- 队伍 ----
 
     /** 最大携带宠物数（默认 6）。 */

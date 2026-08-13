@@ -1,10 +1,18 @@
 package com.petgame.player.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.GameProperties;
 import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.ItemConfig;
+import com.petgame.config.model.SkillConfig;
+import com.petgame.inventory.entity.PlayerInventoryEntity;
+import com.petgame.inventory.mapper.PlayerInventoryMapper;
+import com.petgame.pet.domain.PetGrowthService;
 import com.petgame.pet.entity.PlayerPetEntity;
+import com.petgame.pet.entity.PlayerPetSkillEntity;
 import com.petgame.pet.mapper.PlayerPetMapper;
+import com.petgame.pet.mapper.PlayerPetSkillMapper;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.team.entity.PlayerTeamEntity;
@@ -16,12 +24,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * 游戏服务。
  * <p>
  * 负责新游戏创建、Bootstrap 数据聚合、手动存档等核心流程。
+ * 阶段 4 Bootstrap 扩展：注入宠物面板属性、装备技能、背包数据。
  */
 @Service
 public class GameService {
@@ -30,23 +42,32 @@ public class GameService {
 
     private final PlayerMapper playerMapper;
     private final PlayerPetMapper playerPetMapper;
+    private final PlayerPetSkillMapper playerPetSkillMapper;
     private final PlayerTeamMapper playerTeamMapper;
     private final PlayerTeamMemberMapper playerTeamMemberMapper;
+    private final PlayerInventoryMapper playerInventoryMapper;
     private final GameConfigRegistry configRegistry;
     private final GameProperties gameProperties;
+    private final PetGrowthService growthService;
 
     public GameService(PlayerMapper playerMapper,
                        PlayerPetMapper playerPetMapper,
+                       PlayerPetSkillMapper playerPetSkillMapper,
                        PlayerTeamMapper playerTeamMapper,
                        PlayerTeamMemberMapper playerTeamMemberMapper,
+                       PlayerInventoryMapper playerInventoryMapper,
                        GameConfigRegistry configRegistry,
-                       GameProperties gameProperties) {
+                       GameProperties gameProperties,
+                       PetGrowthService growthService) {
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
+        this.playerPetSkillMapper = playerPetSkillMapper;
         this.playerTeamMapper = playerTeamMapper;
         this.playerTeamMemberMapper = playerTeamMemberMapper;
+        this.playerInventoryMapper = playerInventoryMapper;
         this.configRegistry = configRegistry;
         this.gameProperties = gameProperties;
+        this.growthService = growthService;
     }
 
     /**
@@ -104,6 +125,14 @@ public class GameService {
         pet.setSaveId(saveId);
         pet.setSpeciesId(chosenPet.getSpeciesId());
         pet.setLevel(1);
+        pet.setCapturedLevel(1);
+        // 初始宠物不生成个体浮动，base_offset 全部使用默认 0
+        pet.setBaseHpOffset(0);
+        pet.setBaseStrengthOffset(0);
+        pet.setBaseSpiritOffset(0);
+        pet.setBaseDefenseOffset(0);
+        pet.setBaseResistanceOffset(0);
+        pet.setBaseSpeedOffset(0);
         pet.setHpAptitude(chosenPet.getAptitudeHp());
         pet.setStrengthAptitude(chosenPet.getAptitudeStrength());
         pet.setSpiritAptitude(chosenPet.getAptitudeSpirit());
@@ -123,6 +152,19 @@ public class GameService {
         pet.setBattleCount(0);
         pet.setWinCount(0);
         playerPetMapper.insert(pet);
+
+        // 2.1 学习初始技能（unlockLevel <= 1 的种族技能），按配置槽位装备
+        for (InitialPetsConfig.InitialSkillSlot skillSlot : chosenPet.getSkills()) {
+            if (skillSlot.getUnlockLevel() > 1) {
+                continue;
+            }
+            PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
+            petSkill.setPetId(pet.getId());
+            petSkill.setSkillId(skillSlot.getSkillId());
+            petSkill.setSourceType("LEVEL_UP");
+            petSkill.setSlot(skillSlot.getSlot());
+            playerPetSkillMapper.insert(petSkill);
+        }
 
         // 3. 创建默认队伍（预设 1，激活）
         PlayerTeamEntity team = new PlayerTeamEntity();
@@ -144,7 +186,9 @@ public class GameService {
     }
 
     /**
-     * Bootstrap 聚合接口：一次返回首页所需核心状态。
+     * Bootstrap 聚合接口：一次返回首页所需核心状态（阶段 4 扩展）。
+     * <p>
+     * 聚合：玩家、宠物列表（含面板属性与装备技能摘要）、激活队伍、队伍成员、背包。
      */
     public BootstrapData getBootstrapData() {
         PlayerEntity player = getCurrentPlayer();
@@ -153,12 +197,18 @@ public class GameService {
         }
 
         // 查询宠物列表
-        var petQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<PlayerPetEntity>()
+        var petQuery = new LambdaQueryWrapper<PlayerPetEntity>()
                 .eq(PlayerPetEntity::getSaveId, player.getSaveId());
         var pets = playerPetMapper.selectList(petQuery);
 
+        // 计算每只宠物的面板属性与装备技能摘要
+        List<PetSummary> petSummaries = new ArrayList<>();
+        for (PlayerPetEntity pet : pets) {
+            petSummaries.add(buildPetSummary(pet));
+        }
+
         // 查询当前激活队伍
-        var teamQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<PlayerTeamEntity>()
+        var teamQuery = new LambdaQueryWrapper<PlayerTeamEntity>()
                 .eq(PlayerTeamEntity::getSaveId, player.getSaveId())
                 .eq(PlayerTeamEntity::getIsActive, true);
         var teams = playerTeamMapper.selectList(teamQuery);
@@ -167,21 +217,81 @@ public class GameService {
         // 查询队伍成员
         java.util.List<PlayerTeamMemberEntity> teamMembers = java.util.List.of();
         if (activeTeam != null) {
-            var memberQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<PlayerTeamMemberEntity>()
+            var memberQuery = new LambdaQueryWrapper<PlayerTeamMemberEntity>()
                     .eq(PlayerTeamMemberEntity::getTeamId, activeTeam.getId())
                     .orderByAsc(PlayerTeamMemberEntity::getPosition);
             teamMembers = playerTeamMemberMapper.selectList(memberQuery);
         }
 
+        // 查询背包
+        List<PlayerInventoryEntity> invRecords = playerInventoryMapper.selectList(
+                new LambdaQueryWrapper<PlayerInventoryEntity>()
+                        .eq(PlayerInventoryEntity::getSaveId, player.getSaveId()));
+        List<BootstrapData.InventoryItemView> inventory = new ArrayList<>();
+        for (PlayerInventoryEntity rec : invRecords) {
+            ItemConfig item = configRegistry.getItem(rec.getItemId());
+            if (item == null) {
+                continue;
+            }
+            BootstrapData.InventoryItemView iv = new BootstrapData.InventoryItemView();
+            iv.setItemId(item.getId());
+            iv.setName(item.getName());
+            iv.setDescription(item.getDescription());
+            iv.setCategory(item.getCategory());
+            iv.setItemType(item.getItemType());
+            iv.setValue(item.getValue());
+            iv.setUsableOutsideBattle(item.isUsableOutsideBattle());
+            iv.setUsableInBattle(item.isUsableInBattle());
+            iv.setDiscardable(item.isDiscardable());
+            iv.setQuantity(rec.getQuantity());
+            inventory.add(iv);
+        }
+        inventory.sort(Comparator.comparing(BootstrapData.InventoryItemView::getCategory)
+                .thenComparing(BootstrapData.InventoryItemView::getName));
+
         BootstrapData data = new BootstrapData();
         data.setPlayer(player);
         data.setPets(pets);
+        data.setPetSummaries(petSummaries);
         data.setActiveTeam(activeTeam);
         data.setTeamMembers(teamMembers);
+        data.setInventory(inventory);
         data.setGameVersion(gameProperties.getVersion());
         data.setSaveVersion(gameProperties.getSaveVersion());
         data.setDeveloperMode(gameProperties.isDeveloperMode());
         return data;
+    }
+
+    /** 构建宠物摘要：种族信息 + 面板属性 + 装备技能。 */
+    private PetSummary buildPetSummary(PlayerPetEntity pet) {
+        InitialPetsConfig.InitialPetOption species = configRegistry.getSpecies(pet.getSpeciesId());
+        PetSummary summary = new PetSummary();
+        summary.setPet(pet);
+        if (species != null) {
+            summary.setSpeciesName(species.getName());
+            summary.setElement(species.getElement());
+            summary.setRarity(species.getRarity());
+            summary.setPanelStats(growthService.computePanelStats(pet, species));
+        }
+
+        // 查询已装备技能（slot 不为 null）
+        List<PlayerPetSkillEntity> skills = playerPetSkillMapper.selectList(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .isNotNull(PlayerPetSkillEntity::getSlot)
+                        .orderByAsc(PlayerPetSkillEntity::getSlot));
+        for (PlayerPetSkillEntity s : skills) {
+            SkillConfig skill = configRegistry.getSkill(s.getSkillId());
+            if (skill == null) {
+                continue;
+            }
+            PetSummary.EquippedSkillView view = new PetSummary.EquippedSkillView();
+            view.setSkillId(skill.getId());
+            view.setName(skill.getName());
+            view.setSlot(s.getSlot());
+            summary.getEquippedSkills().add(view);
+        }
+        return summary;
     }
 
     /**
@@ -191,10 +301,29 @@ public class GameService {
     public static class BootstrapData {
         private PlayerEntity player;
         private java.util.List<PlayerPetEntity> pets;
+        /** 宠物摘要列表（含面板属性与装备技能），阶段 4 新增。 */
+        private java.util.List<PetSummary> petSummaries;
         private PlayerTeamEntity activeTeam;
         private java.util.List<PlayerTeamMemberEntity> teamMembers;
+        /** 背包道具列表（含配置摘要与数量），阶段 4 新增。 */
+        private java.util.List<InventoryItemView> inventory;
         private String gameVersion;
         private int saveVersion;
         private boolean developerMode;
+
+        /** 背包道具视图。 */
+        @lombok.Data
+        public static class InventoryItemView {
+            private String itemId;
+            private String name;
+            private String description;
+            private String category;
+            private String itemType;
+            private double value;
+            private boolean usableOutsideBattle;
+            private boolean usableInBattle;
+            private boolean discardable;
+            private int quantity;
+        }
     }
 }

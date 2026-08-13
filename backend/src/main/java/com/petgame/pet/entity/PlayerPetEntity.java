@@ -17,6 +17,8 @@ public class PlayerPetEntity {
     private String speciesId;
     private String nickname;
     private Integer level;
+    /** 捕获等级（初始宠物 = 1）。 */
+    private Integer capturedLevel;
     private Integer hpAptitude;
     private Integer strengthAptitude;
     private Integer spiritAptitude;
@@ -36,6 +38,13 @@ public class PlayerPetEntity {
     private Boolean favorite;
     private String capturedMapId;
     private LocalDateTime capturedAt;
+    /** 六维个体基础浮动（捕获时固化，初始宠物 = 0）。 */
+    private Integer baseHpOffset;
+    private Integer baseStrengthOffset;
+    private Integer baseSpiritOffset;
+    private Integer baseDefenseOffset;
+    private Integer baseResistanceOffset;
+    private Integer baseSpeedOffset;
     private Integer battleCount;
     private Integer winCount;
     @TableField(fill = FieldFill.INSERT)

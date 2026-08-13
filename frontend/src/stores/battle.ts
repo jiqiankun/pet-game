@@ -10,6 +10,7 @@ import type {
   SkillsConfigView,
   UnitSnapshot,
 } from '../types/battle'
+import type { BattleSettlement } from '../types/pet'
 
 /**
  * 战斗 Store（阶段 3）。
@@ -25,6 +26,8 @@ export const useBattleStore = defineStore('battle', () => {
   const actionOrder = ref<string[]>([])
   const loading = ref(false)
   const error = ref('')
+  /** 战斗结算结果（战斗结束后调用 settle 获得）。 */
+  const settlement = ref<BattleSettlement | null>(null)
 
   const inBattle = computed(() => snapshot.value !== null && !snapshot.value.finished)
 
@@ -119,7 +122,30 @@ export const useBattleStore = defineStore('battle', () => {
     pendingActions.value = []
     actionOrder.value = []
     eventLog.value = []
+    settlement.value = null
     error.value = ''
+  }
+
+  /**
+   * 战斗结算（阶段 4）。
+   * 战斗结束后调用后端 settle 接口，落库 HP 回写、经验/金币/掉落发放。
+   * 已结算的战斗重复调用会被后端拒绝（BATTLE_ALREADY_SETTLED）。
+   */
+  async function settleBattle() {
+    if (!snapshot.value || !snapshot.value.finished) return
+    if (settlement.value) return  // 已结算，避免重复调用
+    loading.value = true
+    error.value = ''
+    try {
+      const res = await apiPost<BattleSettlement>(
+        `/api/battles/${snapshot.value.battleId}/settle`,
+      )
+      settlement.value = (res as ApiResponse<BattleSettlement>).data
+    } catch (e: any) {
+      error.value = e.message || '战斗结算失败'
+    } finally {
+      loading.value = false
+    }
   }
 
   // ---- 事件日志 ----
@@ -226,12 +252,14 @@ export const useBattleStore = defineStore('battle', () => {
     loading,
     error,
     inBattle,
+    settlement,
     loadSkillConfig,
     startTestBattle,
     submitActions,
     setAction,
     getAction,
     leaveBattle,
+    settleBattle,
     skillName,
     unitName,
   }

@@ -3,6 +3,7 @@ package com.petgame.config.controller;
 import com.petgame.common.ApiResponse;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.GameElementConfig;
+import com.petgame.config.model.ItemsConfig;
 import com.petgame.config.model.SkillsConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import org.springframework.web.bind.annotation.*;
@@ -74,5 +75,13 @@ public class GameConfigController {
     @GetMapping("/skills")
     public ApiResponse<SkillsConfig> getSkills() {
         return ApiResponse.success(registry.getSkillsConfig());
+    }
+
+    /**
+     * 获取道具配置（阶段 4，供背包页面展示道具名称/描述/分类）。
+     */
+    @GetMapping("/items")
+    public ApiResponse<ItemsConfig> getItems() {
+        return ApiResponse.success(registry.getItemsConfig());
     }
 }

@@ -40,6 +40,8 @@ public class InitialPetsConfig {
         private String name;
         private String element;
         private String description;
+        /** 种族稀有度（COMMON/RARE/EPIC/LEGENDARY，需求 §13）。初始宠物均为 COMMON。 */
+        private String rarity = "COMMON";
         private int baseHp;
         private int baseStrength;
         private int baseSpirit;
@@ -61,6 +63,9 @@ public class InitialPetsConfig {
     @NoArgsConstructor
     public static class InitialSkillSlot {
         private String skillId;
+        /** 装备槽位 1~4，null 表示仅学习未装备。 */
         private Integer slot;
+        /** 解锁等级，达到该等级自动学会（需求 §23 等级解锁）。初始技能默认 1。 */
+        private int unlockLevel = 1;
     }
 }

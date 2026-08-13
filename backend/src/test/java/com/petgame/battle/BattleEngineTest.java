@@ -429,6 +429,40 @@ class BattleEngineTest {
         assertEquals("BATTLE_FINISHED", ex.getErrorCode(), "结束后不能再行动");
     }
 
+    // ---- 开局倒下（需求 §45：战斗后倒下保持 0HP，参战仍为 0） ----
+
+    @Test
+    void startBattle_withZeroHpActivePlayerUnit_shouldFallAndBeReplacedByBench() {
+        GameConfigRegistry registry = buildRegistry(0);
+        BattleEngine engine = engine(registry);
+        BattleUnit p1 = active(unit("P1", "WATER", 200, 50, 50, 50, 50, 100, "SKILL_WAIT"), 0);
+        p1.setCurrentHp(0);  // 上场即倒下（HP 跨战斗保留）
+        BattleUnit p2 = unit("P2", "WATER", 200, 50, 50, 50, 50, 90, "SKILL_WAIT");  // 候补满血
+        BattleUnit enemy = active(unit("E1", "FIRE", 200, 40, 40, 50, 50, 10, "SKILL_WAIT"), 0);
+        BattleContext ctx = context(18L, List.of(p1, p2), List.of(enemy));
+
+        engine.startBattle(ctx);
+
+        assertFalse(p1.isAlive(), "0HP 上场单位应开局倒下");
+        assertTrue(p2.isActive(), "候补应立即补位上场");
+        assertFalse(ctx.isFinished(), "玩家仍有存活单位，战斗不应结束");
+    }
+
+    @Test
+    void startBattle_withAllPlayerUnitsZeroHp_shouldEndImmediatelyAsEnemyWin() {
+        GameConfigRegistry registry = buildRegistry(0);
+        BattleEngine engine = engine(registry);
+        BattleUnit p1 = active(unit("P1", "WATER", 200, 50, 50, 50, 50, 100, "SKILL_WAIT"), 0);
+        p1.setCurrentHp(0);  // 唯一上场单位倒下且无候补
+        BattleUnit enemy = active(unit("E1", "FIRE", 200, 40, 40, 50, 50, 10, "SKILL_WAIT"), 0);
+        BattleContext ctx = context(19L, List.of(p1), List.of(enemy));
+
+        engine.startBattle(ctx);
+
+        assertTrue(ctx.isFinished(), "玩家全灭应开局直接判负");
+        assertEquals("ENEMY", ctx.getWinner());
+    }
+
     // ---- 辅助 ----
 
     private BattleEvent findEvent(List<BattleEvent> events, BattleEventType type) {

@@ -7,7 +7,7 @@
     <header class="app-header">
       <div class="header-brand">
         <h1 class="header-title">宠物精灵</h1>
-        <span class="header-badge">Phase 0</span>
+        <span class="header-badge">Phase 4</span>
       </div>
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>

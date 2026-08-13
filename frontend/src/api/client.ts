@@ -59,4 +59,12 @@ export async function apiPost<T>(url: string, data?: unknown): Promise<ApiRespon
   return response.data
 }
 
+/**
+ * 通用 PUT 请求。
+ */
+export async function apiPut<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+  const response = await client.put<ApiResponse<T>>(url, data)
+  return response.data
+}
+
 export default client

@@ -10,10 +10,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 战斗接口（阶段 3）。
+ * 战斗接口（阶段 3 起提供战斗流程；阶段 4 接入结算）。
  * <p>
  * 前端只提交行动意图，不提交计算结果；伤害、命中、暴击、胜负一律由后端计算。
  * 战斗临时数据只存服务器内存，战斗过程零数据库写入。
+ * 阶段 4 新增结算接口：战斗结束后由前端主动调用，HP/经验/金币/掉落同事务落库。
  */
 @RestController
 @RequestMapping("/api/battles")
@@ -53,6 +54,17 @@ public class BattleController {
     public ApiResponse<BattleSnapshot> submitActions(@PathVariable String battleId,
                                                      @RequestBody SubmitActionsRequest request) {
         return ApiResponse.success(battleService.submitActions(battleId, request.getActions()));
+    }
+
+    /**
+     * 战斗结算（阶段 4 需求 §17/§85）。
+     * <p>
+     * 必须在战斗已结束（snapshot.finished=true）后调用。同事务完成 HP 回写、经验池/金币/掉落发放、
+     * 参战宠物 battle_count/win_count 累加。已结算的战斗不可重复结算。
+     */
+    @PostMapping("/{battleId}/settle")
+    public ApiResponse<BattleService.BattleSettlement> settleBattle(@PathVariable String battleId) {
+        return ApiResponse.success(battleService.settleBattle(battleId));
     }
 
     @Data

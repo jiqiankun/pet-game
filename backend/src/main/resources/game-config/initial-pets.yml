@@ -17,6 +17,7 @@ initialPets:
     name: 烬牙兽
     element: FIRE
     description: 火系·物理爆发方向
+    rarity: COMMON
     baseHp: 85
     baseStrength: 95
     baseSpirit: 60
@@ -30,10 +31,10 @@ initialPets:
     aptitudeResistance: 80
     aptitudeSpeed: 85
     skills:
-      - { skillId: SKILL_FIRE_CLAW, slot: 1 }
-      - { skillId: SKILL_TACKLE, slot: 2 }
-      - { skillId: SKILL_FLAME_BURST, slot: 3 }
-      - { skillId: SKILL_METEOR_FALL, slot: 4 }
+      - { skillId: SKILL_FIRE_CLAW, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_TACKLE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_FLAME_BURST, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
     passives:
       - PASSIVE_EMBER
 
@@ -41,6 +42,7 @@ initialPets:
     name: 汐月灵
     element: WATER
     description: 水系·治疗净化方向
+    rarity: COMMON
     baseHp: 90
     baseStrength: 55
     baseSpirit: 90
@@ -54,10 +56,10 @@ initialPets:
     aptitudeResistance: 85
     aptitudeSpeed: 80
     skills:
-      - { skillId: SKILL_WATER_PULSE, slot: 1 }
-      - { skillId: SKILL_HEAL_LIGHT, slot: 2 }
-      - { skillId: SKILL_TACKLE, slot: 3 }
-      - { skillId: SKILL_ROCK_SHIELD, slot: 4 }
+      - { skillId: SKILL_WATER_PULSE, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_HEAL_LIGHT, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_TACKLE, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_ROCK_SHIELD, slot: 4, unlockLevel: 15 }
     passives:
       - PASSIVE_UNYIELDING
 
@@ -65,6 +67,7 @@ initialPets:
     name: 藤梦鹿
     element: WOOD
     description: 木系·缠绕控制方向
+    rarity: COMMON
     baseHp: 88
     baseStrength: 65
     baseSpirit: 80
@@ -78,9 +81,9 @@ initialPets:
     aptitudeResistance: 82
     aptitudeSpeed: 83
     skills:
-      - { skillId: SKILL_VINE_WHIP, slot: 1 }
-      - { skillId: SKILL_ENTANGLE, slot: 2 }
-      - { skillId: SKILL_POISON_STING, slot: 3 }
-      - { skillId: SKILL_BATTLE_CRY, slot: 4 }
+      - { skillId: SKILL_VINE_WHIP, slot: 1, unlockLevel: 1 }
+      - { skillId: SKILL_ENTANGLE, slot: 2, unlockLevel: 1 }
+      - { skillId: SKILL_POISON_STING, slot: 3, unlockLevel: 5 }
+      - { skillId: SKILL_BATTLE_CRY, slot: 4, unlockLevel: 15 }
     passives:
       - PASSIVE_TAILWIND

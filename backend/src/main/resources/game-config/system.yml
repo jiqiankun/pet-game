@@ -23,6 +23,21 @@ critMultiplierMax: 2.0
 # ---- 等级与属性点 ----
 levelCap: 50
 freePointsPerLevel: 3
+# 稀有度每 10 级额外自由点数（需求 §19：普通 0 / 稀有 2 / 珍稀 4 / 传说 6）
+rarityExtraPointsPer10Levels:
+  COMMON: 0
+  RARE: 2
+  EPIC: 4
+  LEGENDARY: 6
+# 升级经验公式：升到下一级所需经验 = expBase * expGrowthFactor^(当前等级-1)
+# 需求 §17 未给具体数值，此公式配置化以便调整
+expBase: 100
+expGrowthFactor: 1.15
+# 属性点转换消耗（需求 §20）
+# 生命 +5 消耗 hpPointCost(1) 点；力量/灵力/防御/抗性 +1 消耗 statPointCost(1) 点；速度 +1 消耗 speedPointCost(2) 点
+statPointCost: 1
+hpPointCost: 1
+speedPointCost: 2
 
 # ---- 队伍 ----
 maxCarryPets: 6

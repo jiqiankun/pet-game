@@ -40,6 +40,15 @@ public class GameConfigValidator {
      */
     public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
                          SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle) {
+        validate(system, elements, initialPets, skills, statuses, testBattle, null);
+    }
+
+    /**
+     * 校验全部配置（阶段 4：含道具配置），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items) {
         List<String> errors = new ArrayList<>();
 
         validateSystemRules(system, errors);
@@ -51,13 +60,16 @@ public class GameConfigValidator {
             validateSkills(skills, elements, statuses, errors);
         }
         if (initialPets != null) {
-            validateInitialPets(initialPets, elements, errors);
+            validateInitialPets(initialPets, elements, system, errors);
             if (skills != null) {
                 validateInitialPetSkillRefs(initialPets, skills, errors);
             }
         }
         if (testBattle != null) {
             validateTestBattle(testBattle, skills, elements, errors);
+        }
+        if (items != null) {
+            validateItems(items, errors);
         }
 
         if (!errors.isEmpty()) {
@@ -154,9 +166,28 @@ public class GameConfigValidator {
         if (system.getLevelStatGrowth() < 0 || system.getLevelHpGrowth() < 0) {
             errors.add("levelStatGrowth/levelHpGrowth 必须 >= 0");
         }
+
+        // 阶段 4：养成系统配置
+        if (system.getFreePointsPerLevel() < 0) {
+            errors.add("freePointsPerLevel 必须 >= 0，当前值: " + system.getFreePointsPerLevel());
+        }
+        if (system.getExpBase() <= 0) {
+            errors.add("expBase 必须 > 0，当前值: " + system.getExpBase());
+        }
+        if (system.getExpGrowthFactor() < 1.0) {
+            errors.add("expGrowthFactor 必须 >= 1.0，当前值: " + system.getExpGrowthFactor());
+        }
+        if (system.getStatPointCost() <= 0 || system.getHpPointCost() <= 0 || system.getSpeedPointCost() <= 0) {
+            errors.add("statPointCost/hpPointCost/speedPointCost 必须 > 0");
+        }
+        if (system.getSpeedPointCost() < system.getStatPointCost()) {
+            errors.add("speedPointCost(" + system.getSpeedPointCost()
+                    + ") 不应小于 statPointCost(" + system.getStatPointCost() + ")");
+        }
     }
 
-    private void validateInitialPets(InitialPetsConfig config, GameElementsConfig elements, List<String> errors) {
+    private void validateInitialPets(InitialPetsConfig config, GameElementsConfig elements,
+                                     SystemRuleConfig system, List<String> errors) {
         if (config.getInitialPets() == null || config.getInitialPets().isEmpty()) {
             errors.add("initialPets 列表不能为空");
             return;
@@ -178,6 +209,22 @@ public class GameConfigValidator {
             }
             if (pet.getElement() != null && !validElementIds.contains(pet.getElement())) {
                 errors.add("initialPet 引用不存在的属性: " + pet.getElement());
+            }
+            if (pet.getRarity() == null || !VALID_RARITIES.contains(pet.getRarity())) {
+                errors.add("initialPet " + pet.getSpeciesId() + " rarity 非法: " + pet.getRarity());
+            }
+            // 技能解锁等级校验（阶段 4）
+            if (pet.getSkills() != null) {
+                for (InitialPetsConfig.InitialSkillSlot slot : pet.getSkills()) {
+                    if (slot.getUnlockLevel() < 1) {
+                        errors.add("initialPet " + pet.getSpeciesId()
+                                + " 技能 " + slot.getSkillId() + " unlockLevel 必须 >= 1");
+                    }
+                    if (slot.getUnlockLevel() > system.getLevelCap()) {
+                        errors.add("initialPet " + pet.getSpeciesId()
+                                + " 技能 " + slot.getSkillId() + " unlockLevel 超过 levelCap");
+                    }
+                }
             }
             // 初始宠物资质至少 A（各项 >= 80）
             int[] apts = {pet.getAptitudeHp(), pet.getAptitudeStrength(), pet.getAptitudeSpirit(),
@@ -239,6 +286,12 @@ public class GameConfigValidator {
             "ON_ATTACK", "ON_CRIT", "ON_KILL", "ON_DEATH", "ON_ROUND_START", "ON_ROUND_END");
     private static final Set<String> VALID_PASSIVE_EFFECTS = Set.of("SURVIVE_LETHAL", "APPLY_STATUS_ALLY_ALL",
             "APPLY_STATUS_SELF", "DAMAGE_ENEMY_RANDOM", "HEAL_SELF");
+    // 阶段 4：道具配置枚举
+    private static final Set<String> VALID_ITEM_CATEGORIES =
+            Set.of("CAPTURE", "RECOVERY", "MATERIAL", "SKILL_BOOK", "KEY_ITEM");
+    private static final Set<String> VALID_ITEM_TYPES =
+            Set.of("HEAL_HP", "REVIVE", "CAPTURE_BALL", "MATERIAL", "SKILL_BOOK", "KEY_ITEM");
+    private static final Set<String> VALID_RARITIES = Set.of("COMMON", "RARE", "EPIC", "LEGENDARY");
 
     /** 校验状态配置：ID 唯一、类别合法、数值字段范围、联动引用合法。 */
     private void validateStatuses(StatusesConfig statuses, List<String> errors) {
@@ -458,6 +511,37 @@ public class GameConfigValidator {
                 if (!passiveIds.contains(passiveId)) {
                     errors.add("testBattle " + enemy.getUnitId() + " 引用不存在的被动: " + passiveId);
                 }
+            }
+        }
+    }
+
+    /**
+     * 校验道具配置（阶段 4）：ID 唯一、分类与类型合法、使用场景与效果数值合理。
+     */
+    private void validateItems(ItemsConfig items, List<String> errors) {
+        if (items.getItems() == null || items.getItems().isEmpty()) {
+            // 阶段 4 允许空道具配置（后续阶段补入）
+            return;
+        }
+        Set<String> itemIds = new HashSet<>();
+        for (ItemConfig item : items.getItems()) {
+            if (item.getId() == null || item.getId().isBlank()) {
+                errors.add("item 缺少 id 字段");
+                continue;
+            }
+            if (!itemIds.add(item.getId())) {
+                errors.add("item ID 重复: " + item.getId());
+            }
+            if (!VALID_ITEM_CATEGORIES.contains(item.getCategory())) {
+                errors.add("item " + item.getId() + " category 非法: " + item.getCategory());
+            }
+            if (!VALID_ITEM_TYPES.contains(item.getItemType())) {
+                errors.add("item " + item.getId() + " itemType 非法: " + item.getItemType());
+            }
+            // 恢复类道具数值应 > 0
+            if (("HEAL_HP".equals(item.getItemType()) || "REVIVE".equals(item.getItemType()))
+                    && item.getValue() <= 0) {
+                errors.add("item " + item.getId() + " 恢复类道具 value 必须 > 0");
             }
         }
     }

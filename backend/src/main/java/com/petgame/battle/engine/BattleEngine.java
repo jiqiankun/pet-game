@@ -58,7 +58,8 @@ public class BattleEngine {
     }
 
     /**
-     * 开始战斗：触发双方上场单位的登场被动。
+     * 开始战斗：触发双方上场单位的登场被动，随后处理开局已倒下单位
+     * （HP=0 参战 → 倒下、候补补位、胜负判定，需求 §45 战斗后倒下保持 0HP）。
      */
     public void startBattle(BattleContext ctx) {
         for (BattleUnit unit : ctx.getPlayerSide().getActiveAliveUnits()) {
@@ -67,6 +68,9 @@ public class BattleEngine {
         for (BattleUnit unit : ctx.getEnemySide().getActiveAliveUnits()) {
             passiveManager.trigger(ctx, "ON_ENTER", unit);
         }
+        // 开局倒下处理：0HP 单位立即倒下（含候补补位），若一方全灭则直接判负
+        processDefeats(ctx);
+        checkBattleEnd(ctx);
     }
 
     /**

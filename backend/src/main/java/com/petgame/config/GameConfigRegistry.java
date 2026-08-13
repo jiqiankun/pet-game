@@ -36,6 +36,7 @@ public class GameConfigRegistry {
     private SkillsConfig skillsConfig;
     private StatusesConfig statusesConfig;
     private TestBattleConfig testBattleConfig;
+    private ItemsConfig itemsConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -51,6 +52,9 @@ public class GameConfigRegistry {
 
     /** 被动 ID → 被动配置 的快速索引（阶段 3）。 */
     private Map<String, PassiveSkillConfig> passiveIndex;
+
+    /** 道具 ID → 道具配置 的快速索引（阶段 4）。 */
+    private Map<String, ItemConfig> itemIndex;
 
     public GameConfigRegistry(GameConfigLoader loader, GameConfigValidator validator) {
         this.loader = loader;
@@ -71,10 +75,11 @@ public class GameConfigRegistry {
         this.skillsConfig = loader.loadSkillsConfig();
         this.statusesConfig = loader.loadStatusesConfig();
         this.testBattleConfig = loader.loadTestBattleConfig();
+        this.itemsConfig = loader.loadItemsConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
-                skillsConfig, statusesConfig, testBattleConfig);
+                skillsConfig, statusesConfig, testBattleConfig, itemsConfig);
 
         // 构建索引
         buildElementIndex();
@@ -82,14 +87,16 @@ public class GameConfigRegistry {
         buildSkillIndex();
         buildStatusIndex();
         buildPassiveIndex();
+        buildItemIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
                 initialPetsConfig.getInitialPets().size(),
                 skillsConfig.getSkills().size(),
                 skillsConfig.getPassives().size(),
-                statusesConfig.getStatuses().size());
+                statusesConfig.getStatuses().size(),
+                itemsConfig.getItems().size());
     }
 
     // ---- 查询方法 ----
@@ -122,6 +129,30 @@ public class GameConfigRegistry {
     /** 获取测试战斗配置（只读使用，阶段 3）。 */
     public TestBattleConfig getTestBattleConfig() {
         return testBattleConfig;
+    }
+
+    /** 获取道具配置（只读使用，阶段 4）。 */
+    public ItemsConfig getItemsConfig() {
+        return itemsConfig;
+    }
+
+    /** 根据道具 ID 获取道具配置，不存在返回 null。 */
+    public ItemConfig getItem(String itemId) {
+        return itemId == null ? null : itemIndex.get(itemId);
+    }
+
+    /**
+     * 根据 speciesId 获取种族配置（阶段 4 起统一入口）。
+     * 当前种族配置来源为 initial-pets.yml（初始宠物三选一）。
+     * @return 对应种族配置，不存在返回 null
+     */
+    public InitialPetsConfig.InitialPetOption getSpecies(String speciesId) {
+        if (speciesId == null) {
+            return null;
+        }
+        return initialPetsConfig.getInitialPets().stream()
+                .filter(p -> p.getSpeciesId().equals(speciesId))
+                .findFirst().orElse(null);
     }
 
     /** 根据技能 ID 获取技能配置，不存在返回 null。 */
@@ -217,6 +248,15 @@ public class GameConfigRegistry {
         passiveIndex = new LinkedHashMap<>();
         for (PassiveSkillConfig passive : skillsConfig.getPassives()) {
             passiveIndex.put(passive.getId(), passive);
+        }
+    }
+
+    private void buildItemIndex() {
+        itemIndex = new LinkedHashMap<>();
+        if (itemsConfig != null && itemsConfig.getItems() != null) {
+            for (ItemConfig item : itemsConfig.getItems()) {
+                itemIndex.put(item.getId(), item);
+            }
         }
     }
 }

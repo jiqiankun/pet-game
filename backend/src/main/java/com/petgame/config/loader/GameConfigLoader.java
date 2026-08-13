@@ -6,6 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.petgame.config.GameProperties;
 import com.petgame.config.model.GameElementsConfig;
 import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.ItemsConfig;
 import com.petgame.config.model.SkillsConfig;
 import com.petgame.config.model.StatusesConfig;
 import com.petgame.config.model.SystemRuleConfig;
@@ -38,6 +39,7 @@ public class GameConfigLoader {
     private static final String SKILLS_YML = "skills/skills.yml";
     private static final String STATUSES_YML = "statuses/statuses.yml";
     private static final String TEST_BATTLE_YML = "test-battle.yml";
+    private static final String ITEMS_YML = "items/items.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -140,6 +142,24 @@ public class GameConfigLoader {
         TestBattleConfig external = loadExternalYaml(TEST_BATTLE_YML, TestBattleConfig.class);
         if (external != null) {
             log.info("已加载外部 test-battle.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载道具配置（阶段 4 恢复道具基础）。
+     */
+    public ItemsConfig loadItemsConfig() {
+        ItemsConfig config = loadInternalYaml(ITEMS_YML, ItemsConfig.class);
+        if (config == null) {
+            // 阶段 4 起道具配置为必需
+            config = new ItemsConfig();
+            log.warn("内部 items/items.yml 未找到，使用空道具配置");
+        }
+        ItemsConfig external = loadExternalYaml(ITEMS_YML, ItemsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 items/items.yml 覆盖内部配置");
             config = external;
         }
         return config;

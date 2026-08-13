@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useBattleStore, isActiveAlive } from '../../stores/battle'
+import { useGameStore } from '../../stores/game'
 import type { BattleAction, UnitSnapshot } from '../../types/battle'
 
 const battleStore = useBattleStore()
+const gameStore = useGameStore()
 
 // 固定种子输入（开发者模式复现用，可留空）
 const seedInput = ref('')
@@ -12,12 +14,23 @@ const seedInput = ref('')
 const targeting = ref<{ petId: string; skillId: string } | null>(null)
 
 const snapshot = computed(() => battleStore.snapshot)
+const settlement = computed(() => battleStore.settlement)
 const playerActive = computed(() => snapshot.value?.playerUnits.filter(isActiveAlive) ?? [])
 const playerBench = computed(() => snapshot.value?.playerUnits.filter((u) => u.alive && !u.active) ?? [])
 
 onMounted(() => {
   battleStore.loadSkillConfig()
 })
+
+/** 战斗结束时自动结算（阶段 4：击败敌人后看到经验池与金币增加）。 */
+watch(
+  () => snapshot.value?.finished,
+  (finished) => {
+    if (finished && !settlement.value) {
+      battleStore.settleBattle()
+    }
+  },
+)
 
 async function startBattle() {
   const seed = seedInput.value.trim() ? Number(seedInput.value.trim()) : undefined
@@ -78,6 +91,14 @@ function hpPercent(unit: UnitSnapshot): number {
 function cooldownOf(unit: UnitSnapshot, skillId: string): number {
   return unit.cooldowns[skillId] ?? 0
 }
+
+/** 返回：结算完成后刷新首页数据（经验池/金币/宠物 HP）。 */
+async function handleLeave() {
+  if (settlement.value) {
+    await gameStore.loadBootstrap()
+  }
+  battleStore.leaveBattle()
+}
 </script>
 
 <template>
@@ -105,9 +126,32 @@ function cooldownOf(unit: UnitSnapshot, skillId: string): number {
         <span v-if="snapshot.finished" class="result-badge" :class="snapshot.winner === 'PLAYER' ? 'win' : 'lose'">
           {{ snapshot.winner === 'PLAYER' ? '胜利' : '失败' }}
         </span>
-        <button v-if="snapshot.finished" class="btn-secondary small" @click="battleStore.leaveBattle()">
-          返回
+        <button v-if="snapshot.finished" class="btn-secondary small" :disabled="battleStore.loading" @click="handleLeave">
+          {{ settlement ? '返回' : '结算中...' }}
         </button>
+      </div>
+
+      <!-- 战斗结算结果（阶段 4） -->
+      <div v-if="settlement" class="settlement-panel">
+        <h3>战斗结算</h3>
+        <div class="settlement-summary">
+          <span v-if="settlement.playerWon" class="reward-item exp">经验 +{{ settlement.expGained }}</span>
+          <span v-if="settlement.playerWon" class="reward-item gold">金币 +{{ settlement.goldGained }}</span>
+          <span v-if="!settlement.playerWon" class="reward-item none">无奖励（战败）</span>
+        </div>
+        <div v-if="settlement.drops.length" class="drops-section">
+          <span class="drops-label">掉落道具：</span>
+          <span v-for="drop in settlement.drops" :key="drop.itemId" class="drop-tag">
+            {{ drop.name }} ×{{ drop.quantity }}
+          </span>
+        </div>
+        <div class="hp-writeback-section">
+          <span class="writeback-label">宠物 HP 回写：</span>
+          <div v-for="wb in settlement.hpWritebacks" :key="wb.petId" class="writeback-item">
+            {{ wb.name }}：{{ wb.beforeHp }} → {{ wb.afterHp }}
+            <span v-if="!wb.alive" class="dead-tag">倒下</span>
+          </div>
+        </div>
       </div>
 
       <!-- 行动顺序条（来自后端 ACTION_ORDER 事件，每回合重算） -->
@@ -576,5 +620,74 @@ function cooldownOf(unit: UnitSnapshot, skillId: string): number {
   color: #d32f2f;
   font-size: 14px;
   text-align: center;
+}
+
+/* 战斗结算面板 */
+.settlement-panel {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-1);
+  border-left: 4px solid var(--color-primary);
+}
+
+.settlement-panel h3 {
+  font-size: 16px;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+
+.settlement-summary {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.reward-item {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.reward-item.exp { background-color: #e8f1ff; color: #2b5fa8; }
+.reward-item.gold { background-color: #fff5e0; color: #b87800; }
+.reward-item.none { color: var(--text-secondary); }
+
+.drops-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.drops-label { color: var(--text-secondary); }
+
+.drop-tag {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.hp-writeback-section {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.writeback-label { display: block; margin-bottom: 4px; }
+
+.writeback-item {
+  padding: 2px 0;
+}
+
+.writeback-item .dead-tag {
+  color: #d32f2f;
+  font-size: 11px;
+  margin-left: 4px;
 }
 </style>

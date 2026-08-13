@@ -1,0 +1,41 @@
+# ============================================================
+# 宠物精灵游戏 - 道具配置（阶段 4：恢复道具基础）
+# ============================================================
+# 阶段 4 仅实现恢复道具（需求 §92/§93）。
+# 捕捉球（阶段 5）、技能书（阶段 10）、材料（掉落）后续阶段补入。
+# 玩家存档只存道具 ID 与数量（player_inventory），不复制配置内容。
+# ============================================================
+
+configVersion: 1
+
+items:
+  # ---------- 恢复类 ----------
+  - id: ITEM_POTION_SMALL
+    name: 小型恢复药
+    description: 为一只宠物恢复 50 点生命值。
+    category: RECOVERY
+    itemType: HEAL_HP
+    value: 50
+    usableOutsideBattle: true
+    usableInBattle: true
+    discardable: true
+
+  - id: ITEM_POTION_MEDIUM
+    name: 中型恢复药
+    description: 为一只宠物恢复 150 点生命值。
+    category: RECOVERY
+    itemType: HEAL_HP
+    value: 150
+    usableOutsideBattle: true
+    usableInBattle: true
+    discardable: true
+
+  - id: ITEM_REVIVE
+    name: 复苏药剂
+    description: 复活一只倒下的宠物并恢复 50% 最大生命值。
+    category: RECOVERY
+    itemType: REVIVE
+    value: 50
+    usableOutsideBattle: true
+    usableInBattle: true
+    discardable: true

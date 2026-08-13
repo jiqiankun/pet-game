@@ -82,6 +82,9 @@ async function handleSave() {
       <div class="action-section">
         <button class="btn-primary" @click="router.push('/explore')">继续探索</button>
         <button class="btn-primary" @click="router.push('/battle')">测试战斗</button>
+        <button class="btn-primary" @click="router.push('/pets')">宠物培养</button>
+        <button class="btn-primary" @click="router.push('/team')">队伍编辑</button>
+        <button class="btn-primary" @click="router.push('/inventory')">背包</button>
         <button class="btn-secondary" @click="handleSave">保存游戏</button>
       </div>
     </div>

@@ -22,6 +22,34 @@ public class TestBattleConfig {
     /** 敌方阵容。 */
     private List<TestEnemyUnit> enemies = new ArrayList<>();
 
+    /** 战斗胜利奖励（阶段 4 战斗结算接入）。 */
+    private BattleReward rewards = new BattleReward();
+
+    /**
+     * 战斗胜利奖励配置。
+     */
+    @Data
+    @NoArgsConstructor
+    public static class BattleReward {
+        /** 获胜经验池奖励。 */
+        private int exp = 0;
+        /** 获胜金币奖励。 */
+        private int gold = 0;
+        /** 获胜掉落列表。 */
+        private List<DropEntry> drops = new ArrayList<>();
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class DropEntry {
+        /** 道具 ID（引用 items 配置）。 */
+        private String itemId;
+        /** 掉落概率 0~1。 */
+        private double chance = 1.0;
+        /** 掉落数量。 */
+        private int quantity = 1;
+    }
+
     /**
      * 测试战斗敌方单位。
      */

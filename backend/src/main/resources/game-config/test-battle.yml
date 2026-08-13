@@ -47,3 +47,12 @@ enemies:
     speed: 55
     skillIds: [SKILL_ENEMY_BITE, SKILL_ENEMY_GUST]
     passiveIds: [PASSIVE_TAILWIND]
+
+# 战斗胜利奖励（阶段 4 战斗结算接入：经验池 / 金币 / 基础掉落）
+rewards:
+  exp: 150
+  gold: 50
+  drops:
+    - itemId: ITEM_POTION_SMALL
+      chance: 1.0
+      quantity: 1

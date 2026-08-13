@@ -164,3 +164,15 @@ frontend/
 - 事件展示：后端返回事件序列（`BattleEventType`），Store 负责把事件翻译为中文日志，后续接入 Phaser 表现时仍沿用「后端事件 → 前端播放」模型。
 - 当前 `/battle` 为 Vue 基础战斗页面（阶段 3 范围）；Phaser BattleScene 表现层在后续阶段接入，不在本页面内实现动画计算。
 - 技能名称等展示内容通过配置查询接口（`/api/game/config/skills`）获取，不在前端硬编码内容配置。
+
+---
+
+## 13. 养成与队伍页面约定（阶段 4 起）
+
+- 阶段 4 类型定义集中在 `src/types/pet.ts`（`PetDetail` / `LevelUpPreview` / `TeamView` / `InventoryView` / `BattleSettlement`），与后端 DTO 对齐。
+- API 客户端 `src/api/client.ts` 提供 `apiGet` / `apiPost` / `apiPut` 三种通用方法，各页面按需导入使用，不在页面内自行创建 axios 实例。
+- **宠物详情页**（`/pets`）采用三标签布局（基础/属性/技能）：属性标签展示六维分解表（基础/成长/资质/加点/合计），升级区域支持五种模式与预览，加点区域按转换表交互，技能标签展示 4 槽位装备/卸下。
+- **队伍编辑页**（`/team`）采用 6 槽位布局（位置 1~3 首发、4~6 候补），下拉选择宠物、重复选择自动禁用，保存时整体提交 `PUT /api/team/members`。
+- **背包页**（`/inventory`）按分类分组展示道具，恢复道具使用区支持选择道具+宠物+使用，展示 HP 变化结果。
+- **战斗结算**：`stores/battle.ts` 新增 `settlement` 状态与 `settleBattle()` 方法；战斗结束时 `watch` 自动触发结算，BattleView 展示经验/金币/掉落/HP 回写结果面板。
+- **战斗中禁用培养操作**：PetView 与 TeamView 通过 `battleStore.inBattle` 计算属性检测战斗状态，战斗中禁用所有培养与编辑按钮。

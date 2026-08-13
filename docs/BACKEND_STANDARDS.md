@@ -249,3 +249,86 @@ battle/
 - `java -jar pet-game.jar` 运行，默认监听 `127.0.0.1:8080`。
 - 前端构建产物打入 Spring Boot 静态资源，输出单个可执行 JAR。
 - 统一构建脚本执行完整流水线，不允许手工复制文件完成发布。
+
+---
+
+## 15. 养成系统实现约定（阶段 4 起）
+
+### 15.1 模块结构与职责
+
+```text
+pet/
+├── domain/PetGrowthService      # 面板属性公式、升级经验、自由点数、技能解锁（无状态、仅读配置）
+├── domain/PetPanelStats         # 面板属性 + 六维分解（base/growth/aptBonus/freeBonus/total）
+├── service/PetService           # 升级/加点/洗点/技能装配编排（事务化、调用 PetGrowthService）
+├── service/PetDetail            # 宠物详情聚合 DTO（基础/属性/技能三标签一次返回）
+└── controller/PetController     # REST 接口
+
+team/
+├── service/TeamService          # 队伍成员整体替换（单事务）
+└── controller/TeamController    # PUT /api/team/members
+
+inventory/
+├── service/InventoryService     # 背包查询 + 恢复道具使用（HEAL_HP/REVIVE）
+└── controller/InventoryController
+
+battle/service/BattleService      # 新增 settleBattle：战斗结算落库（HP回写/经验/金币/掉落/统计）
+```
+
+### 15.2 面板属性公式（核心规则）
+
+> 最终属性 = 种族基础（含个体浮动） + 等级固定成长 + 资质成长修正 + 自由属性点。
+
+- **种族基础**：`species.baseXxx + pet.baseXxxOffset`（个体浮动固化值，捕捉时由 `baseStatVariance` 随机生成）。
+- **等级成长**：`levelStatGrowth * (level - 1)`（HP 维度独立用 `levelHpGrowth`）。
+- **资质修正**：`growth * (aptitude - 50) / 100`（资质影响升级成长而非基础值；Lv.1 时资质无影响）。
+- **自由点数**：HP 维度 `freePointHp * freePointHpValue`，其余 `freePointXxx * freePointStatValue`。
+- 所有数值参数从 `SystemRuleConfig` 读取，**禁止硬编码**。
+
+### 15.3 升级经验与自由点数
+
+- 升级经验：`expBase * expGrowthFactor^(level-1)`，达到 `levelCap` 返回 0。
+- 经验统一进玩家**公共经验池**（无上限），升级时由玩家自主分配扣减；**不直接发经验给宠物**。
+- 五种升级方式（`LevelUpMode`）：`ONE` / `FIVE` / `TO_LEVEL` / `TO_CAP` / `CUSTOM_EXP`，全部走 `PetService.levelUp`。
+- 自由点数：每级 `freePointsPerLevel`（默认 3）+ 稀有度每 10 级额外（COMMON 0 / RARE 2 / EPIC 4 / LEGENDARY 6）。
+- 加点消耗：HP `hpPointCost`（默认 1）、速度 `speedPointCost`（默认 2）、其余 `statPointCost`（默认 1）。
+- 洗点第一阶段免费，按需求 §20 转换表全量返还已消耗自由点数（速度每点次按 2 点折算）。
+
+### 15.4 技能解锁与装配
+
+- 升级自动**学习**解锁的种族技能（`unlockLevel` 命中区间），默认**不装备**。
+- 最多 4 个主动技能槽位（slot 1~4），装备/卸下通过 `PetService.equipSkill` / `unequipSkill`。
+- 已学习但未装备的技能在技能标签展示，供玩家手动装配。
+
+### 15.5 战斗结算（事务化）
+
+- 接口：`POST /api/battles/{id}/settle`，仅在 `battle.finished=true` 时允许。
+- 单事务内完成：HP 回写（玩家宠物）、经验进公共池、金币发放、掉落入背包、战斗统计累加。
+- **防重复结算**：已结算战斗返回 `BATTLE_ALREADY_SETTLED` errorCode。
+- 战败零惩罚：经验/金币/掉落均为 0，仅回写 HP。
+
+### 15.6 队伍成员替换
+
+- 接口：`PUT /api/team/members`，整体替换 6 槽位（位置 1~6）。
+- 单事务内完成：删除旧成员、插入新成员；位置 1~6 唯一、宠物归属校验。
+- 候补可为空，但位置必须连续（1~N，N ≤ 6）。
+
+### 15.7 背包恢复道具
+
+- 接口：`POST /api/inventory/items/{itemId}/use`，请求体 `{ petId }`。
+- `HEAL_HP`：`currentHp = min(currentHp + value, maxHp)`；`REVIVE`：仅 HP=0 可用，`currentHp = maxHp * value / 100`。
+- 战斗外使用校验 `usableOutsideBattle`；战斗内不使用恢复道具、不提供道具行动（用户裁决，见规划文档 §9.3 决策八）。
+- 数量不足返回 `ITEM_NOT_ENOUGH`，宠物不存在返回 `PET_NOT_FOUND`。
+
+### 15.8 数据库迁移（V3）
+
+- `player_pet` 表新增 `captured_level`（捕捉时等级，用于放生礼物计算）、六维 `base_*_offset`（个体基础浮动固化值）。
+- 迁移文件 `V3__pet_growth_fields.sql`，**禁止手工改表**。
+
+### 15.9 道具配置扩展
+
+`items.yml` 新增字段：
+- `category`：分类（CAPTURE / RECOVERY / MATERIAL / SKILL_BOOK / KEY_ITEM）。
+- `usableOutsideBattle`：战斗外是否可用。
+- `usableInBattle`：战斗内是否可用（第一阶段不实现战斗内使用，字段仅用于配置完备性）。
+- `value`：恢复量（HP 点数或百分比）。
