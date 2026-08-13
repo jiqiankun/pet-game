@@ -1,0 +1,49 @@
+# ============================================================
+# 宠物精灵游戏 - 测试战斗配置（阶段 3 验收用）
+# ============================================================
+# 固定敌方阵容，用于阶段 3 验收与战斗引擎调试。
+# 敌方单位与玩家宠物走完全相同的引擎结算路径（同一 BattleEngine）。
+# 本配置不进入正式玩法掉落/捕捉流程（阶段 3 无持久化奖励）。
+# ============================================================
+
+configVersion: 1
+
+enemies:
+  - unitId: ENEMY_TEST_1
+    name: 测试敌人·草精
+    element: WOOD
+    level: 1
+    maxHp: 90
+    strength: 40
+    spirit: 45
+    defense: 40
+    resistance: 45
+    speed: 35
+    skillIds: [SKILL_ENEMY_BITE, SKILL_ENEMY_SPIT]
+    passiveIds: [PASSIVE_EMBER]
+
+  - unitId: ENEMY_TEST_2
+    name: 测试敌人·石仔
+    element: EARTH
+    level: 1
+    maxHp: 110
+    strength: 45
+    spirit: 30
+    defense: 60
+    resistance: 45
+    speed: 25
+    skillIds: [SKILL_ENEMY_BITE, SKILL_ENEMY_HARDEN]
+    passiveIds: [PASSIVE_UNYIELDING]
+
+  - unitId: ENEMY_TEST_3
+    name: 测试敌人·风鸦
+    element: WIND
+    level: 1
+    maxHp: 80
+    strength: 35
+    spirit: 45
+    defense: 35
+    resistance: 40
+    speed: 55
+    skillIds: [SKILL_ENEMY_BITE, SKILL_ENEMY_GUST]
+    passiveIds: [PASSIVE_TAILWIND]

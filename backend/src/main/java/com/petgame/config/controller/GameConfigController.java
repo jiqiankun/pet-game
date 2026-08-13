@@ -3,6 +3,7 @@ package com.petgame.config.controller;
 import com.petgame.common.ApiResponse;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.GameElementConfig;
+import com.petgame.config.model.SkillsConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import org.springframework.web.bind.annotation.*;
 
@@ -65,5 +66,13 @@ public class GameConfigController {
     @GetMapping("/system")
     public ApiResponse<SystemRuleConfig> getSystemRules() {
         return ApiResponse.success(registry.getSystemRules());
+    }
+
+    /**
+     * 获取技能与被动配置（阶段 3，供战斗页面展示技能名称/描述/冷却）。
+     */
+    @GetMapping("/skills")
+    public ApiResponse<SkillsConfig> getSkills() {
+        return ApiResponse.success(registry.getSkillsConfig());
     }
 }

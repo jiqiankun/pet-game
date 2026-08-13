@@ -36,6 +36,20 @@ aptitudeMax: 100
 # ---- 个体基础浮动（±5%） ----
 baseStatVariance: 0.05
 
+# ---- 战斗结算（阶段 3） ----
+# 防御/抗性减伤：raw × K / (K + def)
+defenseMitigationConstant: 200.0
+# 防御行动减伤比例
+defendDamageReduction: 0.50
+# 正常命中最低伤害
+minDamage: 1
+# 自由属性点加成
+freePointStatValue: 1.0
+freePointHpValue: 5.0
+# 等级成长（阶段 3 临时公式，阶段 4 养成体系正式化）
+levelStatGrowth: 2.0
+levelHpGrowth: 8.0
+
 # ---- 放生 ----
 releaseBonusMax: 0.50
 

@@ -33,12 +33,24 @@ public class GameConfigRegistry {
     private SystemRuleConfig systemRules;
     private GameElementsConfig elementsConfig;
     private InitialPetsConfig initialPetsConfig;
+    private SkillsConfig skillsConfig;
+    private StatusesConfig statusesConfig;
+    private TestBattleConfig testBattleConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
 
     /** 克制关系快速索引：key = "ATTACKER|DEFENDER" → true 表示克制。 */
     private Set<String> advantageIndex;
+
+    /** 技能 ID → 技能配置 的快速索引（阶段 3）。 */
+    private Map<String, SkillConfig> skillIndex;
+
+    /** 状态 ID → 状态配置 的快速索引（阶段 3）。 */
+    private Map<String, StatusEffectConfig> statusIndex;
+
+    /** 被动 ID → 被动配置 的快速索引（阶段 3）。 */
+    private Map<String, PassiveSkillConfig> passiveIndex;
 
     public GameConfigRegistry(GameConfigLoader loader, GameConfigValidator validator) {
         this.loader = loader;
@@ -56,18 +68,28 @@ public class GameConfigRegistry {
         this.systemRules = loader.loadSystemConfig();
         this.elementsConfig = loader.loadElementsConfig();
         this.initialPetsConfig = loader.loadInitialPetsConfig();
+        this.skillsConfig = loader.loadSkillsConfig();
+        this.statusesConfig = loader.loadStatusesConfig();
+        this.testBattleConfig = loader.loadTestBattleConfig();
 
         // 校验
-        validator.validate(systemRules, elementsConfig, initialPetsConfig);
+        validator.validate(systemRules, elementsConfig, initialPetsConfig,
+                skillsConfig, statusesConfig, testBattleConfig);
 
         // 构建索引
         buildElementIndex();
         buildAdvantageIndex();
+        buildSkillIndex();
+        buildStatusIndex();
+        buildPassiveIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
-                initialPetsConfig.getInitialPets().size());
+                initialPetsConfig.getInitialPets().size(),
+                skillsConfig.getSkills().size(),
+                skillsConfig.getPassives().size(),
+                statusesConfig.getStatuses().size());
     }
 
     // ---- 查询方法 ----
@@ -85,6 +107,46 @@ public class GameConfigRegistry {
     /** 获取初始宠物配置（只读使用）。 */
     public InitialPetsConfig getInitialPetsConfig() {
         return initialPetsConfig;
+    }
+
+    /** 获取技能配置（只读使用，阶段 3）。 */
+    public SkillsConfig getSkillsConfig() {
+        return skillsConfig;
+    }
+
+    /** 获取状态配置（只读使用，阶段 3）。 */
+    public StatusesConfig getStatusesConfig() {
+        return statusesConfig;
+    }
+
+    /** 获取测试战斗配置（只读使用，阶段 3）。 */
+    public TestBattleConfig getTestBattleConfig() {
+        return testBattleConfig;
+    }
+
+    /** 根据技能 ID 获取技能配置，不存在返回 null。 */
+    public SkillConfig getSkill(String skillId) {
+        return skillId == null ? null : skillIndex.get(skillId);
+    }
+
+    /** 根据状态 ID 获取状态配置，不存在返回 null。 */
+    public StatusEffectConfig getStatus(String statusId) {
+        return statusId == null ? null : statusIndex.get(statusId);
+    }
+
+    /** 根据被动 ID 获取被动配置，不存在返回 null。 */
+    public PassiveSkillConfig getPassive(String passiveId) {
+        return passiveId == null ? null : passiveIndex.get(passiveId);
+    }
+
+    /** 获取状态索引（供 StatusModifiers 聚合单位状态修正）。 */
+    public Map<String, StatusEffectConfig> getStatusIndex() {
+        return statusIndex;
+    }
+
+    /** 获取状态联动规则列表。 */
+    public List<StatusesConfig.StatusSynergyConfig> getSynergies() {
+        return statusesConfig.getSynergies();
     }
 
     /** 获取所有属性 ID 列表。 */
@@ -134,6 +196,27 @@ public class GameConfigRegistry {
             for (ElementAdvantageConfig adv : elementsConfig.getAdvantages()) {
                 advantageIndex.add(adv.getAttacker() + "|" + adv.getDefender());
             }
+        }
+    }
+
+    private void buildSkillIndex() {
+        skillIndex = new LinkedHashMap<>();
+        for (SkillConfig skill : skillsConfig.getSkills()) {
+            skillIndex.put(skill.getId(), skill);
+        }
+    }
+
+    private void buildStatusIndex() {
+        statusIndex = new LinkedHashMap<>();
+        for (StatusEffectConfig status : statusesConfig.getStatuses()) {
+            statusIndex.put(status.getId(), status);
+        }
+    }
+
+    private void buildPassiveIndex() {
+        passiveIndex = new LinkedHashMap<>();
+        for (PassiveSkillConfig passive : skillsConfig.getPassives()) {
+            passiveIndex.put(passive.getId(), passive);
         }
     }
 }

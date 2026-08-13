@@ -73,6 +73,29 @@ public class SystemRuleConfig {
     /** 个体六维基础浮动比例（默认 ±5% = 0.05）。 */
     private double baseStatVariance = 0.05;
 
+    // ---- 战斗结算（阶段 3）----
+
+    /** 防御/抗性减伤公式常数：raw × K / (K + def)，K 越大减伤越平缓（默认 200）。 */
+    private double defenseMitigationConstant = 200.0;
+
+    /** 防御行动减伤比例（默认 0.50 = 受到伤害减半）。 */
+    private double defendDamageReduction = 0.50;
+
+    /** 正常命中最低伤害（默认 1）。 */
+    private int minDamage = 1;
+
+    /** 自由属性点单点属性加成（默认 1.0）。 */
+    private double freePointStatValue = 1.0;
+
+    /** 自由属性点单点 HP 加成（默认 5.0）。 */
+    private double freePointHpValue = 5.0;
+
+    /** 每级六维固定成长值（阶段 3 临时公式，阶段 4 养成体系正式化，默认 2.0）。 */
+    private double levelStatGrowth = 2.0;
+
+    /** 每级 HP 固定成长值（默认 8.0）。 */
+    private double levelHpGrowth = 8.0;
+
     // ---- 放生 ----
 
     /** 放生培养加成上限（默认 50% = 0.50）。 */

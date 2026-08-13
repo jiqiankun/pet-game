@@ -1,0 +1,129 @@
+# ============================================================
+# 宠物精灵游戏 - 状态体系配置（阶段 3）
+# ============================================================
+# 状态效果全部配置化，引擎按字段统一解释。
+# 类别：DOT（持续伤害）/ CONTROL（控制）/ DEBUFF（减益）/ BUFF（增益）。
+# 状态联动保持有限且配置化，不做复杂元素反应网络。
+# ============================================================
+
+configVersion: 1
+
+statuses:
+  # ---------- DOT ----------
+
+  - id: BURN
+    name: 灼烧
+    category: DOT
+    description: 每回合损失 6% 最大 HP。
+    defaultDuration: 2
+    dotPercent: 0.06
+
+  - id: POISON
+    name: 中毒
+    category: DOT
+    description: 每回合损失 5% 最大 HP。
+    defaultDuration: 3
+    dotPercent: 0.05
+
+  # ---------- CONTROL ----------
+
+  - id: PARALYSIS
+    name: 麻痹
+    category: CONTROL
+    description: 35% 概率无法行动，速度降低 20%。
+    defaultDuration: 2
+    skipActionChance: 0.35
+    speedPercent: -0.20
+
+  - id: ROOT
+    name: 缠绕
+    category: CONTROL
+    description: 无法行动。
+    defaultDuration: 1
+    skipActionChance: 1.0
+
+  - id: SILENCE
+    name: 沉默
+    category: CONTROL
+    description: 无法使用主动技能。
+    defaultDuration: 2
+    silence: true
+
+  # ---------- DEBUFF ----------
+
+  - id: BLIND
+    name: 致盲
+    category: DEBUFF
+    description: 命中率降低 30%。
+    defaultDuration: 2
+    accuracyPenalty: 0.30
+
+  - id: SOAK
+    name: 浸湿
+    category: DEBUFF
+    description: 受到雷属性技能时伤害提高（联动）。
+    defaultDuration: 2
+
+  - id: ARMOR_BREAK
+    name: 破甲
+    category: DEBUFF
+    description: 防御降低 30%。
+    defaultDuration: 2
+    defensePercent: -0.30
+
+  - id: CURSE
+    name: 诅咒
+    category: DEBUFF
+    description: 受到伤害提高 20%。
+    defaultDuration: 2
+    damageTakenPercent: 0.20
+
+  # ---------- BUFF ----------
+
+  - id: ATK_UP
+    name: 攻击提升
+    category: BUFF
+    description: 造成伤害提高 25%。
+    defaultDuration: 2
+    damageDealtPercent: 0.25
+
+  - id: DEF_UP
+    name: 防御提升
+    category: BUFF
+    description: 防御提高 30%。
+    defaultDuration: 2
+    defensePercent: 0.30
+
+  - id: SPD_UP
+    name: 速度提升
+    category: BUFF
+    description: 速度提高 25%。
+    defaultDuration: 1
+    speedPercent: 0.25
+
+  - id: TAUNT
+    name: 嘲讽
+    category: BUFF
+    description: 敌方单体技能强制指向携带者。
+    defaultDuration: 2
+    taunt: true
+
+  - id: GUARD
+    name: 援护
+    category: BUFF
+    description: 替指定队友承担 50% 单体伤害。
+    defaultDuration: 2
+    guardTransferPercent: 0.50
+
+# ---------- 状态联动（有限、配置化） ----------
+
+synergies:
+  - requiredStatus: SOAK
+    skillElement: THUNDER
+    damageMultiplier: 1.30
+    description: 浸湿目标受到雷属性技能伤害提高。
+
+  - requiredStatus: BURN
+    skillElement: WIND
+    damageMultiplier: 1.20
+    description: 灼烧目标受到风属性技能伤害提高（风助火势）。

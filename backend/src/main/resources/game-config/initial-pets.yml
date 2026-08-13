@@ -32,6 +32,10 @@ initialPets:
     skills:
       - { skillId: SKILL_FIRE_CLAW, slot: 1 }
       - { skillId: SKILL_TACKLE, slot: 2 }
+      - { skillId: SKILL_FLAME_BURST, slot: 3 }
+      - { skillId: SKILL_METEOR_FALL, slot: 4 }
+    passives:
+      - PASSIVE_EMBER
 
   - speciesId: PET_WATER_001
     name: 汐月灵
@@ -52,6 +56,10 @@ initialPets:
     skills:
       - { skillId: SKILL_WATER_PULSE, slot: 1 }
       - { skillId: SKILL_HEAL_LIGHT, slot: 2 }
+      - { skillId: SKILL_TACKLE, slot: 3 }
+      - { skillId: SKILL_ROCK_SHIELD, slot: 4 }
+    passives:
+      - PASSIVE_UNYIELDING
 
   - speciesId: PET_WOOD_001
     name: 藤梦鹿
@@ -72,3 +80,7 @@ initialPets:
     skills:
       - { skillId: SKILL_VINE_WHIP, slot: 1 }
       - { skillId: SKILL_ENTANGLE, slot: 2 }
+      - { skillId: SKILL_POISON_STING, slot: 3 }
+      - { skillId: SKILL_BATTLE_CRY, slot: 4 }
+    passives:
+      - PASSIVE_TAILWIND

@@ -6,7 +6,10 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.petgame.config.GameProperties;
 import com.petgame.config.model.GameElementsConfig;
 import com.petgame.config.model.InitialPetsConfig;
+import com.petgame.config.model.SkillsConfig;
+import com.petgame.config.model.StatusesConfig;
 import com.petgame.config.model.SystemRuleConfig;
+import com.petgame.config.model.TestBattleConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -32,6 +35,9 @@ public class GameConfigLoader {
     private static final String SYSTEM_YML = "system.yml";
     private static final String ELEMENTS_YML = "elements.yml";
     private static final String INITIAL_PETS_YML = "initial-pets.yml";
+    private static final String SKILLS_YML = "skills/skills.yml";
+    private static final String STATUSES_YML = "statuses/statuses.yml";
+    private static final String TEST_BATTLE_YML = "test-battle.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -86,6 +92,54 @@ public class GameConfigLoader {
         InitialPetsConfig external = loadExternalYaml(INITIAL_PETS_YML, InitialPetsConfig.class);
         if (external != null) {
             log.info("已加载外部 initial-pets.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载技能配置（含被动技能）。
+     */
+    public SkillsConfig loadSkillsConfig() {
+        SkillsConfig config = loadInternalYaml(SKILLS_YML, SkillsConfig.class);
+        if (config == null) {
+            throw new IllegalStateException("内部 skills/skills.yml 未找到，无法启动");
+        }
+        SkillsConfig external = loadExternalYaml(SKILLS_YML, SkillsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 skills/skills.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载状态体系配置。
+     */
+    public StatusesConfig loadStatusesConfig() {
+        StatusesConfig config = loadInternalYaml(STATUSES_YML, StatusesConfig.class);
+        if (config == null) {
+            throw new IllegalStateException("内部 statuses/statuses.yml 未找到，无法启动");
+        }
+        StatusesConfig external = loadExternalYaml(STATUSES_YML, StatusesConfig.class);
+        if (external != null) {
+            log.info("已加载外部 statuses/statuses.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载测试战斗配置（阶段 3 验收用固定敌方阵容）。
+     */
+    public TestBattleConfig loadTestBattleConfig() {
+        TestBattleConfig config = loadInternalYaml(TEST_BATTLE_YML, TestBattleConfig.class);
+        if (config == null) {
+            throw new IllegalStateException("内部 test-battle.yml 未找到，无法启动");
+        }
+        TestBattleConfig external = loadExternalYaml(TEST_BATTLE_YML, TestBattleConfig.class);
+        if (external != null) {
+            log.info("已加载外部 test-battle.yml 覆盖内部配置");
             config = external;
         }
         return config;

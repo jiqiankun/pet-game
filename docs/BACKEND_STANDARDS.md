@@ -168,6 +168,7 @@ pet/
 - 迁移文件命名：`V{版本号}__{描述}.sql`（如 `V1__init.sql`）。
 - 索引保持简单，按需创建（如 `player_pet(species_id)`、`player_team_member(team_id)`）。
 - 不为假设需求加冗余字段；仅保留文档明确要求的预留项。
+- 实体的 `createdAt` / `updatedAt` 统一使用 MyBatis-Plus `@TableField(fill = FieldFill.INSERT / INSERT_UPDATE)` 标注，由统一的 `MetaObjectHandler`（`MybatisMetaConfig`）自动填充；**禁止在业务代码中手工赋值时间戳字段**。
 
 ---
 
@@ -209,6 +210,28 @@ pet/
 - 战斗结果必须由后端计算，前端只提交行动意图。
 - 后端输出标准战斗事件（`DAMAGE`、`HEAL`、`BUFF_APPLIED` 等），前端按事件播放表现。
 - 战斗相关改动必须保持单一引擎原则，并补充对应规则验证。
+
+### 12.1 战斗模块实现约定（阶段 3 起）
+
+`com.petgame.battle` 包结构：
+
+```text
+battle/
+├── engine/       # BattleEngine 入口、BattleContext、TurnResult
+├── calculator/   # 伤害/治疗/命中/暴击/状态修正计算器（纯函数，无状态）
+├── model/        # BattleUnit、BattleAction、StatusInstance、BattleSide
+├── event/        # BattleEvent、BattleEventType
+├── passive/      # PassiveManager（被动触发时机/效果配置驱动）
+├── ai/           # DecisionProvider 接口与敌方决策实现
+├── service/      # BattleService（战斗内存池）与快照 DTO
+└── controller/   # BattleController
+```
+
+- **引擎不针对具体配置 ID 写分支**：技能/状态/被动全部配置驱动，新增内容只加 YAML。
+- 技能/状态/被动/测试战斗配置（`skills.yml`、`statuses.yml`、`test-battle.yml`）必须接入启动校验（引用完整性、枚举合法性）。
+- 战斗内存池：`BattleService` 以 `ConcurrentHashMap<battleId, BattleContext>` 持有进行中战斗，**战斗过程中零数据库写入**；战斗结束后的结算落库在后续阶段接入。
+- 战斗接口支持固定种子（`seed`）以保证随机流程可复现，便于测试与验收。
+- 业务错误码约定：`BATTLE_NOT_FOUND`、`BATTLE_FINISHED`、`INVALID_ACTION` 等稳定 errorCode。
 
 ---
 

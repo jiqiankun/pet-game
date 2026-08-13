@@ -53,6 +53,8 @@ public class InitialPetsConfig {
         private int aptitudeResistance;
         private int aptitudeSpeed;
         private List<InitialSkillSlot> skills = new ArrayList<>();
+        /** 被动技能 ID 列表（可选，阶段 3 起支持）。 */
+        private List<String> passives = new ArrayList<>();
     }
 
     @Data

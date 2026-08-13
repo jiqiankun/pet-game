@@ -1,0 +1,580 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useBattleStore, isActiveAlive } from '../../stores/battle'
+import type { BattleAction, UnitSnapshot } from '../../types/battle'
+
+const battleStore = useBattleStore()
+
+// 固定种子输入（开发者模式复现用，可留空）
+const seedInput = ref('')
+
+// 目标选择：正在等待选目标的单位与技能
+const targeting = ref<{ petId: string; skillId: string } | null>(null)
+
+const snapshot = computed(() => battleStore.snapshot)
+const playerActive = computed(() => snapshot.value?.playerUnits.filter(isActiveAlive) ?? [])
+const playerBench = computed(() => snapshot.value?.playerUnits.filter((u) => u.alive && !u.active) ?? [])
+
+onMounted(() => {
+  battleStore.loadSkillConfig()
+})
+
+async function startBattle() {
+  const seed = seedInput.value.trim() ? Number(seedInput.value.trim()) : undefined
+  try {
+    await battleStore.startTestBattle(Number.isFinite(seed as number) ? seed : undefined)
+  } catch {
+    // 错误已写入 store.error
+  }
+}
+
+/** 点击技能按钮：单体敌方技能进入目标选择，其余直接收集行动。 */
+function handleSkillClick(unit: UnitSnapshot, skillId: string) {
+  const skill = battleStore.skillIndex[skillId]
+  if (skill?.target === 'ENEMY_SINGLE') {
+    targeting.value = { petId: unit.unitId, skillId }
+  } else if (skill?.target === 'ALLY_SINGLE') {
+    // 阶段 3 基础页面：己方单体默认指向自身上场单位第一个（简化交互）
+    const target = playerActive.value[0]
+    if (target) {
+      battleStore.setAction({ type: 'SKILL', petId: unit.unitId, skillId, targetId: target.unitId })
+    }
+  } else {
+    battleStore.setAction({ type: 'SKILL', petId: unit.unitId, skillId })
+  }
+}
+
+/** 点击敌方单位：处于目标选择状态时提交行动。 */
+function handleEnemyClick(enemy: UnitSnapshot) {
+  if (!targeting.value) return
+  const action: BattleAction = {
+    type: 'SKILL',
+    petId: targeting.value.petId,
+    skillId: targeting.value.skillId,
+    targetId: enemy.unitId,
+  }
+  battleStore.setAction(action)
+  targeting.value = null
+}
+
+function handleDefend(unit: UnitSnapshot) {
+  battleStore.setAction({ type: 'DEFEND', petId: unit.unitId })
+  targeting.value = null
+}
+
+function handleSwitch(unit: UnitSnapshot, bench: UnitSnapshot) {
+  battleStore.setAction({ type: 'SWITCH', petId: unit.unitId, switchPetId: bench.unitId })
+  targeting.value = null
+}
+
+function cancelTargeting() {
+  targeting.value = null
+}
+
+function hpPercent(unit: UnitSnapshot): number {
+  return unit.maxHp > 0 ? Math.max(0, Math.min(100, (unit.currentHp / unit.maxHp) * 100)) : 0
+}
+
+function cooldownOf(unit: UnitSnapshot, skillId: string): number {
+  return unit.cooldowns[skillId] ?? 0
+}
+</script>
+
+<template>
+  <div class="battle-view">
+    <!-- 未开始：入口面板 -->
+    <div v-if="!snapshot" class="start-panel">
+      <h2 class="panel-title">战斗测试</h2>
+      <p class="panel-desc">
+        阶段 3 测试战斗：当前激活队伍 VS 固定敌方阵容。战斗结果全部由后端 BattleEngine 计算。
+      </p>
+      <div class="seed-row">
+        <label for="seed-input">随机种子（可选，复现战斗）</label>
+        <input id="seed-input" v-model="seedInput" type="text" placeholder="留空则随机" />
+      </div>
+      <button class="btn-primary" :disabled="battleStore.loading" @click="startBattle">
+        {{ battleStore.loading ? '正在创建战斗...' : '开始测试战斗' }}
+      </button>
+      <p v-if="battleStore.error" class="error-text">{{ battleStore.error }}</p>
+    </div>
+
+    <!-- 战斗中 / 已结束 -->
+    <div v-else class="battle-panel">
+      <div class="battle-header">
+        <span class="round-badge">回合 {{ snapshot.currentRound }}</span>
+        <span v-if="snapshot.finished" class="result-badge" :class="snapshot.winner === 'PLAYER' ? 'win' : 'lose'">
+          {{ snapshot.winner === 'PLAYER' ? '胜利' : '失败' }}
+        </span>
+        <button v-if="snapshot.finished" class="btn-secondary small" @click="battleStore.leaveBattle()">
+          返回
+        </button>
+      </div>
+
+      <!-- 行动顺序条（来自后端 ACTION_ORDER 事件，每回合重算） -->
+      <div v-if="battleStore.actionOrder.length" class="order-bar">
+        <span class="order-label">行动顺序</span>
+        <span
+          v-for="(unitId, idx) in battleStore.actionOrder"
+          :key="unitId"
+          class="order-chip"
+          :class="{ enemy: unitId.startsWith('ENEMY') }"
+        >
+          {{ idx + 1 }}. {{ battleStore.unitName(unitId) }}
+        </span>
+      </div>
+
+      <!-- 敌方阵容 -->
+      <div class="side-section enemy">
+        <h3>敌方</h3>
+        <div class="unit-row">
+          <div
+            v-for="unit in snapshot.enemyUnits"
+            :key="unit.unitId"
+            class="unit-card"
+            :class="{
+              dead: !unit.alive,
+              bench: !unit.active && unit.alive,
+              clickable: targeting !== null && unit.alive && unit.active,
+            }"
+            @click="handleEnemyClick(unit)"
+          >
+            <div class="unit-name">
+              {{ unit.name }} <span class="unit-element">{{ unit.element }}</span>
+              <span class="unit-level">Lv.{{ unit.level }}</span>
+            </div>
+            <div class="hp-bar">
+              <div class="hp-fill" :style="{ width: hpPercent(unit) + '%' }"></div>
+            </div>
+            <div class="unit-hp">{{ unit.currentHp }} / {{ unit.maxHp }}</div>
+            <div class="status-row">
+              <span v-for="status in unit.statuses" :key="status.statusId" class="status-tag">
+                {{ status.name }}({{ status.remainingTurns }})
+              </span>
+              <span v-if="unit.charging" class="status-tag charging">蓄力中</span>
+              <span v-if="unit.defending" class="status-tag defending">防御</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 目标选择提示 -->
+      <div v-if="targeting" class="targeting-hint">
+        选择技能目标 <button class="btn-link" @click="cancelTargeting">取消</button>
+      </div>
+
+      <!-- 玩家阵容 -->
+      <div class="side-section player">
+        <h3>我方</h3>
+        <div class="unit-row">
+          <div
+            v-for="unit in snapshot.playerUnits"
+            :key="unit.unitId"
+            class="unit-card player-card"
+            :class="{ dead: !unit.alive, bench: !unit.active && unit.alive }"
+          >
+            <div class="unit-name">
+              {{ unit.name }} <span class="unit-element">{{ unit.element }}</span>
+              <span class="unit-level">Lv.{{ unit.level }}</span>
+            </div>
+            <div class="hp-bar">
+              <div class="hp-fill" :style="{ width: hpPercent(unit) + '%' }"></div>
+            </div>
+            <div class="unit-hp">{{ unit.currentHp }} / {{ unit.maxHp }}</div>
+            <div class="status-row">
+              <span v-for="status in unit.statuses" :key="status.statusId" class="status-tag">
+                {{ status.name }}({{ status.remainingTurns }})
+              </span>
+              <span v-if="unit.charging" class="status-tag charging">蓄力中</span>
+              <span v-if="unit.defending" class="status-tag defending">防御</span>
+            </div>
+
+            <!-- 行动面板：仅存活上场且战斗未结束 -->
+            <div v-if="unit.alive && unit.active && !snapshot.finished" class="action-panel">
+              <div class="action-label">
+                <template v-if="battleStore.getAction(unit.unitId)">
+                  已选择：
+                  <template v-if="battleStore.getAction(unit.unitId)!.type === 'SKILL'">
+                    {{ battleStore.skillName(battleStore.getAction(unit.unitId)!.skillId) }}
+                  </template>
+                  <template v-else-if="battleStore.getAction(unit.unitId)!.type === 'SWITCH'">换宠</template>
+                  <template v-else>防御</template>
+                </template>
+                <template v-else>选择行动</template>
+              </div>
+              <div class="skill-buttons">
+                <button
+                  v-for="skillId in unit.skillIds"
+                  :key="skillId"
+                  class="skill-btn"
+                  :disabled="battleStore.loading || cooldownOf(unit, skillId) > 0"
+                  :title="battleStore.skillIndex[skillId]?.description ?? ''"
+                  @click="handleSkillClick(unit, skillId)"
+                >
+                  {{ battleStore.skillName(skillId) }}
+                  <span v-if="cooldownOf(unit, skillId) > 0" class="cooldown-tag">
+                    CD{{ cooldownOf(unit, skillId) }}
+                  </span>
+                </button>
+                <button class="skill-btn defend" :disabled="battleStore.loading" @click="handleDefend(unit)">
+                  防御
+                </button>
+              </div>
+              <!-- 换宠：存在存活候补时可用 -->
+              <div v-if="playerBench.length > 0" class="switch-row">
+                <button
+                  v-for="bench in playerBench"
+                  :key="bench.unitId"
+                  class="skill-btn switch"
+                  :disabled="battleStore.loading"
+                  @click="handleSwitch(unit, bench)"
+                >
+                  换上 {{ bench.name }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 回合提交 -->
+      <div v-if="!snapshot.finished" class="turn-actions">
+        <button class="btn-primary" :disabled="battleStore.loading" @click="battleStore.submitActions()">
+          {{ battleStore.loading ? '结算中...' : '结束回合' }}
+        </button>
+        <span class="turn-hint">未选择行动的宠物将自动防御</span>
+      </div>
+      <p v-if="battleStore.error" class="error-text">{{ battleStore.error }}</p>
+
+      <!-- 事件日志 -->
+      <div class="event-log">
+        <h3>战斗记录</h3>
+        <div class="log-list">
+          <p v-for="(line, index) in battleStore.eventLog" :key="index" class="log-line">{{ line }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.battle-view {
+  padding: 24px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.start-panel {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  text-align: center;
+  box-shadow: var(--shadow-1);
+}
+
+.panel-title {
+  font-size: 20px;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+
+.panel-desc {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.seed-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.seed-row input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.battle-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.round-badge {
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.order-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  margin: 8px 0;
+  background-color: var(--bg-main);
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.order-label {
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.order-chip {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: #e8f1ff;
+  color: #2b5fa8;
+}
+
+.order-chip.enemy {
+  background-color: #ffecec;
+  color: #a83a2b;
+}
+
+.result-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #fff;
+}
+
+.result-badge.win { background-color: #7ED321; }
+.result-badge.lose { background-color: #d32f2f; }
+
+.side-section h3 {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.unit-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.unit-card {
+  flex: 1;
+  min-width: 180px;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: var(--shadow-1);
+  transition: opacity 0.2s;
+}
+
+.unit-card.dead {
+  opacity: 0.45;
+}
+
+.unit-card.bench {
+  opacity: 0.7;
+  border: 1px dashed #ccc;
+}
+
+.unit-card.clickable {
+  cursor: pointer;
+  outline: 2px solid var(--color-primary);
+}
+
+.unit-name {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.unit-element {
+  font-size: 12px;
+  color: var(--color-primary);
+  margin-left: 4px;
+}
+
+.unit-level {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.hp-bar {
+  height: 8px;
+  background-color: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.hp-fill {
+  height: 100%;
+  background-color: #7ED321;
+  transition: width 0.3s;
+}
+
+.unit-hp {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 20px;
+}
+
+.status-tag {
+  font-size: 11px;
+  background-color: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.status-tag.charging { background-color: #fff3cd; color: #856404; }
+.status-tag.defending { background-color: #d1ecf1; color: #0c5460; }
+
+.targeting-hint {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 13px;
+}
+
+.action-panel {
+  margin-top: 8px;
+  border-top: 1px solid #eee;
+  padding-top: 8px;
+}
+
+.action-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.skill-buttons, .switch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.skill-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+  background-color: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.skill-btn:disabled {
+  background-color: #bbb;
+  cursor: not-allowed;
+}
+
+.skill-btn.defend { background-color: #4A90D9; }
+.skill-btn.switch { background-color: #8e8e93; }
+
+.cooldown-tag {
+  margin-left: 4px;
+  font-size: 10px;
+  background-color: rgba(0, 0, 0, 0.25);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.turn-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.turn-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.event-log {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: var(--shadow-1);
+}
+
+.event-log h3 {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.log-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.log-line {
+  font-size: 12px;
+  color: var(--text-primary);
+  padding: 2px 0;
+}
+
+.btn-primary {
+  padding: 10px 28px;
+  background-color: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary.small {
+  padding: 6px 16px;
+  background-color: var(--bg-secondary, #f0f0f0);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.error-text {
+  margin-top: 12px;
+  color: #d32f2f;
+  font-size: 14px;
+  text-align: center;
+}
+</style>

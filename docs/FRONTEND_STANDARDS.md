@@ -153,3 +153,14 @@ frontend/
 - 后端 Spring Boot 本地启动（端口 8080）。
 - Vite 代理 `/api` 请求到后端 `http://localhost:8080`。
 - 正式构建产物打入 Spring Boot 静态资源，输出单个 `pet-game.jar`。
+
+---
+
+## 12. 战斗页面约定（阶段 3 起）
+
+- 战斗类型定义集中在 `src/types/battle.ts`（`UnitSnapshot` / `BattleEvent` / `BattleSnapshot` / `BattleAction`），与后端 DTO 对齐。
+- 战斗状态集中在 `stores/battle.ts`（`useBattleStore`）：快照、待提交行动、事件日志；页面组件不自行持有战斗数据。
+- **前端只提交行动意图**（SKILL/DEFEND/SWITCH + 目标），伤害/暴击/克制等结果一律以快照中的事件为准；未选行动的宠物由后端默认防御。
+- 事件展示：后端返回事件序列（`BattleEventType`），Store 负责把事件翻译为中文日志，后续接入 Phaser 表现时仍沿用「后端事件 → 前端播放」模型。
+- 当前 `/battle` 为 Vue 基础战斗页面（阶段 3 范围）；Phaser BattleScene 表现层在后续阶段接入，不在本页面内实现动画计算。
+- 技能名称等展示内容通过配置查询接口（`/api/game/config/skills`）获取，不在前端硬编码内容配置。

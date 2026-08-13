@@ -1,0 +1,288 @@
+# ============================================================
+# 宠物精灵游戏 - 技能配置（阶段 3 战斗引擎核心）
+# ============================================================
+# 技能配置驱动：引擎不针对具体技能 ID 写分支。
+# 效果 = 基础值 + 多个属性系数；支持多效果组合与蓄力。
+# element 允许 NONE（无属性：无克制、无本属性加成）。
+# ============================================================
+
+configVersion: 1
+
+skills:
+  # ---------- 玩家初始宠物技能 ----------
+
+  - id: SKILL_TACKLE
+    name: 撞击
+    description: 无属性基础物理攻击。
+    element: NONE
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 30
+    scaling: { strength: 0.8 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_FIRE_CLAW
+    name: 烈焰爪
+    description: 火属性物理攻击，20% 概率灼烧目标。
+    element: FIRE
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 50
+    scaling: { strength: 1.25 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: BURN, chance: 0.20 }
+
+  - id: SKILL_FLAME_BURST
+    name: 烈焰爆发
+    description: 火属性群体法术攻击。
+    element: FIRE
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 30
+    scaling: { spirit: 0.80 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_METEOR_FALL
+    name: 陨星坠
+    description: 蓄力 1 回合的火属性强力单体法术。
+    element: FIRE
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 80
+    scaling: { spirit: 1.50 }
+    cooldown: 3
+    accuracy: 0.90
+    chargeTurns: 1
+
+  - id: SKILL_WATER_PULSE
+    name: 汐涌
+    description: 水属性法术攻击，30% 概率浸湿目标。
+    element: WATER
+    rarity: NORMAL
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 45
+    scaling: { spirit: 1.10 }
+    cooldown: 0
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: SOAK, chance: 0.30 }
+
+  - id: SKILL_HEAL_LIGHT
+    name: 治愈之光
+    description: 治疗己方单体。
+    element: WATER
+    rarity: NORMAL
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_SINGLE
+    baseValue: 30
+    scaling: { spirit: 1.20 }
+    cooldown: 1
+    accuracy: 1.0
+
+  - id: SKILL_VINE_WHIP
+    name: 藤鞭
+    description: 木属性物理攻击。
+    element: WOOD
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 40
+    scaling: { strength: 1.00 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_ENTANGLE
+    name: 缠绕
+    description: 80% 概率缠绕敌方单体，使其无法行动。
+    element: WOOD
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 0.85
+    effects:
+      - { type: APPLY_STATUS, statusId: ROOT, chance: 0.80 }
+
+  - id: SKILL_POISON_STING
+    name: 毒刺
+    description: 物理攻击并 40% 概率使目标中毒。
+    element: WOOD
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 25
+    scaling: { strength: 0.70 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: POISON, chance: 0.40 }
+
+  # ---------- 通用功能技能 ----------
+
+  - id: SKILL_ROCK_SHIELD
+    name: 岩盾
+    description: 为自身附加护盾（不再套用防御二次减伤）。
+    element: EARTH
+    rarity: NORMAL
+    damageType: NONE
+    effectType: SHIELD
+    target: SELF
+    baseValue: 50
+    scaling: { defense: 1.50 }
+    cooldown: 2
+    accuracy: 1.0
+
+  - id: SKILL_BATTLE_CRY
+    name: 战吼
+    description: 提升己方全体攻击力 2 回合。
+    element: NONE
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: ALLY_ALL
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: ATK_UP, chance: 1.0 }
+
+  - id: SKILL_GUARD_ALLY
+    name: 援护
+    description: 援护己方单体，替其承担部分单体伤害。
+    element: NONE
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: ALLY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: GUARD, chance: 1.0 }
+
+  - id: SKILL_THUNDER_STRIKE
+    name: 雷击
+    description: 雷属性法术攻击，对浸湿目标触发联动增伤。
+    element: THUNDER
+    rarity: NORMAL
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 45
+    scaling: { spirit: 1.10 }
+    cooldown: 1
+    accuracy: 0.95
+
+  - id: SKILL_SILENT_FOG
+    name: 沉默之雾
+    description: 70% 概率沉默敌方单体。
+    element: DARK
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 0.90
+    effects:
+      - { type: APPLY_STATUS, statusId: SILENCE, chance: 0.70 }
+
+  # ---------- 敌方技能 ----------
+
+  - id: SKILL_ENEMY_BITE
+    name: 撕咬
+    description: 敌方基础物理攻击。
+    element: NONE
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 6
+    scaling: { strength: 0.20 }
+    cooldown: 0
+    accuracy: 1.0
+
+  - id: SKILL_ENEMY_SPIT
+    name: 飞叶
+    description: 敌方木属性法术攻击。
+    element: WOOD
+    rarity: NORMAL
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 5
+    scaling: { spirit: 0.20 }
+    cooldown: 0
+    accuracy: 0.95
+
+  - id: SKILL_ENEMY_GUST
+    name: 旋风
+    description: 敌方风属性法术攻击。
+    element: WIND
+    rarity: NORMAL
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 5
+    scaling: { spirit: 0.20 }
+    cooldown: 0
+    accuracy: 0.95
+
+  - id: SKILL_ENEMY_HARDEN
+    name: 硬化
+    description: 敌方提升自身防御。
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 2
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: DEF_UP, chance: 1.0 }
+
+# ---------- 被动技能 ----------
+
+passives:
+  - id: PASSIVE_UNYIELDING
+    name: 不屈
+    description: 第一次受到致命伤害时保留 1 点生命。
+    trigger: ON_HIT_TAKEN
+    effectType: SURVIVE_LETHAL
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_TAILWIND
+    name: 顺风
+    description: 登场后全队速度提升 1 回合。
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: SPD_UP
+
+  - id: PASSIVE_EMBER
+    name: 余烬
+    description: 倒下时对敌方随机目标造成火属性伤害。
+    trigger: ON_DEATH
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: FIRE
+    value: 10
+    spiritScale: 0.20

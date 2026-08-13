@@ -12,6 +12,7 @@
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>
         <RouterLink to="/explore">探索</RouterLink>
+        <RouterLink to="/battle">战斗</RouterLink>
         <RouterLink to="/pets">宠物</RouterLink>
         <RouterLink to="/team">队伍</RouterLink>
         <RouterLink to="/pokedex">图鉴</RouterLink>
