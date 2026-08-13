@@ -1,0 +1,610 @@
+# ============================================================
+# 宠物精灵游戏 - 任务配置（阶段 9）
+# ============================================================
+# 主线任务驱动区域推进直至通关；支线提供轻量目标并可永久改变地图；
+# 隐藏任务未触发前不显示。条件类型为有限枚举，不建通用脚本引擎。
+# 目标类型：DIALOGUE / GATHER / CAPTURE / DEFEAT / DEFEAT_BOSS / ARRIVE
+# ============================================================
+
+configVersion: 1
+
+# ==================== 任务列表 ====================
+quests:
+
+  # ==================== 主线（12 节点） ====================
+
+  # --- 青草原线 ---
+  - id: QUEST_MAIN_01
+    name: 异常的预兆
+    type: MAIN
+    description: 村长提到青草原上出现了异常的宠物活动，前去调查。
+    regionId: MAP_AREA_MEADOW
+    prerequisiteQuestId: null
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_01_1, type: DIALOGUE, targetId: NPC_VILLAGE_ELDER, targetCount: 1, description: 与村长对话 }
+      - { objectiveId: OBJ_01_2, type: ARRIVE, targetId: MAP_AREA_MEADOW, targetCount: 1, description: 前往青草原 }
+      - { objectiveId: OBJ_01_3, type: DEFEAT, targetId: PET_WOOD_001, targetCount: 3, regionId: MAP_AREA_MEADOW, description: 击败 3 只草原宠物 }
+      - { objectiveId: OBJ_01_4, type: DIALOGUE, targetId: NPC_MEADOW_SCOUT, targetCount: 1, description: 与草原巡逻员对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 200 }
+        - { type: EXP, quantity: 500 }
+        - { type: ITEM, itemId: ITEM_POTION_MEDIUM, quantity: 5 }
+
+  - id: QUEST_MAIN_02
+    name: 草原守卫
+    type: MAIN
+    description: 击败青草原的守护者，证明你的实力。
+    regionId: MAP_AREA_MEADOW
+    prerequisiteQuestId: QUEST_MAIN_01
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_02_1, type: DEFEAT_BOSS, targetId: BOSS_MEADOW_GUARDIAN, targetCount: 1, description: 击败草原守卫·岩甲犀 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 500 }
+        - { type: EXP, quantity: 1000 }
+      choices:
+        - choiceId: CHOICE_02_1
+          options:
+            - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 10 }
+            - { type: ITEM, itemId: ITEM_REVIVE, quantity: 3 }
+            - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 5 }
+
+  # --- 翠树林线 ---
+  - id: QUEST_MAIN_03
+    name: 深入翠树林
+    type: MAIN
+    description: 草原的异常似乎与翠树林深处的变化有关，前去调查。
+    regionId: MAP_AREA_FOREST
+    prerequisiteQuestId: QUEST_MAIN_02
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_03_1, type: ARRIVE, targetId: MAP_AREA_FOREST, targetCount: 1, description: 进入翠树林 }
+      - { objectiveId: OBJ_03_2, type: CAPTURE, targetId: PET_WOOD_003, targetCount: 1, description: 捕获 1 只翠树林宠物 }
+      - { objectiveId: OBJ_03_3, type: GATHER, targetId: GATHER_FOREST_1, targetCount: 2, description: 在翠树林采集 2 次 }
+      - { objectiveId: OBJ_03_4, type: DIALOGUE, targetId: NPC_FOREST_HERMIT, targetCount: 1, description: 与森林隐士对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 300 }
+        - { type: EXP, quantity: 800 }
+
+  - id: QUEST_MAIN_04
+    name: 森林之王
+    type: MAIN
+    description: 挑战翠树林的守护者，揭开异常的真相。
+    regionId: MAP_AREA_FOREST
+    prerequisiteQuestId: QUEST_MAIN_03
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_04_1, type: DEFEAT_BOSS, targetId: BOSS_FOREST_KING, targetCount: 1, description: 击败森林之王·翠牙狼 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 800 }
+        - { type: EXP, quantity: 1500 }
+      choices:
+        - choiceId: CHOICE_04_1
+          options:
+            - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 5 }
+            - { type: ITEM, itemId: ITEM_REVIVE, quantity: 5 }
+            - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 8 }
+    # 击败森林 Boss 后解锁水域和雷域（并行分支）
+    unlockRegionId: MAP_AREA_WATERS,MAP_AREA_THUNDER
+
+  # --- 水域分支 ---
+  - id: QUEST_MAIN_05
+    name: 水脉之源
+    type: MAIN
+    description: 森林隐士提到了静水湖域的异常，前往调查水源的变化。
+    regionId: MAP_AREA_WATERS
+    prerequisiteQuestId: QUEST_MAIN_04
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_05_1, type: ARRIVE, targetId: MAP_AREA_WATERS, targetCount: 1, description: 到达静水湖域 }
+      - { objectiveId: OBJ_05_2, type: CAPTURE, targetId: PET_WATER_003, targetCount: 1, description: 捕获 1 只水域宠物 }
+      - { objectiveId: OBJ_05_3, type: DEFEAT, targetId: PET_WATER_002, targetCount: 5, regionId: MAP_AREA_WATERS, description: 击败 5 只水域宠物 }
+      - { objectiveId: OBJ_05_4, type: DIALOGUE, targetId: NPC_WATERS_KEEPER, targetCount: 1, description: 与湖域守护者对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 500 }
+        - { type: EXP, quantity: 1200 }
+      choices:
+        - choiceId: CHOICE_05_1
+          options:
+            - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 3 }
+            - { type: ITEM, itemId: ITEM_REVIVE, quantity: 5 }
+            - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 8 }
+
+  - id: QUEST_MAIN_07
+    name: 湖泊守卫者
+    type: MAIN
+    description: 挑战静水湖域的守护者，净化水脉的异常。
+    regionId: MAP_AREA_WATERS
+    prerequisiteQuestId: QUEST_MAIN_05
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_07_1, type: DEFEAT_BOSS, targetId: BOSS_WATERS_GUARDIAN, targetCount: 1, description: 击败湖域守护者·潮汐蟒 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 1000 }
+        - { type: EXP, quantity: 2000 }
+
+  # --- 雷属性分支 ---
+  - id: QUEST_MAIN_06
+    name: 雷鸣的呼唤
+    type: MAIN
+    description: 翠树林的古老石碑指引你前往雷鸣高地，探寻雷之力量的源头。
+    regionId: MAP_AREA_THUNDER
+    prerequisiteQuestId: QUEST_MAIN_04
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_06_1, type: ARRIVE, targetId: MAP_AREA_THUNDER, targetCount: 1, description: 到达雷鸣高地 }
+      - { objectiveId: OBJ_06_2, type: GATHER, targetId: GATHER_THUNDER_1, targetCount: 3, description: 在雷鸣高地采集 3 次 }
+      - { objectiveId: OBJ_06_3, type: CAPTURE, targetId: PET_THUNDER_003, targetCount: 1, description: 捕获 1 只雷属性宠物 }
+      - { objectiveId: OBJ_06_4, type: DIALOGUE, targetId: NPC_THUNDER_SAGE, targetCount: 1, description: 与雷鸣贤者对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 500 }
+        - { type: EXP, quantity: 1200 }
+      choices:
+        - choiceId: CHOICE_06_1
+          options:
+            - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 3 }
+            - { type: ITEM, itemId: ITEM_REVIVE, quantity: 5 }
+            - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 8 }
+
+  - id: QUEST_MAIN_08
+    name: 雷霆之主
+    type: MAIN
+    description: 挑战雷鸣高地的守护者，平息雷霆的暴走。
+    regionId: MAP_AREA_THUNDER
+    prerequisiteQuestId: QUEST_MAIN_06
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_08_1, type: DEFEAT_BOSS, targetId: BOSS_THUNDER_GUARDIAN, targetCount: 1, description: 击败雷霆之主·紫电龙 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 1000 }
+        - { type: EXP, quantity: 2000 }
+
+  # --- 最终遗迹 ---
+  - id: QUEST_MAIN_09
+    name: 遗迹之门
+    type: MAIN
+    description: 水脉与雷霆的力量已净化，远古遗迹的大门向你敞开。
+    regionId: MAP_AREA_RUINS
+    # 需要同时完成水域和雷域的 Boss
+    prerequisiteQuestId: QUEST_MAIN_07,QUEST_MAIN_08
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_09_1, type: ARRIVE, targetId: MAP_AREA_RUINS, targetCount: 1, description: 进入远古遗迹 }
+      - { objectiveId: OBJ_09_2, type: DIALOGUE, targetId: NPC_RUINS_GUIDE, targetCount: 1, description: 与遗迹向导对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 500 }
+        - { type: EXP, quantity: 1500 }
+    unlockRegionId: MAP_AREA_RUINS
+
+  - id: QUEST_MAIN_10
+    name: 遗迹探索
+    type: MAIN
+    description: 深入遗迹内部，揭开远古文明的秘密。
+    regionId: MAP_AREA_RUINS
+    prerequisiteQuestId: QUEST_MAIN_09
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_10_1, type: DEFEAT, targetId: PET_DARK_003, targetCount: 5, regionId: MAP_AREA_RUINS, description: 击败 5 只遗迹宠物 }
+      - { objectiveId: OBJ_10_2, type: GATHER, targetId: GATHER_RUINS_1, targetCount: 3, description: 在遗迹采集 3 次 }
+      - { objectiveId: OBJ_10_3, type: CAPTURE, targetId: PET_DARK_002, targetCount: 1, description: 捕获 1 只遗迹宠物 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 800 }
+        - { type: EXP, quantity: 2000 }
+
+  - id: QUEST_MAIN_11
+    name: 远古守护者
+    type: MAIN
+    description: 最终的考验——击败远古遗迹的守护者，完成第一阶段冒险。
+    regionId: MAP_AREA_RUINS
+    prerequisiteQuestId: QUEST_MAIN_10
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_11_1, type: DEFEAT_BOSS, targetId: BOSS_RUINS_GUARDIAN, targetCount: 1, description: 击败远古守护者·冥渊龙 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 3000 }
+        - { type: EXP, quantity: 5000 }
+      choices:
+        - choiceId: CHOICE_11_1
+          options:
+            - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 10 }
+            - { type: ITEM, itemId: ITEM_REVIVE, quantity: 10 }
+            - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 15 }
+      giftPet:
+        speciesId: PET_LIGHT_002
+        level: 25
+        aptitudeAll: 80
+        skills: [SKILL_HOLY_LIGHT, SKILL_HEAL_LIGHT, SKILL_LIGHT_RADIANCE, SKILL_LEAVE_AT_ONE_HP]
+        source: QUEST_GIFT
+
+  - id: QUEST_MAIN_12
+    name: 旅途的终点与新的开始
+    type: MAIN
+    description: 远古守护者已被击败，但冒险远未结束。更难的挑战、更多的收集等待着你。
+    regionId: MAP_AREA_RUINS
+    prerequisiteQuestId: QUEST_MAIN_11
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_12_1, type: DIALOGUE, targetId: NPC_RUINS_GUIDE, targetCount: 1, description: 与遗迹向导对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 1000 }
+        - { type: EXP, quantity: 3000 }
+
+  # ==================== 支线（10 个） ====================
+
+  - id: QUEST_SIDE_01
+    name: 迷失的旅人
+    type: SIDE
+    description: 在青草原找到迷路的旅人并护送回营地。
+    regionId: MAP_AREA_MEADOW
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S01_1, type: DIALOGUE, targetId: NPC_LOST_TRAVELER, targetCount: 1, description: 与迷路旅人对话 }
+      - { objectiveId: OBJ_S01_2, type: ARRIVE, targetId: MAP_START_VILLAGE, targetCount: 1, description: 返回晨曦村 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 150 }
+        - { type: ITEM, itemId: ITEM_POTION_SMALL, quantity: 5 }
+    mapChanges:
+      - { changeId: MAP_CHANGE_MEADOW_SHORTCUT, changeType: OPEN_SHORTCUT, regionId: MAP_AREA_MEADOW, description: 开放青草原捷径, objectId: SHORTCUT_MEADOW_1 }
+
+  - id: QUEST_SIDE_02
+    name: 森林商路
+    type: SIDE
+    description: 清理翠树林的商路障碍，让旅行商人能够通行。
+    regionId: MAP_AREA_FOREST
+    prerequisiteQuestId: QUEST_MAIN_03
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S02_1, type: DEFEAT, targetId: PET_DARK_001, targetCount: 3, regionId: MAP_AREA_FOREST, description: 击败 3 只阻塞商路的宠物 }
+      - { objectiveId: OBJ_S02_2, type: DIALOGUE, targetId: NPC_FOREST_HERMIT, targetCount: 1, description: 向森林隐士报告 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 300 }
+    mapChanges:
+      - { changeId: MAP_CHANGE_FOREST_MERCHANT, changeType: ADD_MERCHANT, regionId: MAP_AREA_FOREST, description: 翠树林出现旅行商人, objectId: NPC_FOREST_MERCHANT }
+
+  - id: QUEST_SIDE_03
+    name: 断桥修复
+    type: SIDE
+    description: 收集材料修复翠树林的断桥，打通新的通路。
+    regionId: MAP_AREA_FOREST
+    prerequisiteQuestId: QUEST_MAIN_03
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S03_1, type: GATHER, targetId: GATHER_FOREST_2, targetCount: 3, description: 在翠树林采集 3 次蘑菇 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 200 }
+        - { type: ITEM, itemId: ITEM_POTION_MEDIUM, quantity: 3 }
+    mapChanges:
+      - { changeId: MAP_CHANGE_FOREST_BRIDGE, changeType: REPAIR_ROAD, regionId: MAP_AREA_FOREST, description: 修复翠树林断桥, objectId: BRIDGE_FOREST_1 }
+
+  - id: QUEST_SIDE_04
+    name: 草原药草收集
+    type: SIDE
+    description: 晨曦村的药师需要大量草药来制作恢复药。
+    regionId: MAP_AREA_MEADOW
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S04_1, type: GATHER, targetId: GATHER_MEADOW_1, targetCount: 3, description: 在青草原采集 3 次草药 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 100 }
+        - { type: ITEM, itemId: ITEM_POTION_SMALL, quantity: 10 }
+
+  - id: QUEST_SIDE_05
+    name: 捕获大师
+    type: SIDE
+    description: 证明你的捕捉技术——捕获不同种类的宠物。
+    regionId: MAP_AREA_MEADOW
+    prerequisiteQuestId: QUEST_MAIN_01
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S05_1, type: CAPTURE, targetId: PET_WOOD_001, targetCount: 1, description: 捕获 1 只藤梦鹿 }
+      - { objectiveId: OBJ_S05_2, type: CAPTURE, targetId: PET_FIRE_001, targetCount: 1, description: 捕获 1 只烬牙兽 }
+      - { objectiveId: OBJ_S05_3, type: CAPTURE, targetId: PET_WATER_001, targetCount: 1, description: 捕获 1 只汐月灵 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 300 }
+        - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+      choices:
+        - choiceId: CHOICE_S05_1
+          options:
+            - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 2 }
+            - { type: ITEM, itemId: ITEM_REVIVE, quantity: 3 }
+            - { type: ITEM, itemId: ITEM_POTION_MEDIUM, quantity: 8 }
+
+  - id: QUEST_SIDE_06
+    name: 水域生态调查
+    type: SIDE
+    description: 调查静水湖域的生态变化，记录不同种类的宠物。
+    regionId: MAP_AREA_WATERS
+    prerequisiteQuestId: QUEST_MAIN_05
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S06_1, type: CAPTURE, targetId: PET_WATER_002, targetCount: 1, description: 捕获 1 只涟歌灵 }
+      - { objectiveId: OBJ_S06_2, type: DEFEAT, targetId: PET_WATER_001, targetCount: 3, regionId: MAP_AREA_WATERS, description: 击败 3 只水域宠物 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 400 }
+        - { type: EXP, quantity: 800 }
+    mapChanges:
+      - { changeId: MAP_CHANGE_WATERS_CAMP, changeType: OPEN_RESTORE_POINT, regionId: MAP_AREA_WATERS, description: 开放静水湖域恢复点, objectId: CAMP_WATERS_EXTRA }
+
+  - id: QUEST_SIDE_07
+    name: 雷电矿石
+    type: SIDE
+    description: 雷鸣高地的特殊矿石是制作强力装备的关键材料。
+    regionId: MAP_AREA_THUNDER
+    prerequisiteQuestId: QUEST_MAIN_06
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S07_1, type: GATHER, targetId: GATHER_THUNDER_2, targetCount: 3, description: 在雷鸣高地采集 3 次矿石 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 400 }
+        - { type: EXP, quantity: 600 }
+    mapChanges:
+      - { changeId: MAP_CHANGE_THUNDER_SHORTCUT, changeType: OPEN_SHORTCUT, regionId: MAP_AREA_THUNDER, description: 开放雷鸣高地捷径, objectId: SHORTCUT_THUNDER_1 }
+
+  - id: QUEST_SIDE_08
+    name: 遗迹守望者
+    type: SIDE
+    description: 在远古遗迹中找到守望者的遗物，了解遗迹的历史。
+    regionId: MAP_AREA_RUINS
+    prerequisiteQuestId: QUEST_MAIN_09
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S08_1, type: GATHER, targetId: GATHER_RUINS_2, targetCount: 2, description: 在遗迹搜索 2 次遗物 }
+      - { objectiveId: OBJ_S08_2, type: DIALOGUE, targetId: NPC_RUINS_GUIDE, targetCount: 1, description: 将遗物交给遗迹向导 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 600 }
+        - { type: EXP, quantity: 1000 }
+
+  - id: QUEST_SIDE_09
+    name: 全属性收集
+    type: SIDE
+    description: 收集所有 9 种属性的宠物，成为真正的宠物大师。
+    regionId: MAP_START_VILLAGE
+    prerequisiteQuestId: QUEST_MAIN_04
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S09_1, type: CAPTURE, targetId: PET_METAL_001, targetCount: 1, description: 捕获 1 只金属属性宠物 }
+      - { objectiveId: OBJ_S09_2, type: CAPTURE, targetId: PET_WOOD_001, targetCount: 1, description: 捕获 1 只木属性宠物 }
+      - { objectiveId: OBJ_S09_3, type: CAPTURE, targetId: PET_WATER_001, targetCount: 1, description: 捕获 1 只水属性宠物 }
+      - { objectiveId: OBJ_S09_4, type: CAPTURE, targetId: PET_FIRE_001, targetCount: 1, description: 捕获 1 只火属性宠物 }
+      - { objectiveId: OBJ_S09_5, type: CAPTURE, targetId: PET_EARTH_001, targetCount: 1, description: 捕获 1 只地属性宠物 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 500 }
+        - { type: EXP, quantity: 1500 }
+      choices:
+        - choiceId: CHOICE_S09_1
+          options:
+            - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 5 }
+            - { type: ITEM, itemId: ITEM_REVIVE, quantity: 5 }
+            - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 10 }
+
+  - id: QUEST_SIDE_10
+    name: 训练师的日常
+    type: SIDE
+    description: 完成日常训练，提升队伍实力。
+    regionId: MAP_START_VILLAGE
+    prerequisiteQuestId: QUEST_MAIN_02
+    hidden: false
+    objectives:
+      - { objectiveId: OBJ_S10_1, type: DEFEAT, targetId: PET_WOOD_001, targetCount: 10, description: 击败 10 只任意宠物 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 300 }
+        - { type: EXP, quantity: 800 }
+
+  # ==================== 隐藏任务（3 个） ====================
+
+  - id: QUEST_HIDDEN_01
+    name: 月下之影
+    type: HIDDEN
+    description: 翠树林深处似乎隐藏着一个神秘的存在……
+    regionId: MAP_AREA_FOREST
+    hidden: true
+    trigger:
+      triggerType: LOCATION
+      triggerTarget: MAP_AREA_FOREST
+      triggerCount: 5
+    prerequisiteQuestId: QUEST_MAIN_03
+    objectives:
+      - { objectiveId: OBJ_H01_1, type: DIALOGUE, targetId: NPC_SHADOW_SPIRIT, targetCount: 1, description: 与神秘影子对话 }
+      - { objectiveId: OBJ_H01_2, type: DEFEAT, targetId: PET_DARK_003, targetCount: 3, regionId: MAP_AREA_FOREST, description: 击败 3 只暗属性宠物 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 800 }
+        - { type: EXP, quantity: 1500 }
+      giftPet:
+        speciesId: PET_DARK_003
+        level: 20
+        aptitudeAll: 80
+        skills: [SKILL_SHADOW_BALL, SKILL_CURSE, SKILL_QUICK_ATTACK, SKILL_LEAVE_AT_ONE_HP]
+        source: QUEST_GIFT
+
+  - id: QUEST_HIDDEN_02
+    name: 传说之证
+    type: HIDDEN
+    description: 拥有传说级宠物的训练师，将获得远古的祝福。
+    regionId: MAP_START_VILLAGE
+    hidden: true
+    trigger:
+      triggerType: PET
+      triggerTarget: PET_LIGHT_003
+      triggerCount: 1
+    objectives:
+      - { objectiveId: OBJ_H02_1, type: DIALOGUE, targetId: NPC_VILLAGE_ELDER, targetCount: 1, description: 带着传说宠物与村长对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 2000 }
+        - { type: EXP, quantity: 3000 }
+        - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 5 }
+
+  - id: QUEST_HIDDEN_03
+    name: 古老密语
+    type: HIDDEN
+    description: 反复与森林隐士交谈，或许能听到一些不为人知的秘密……
+    regionId: MAP_AREA_FOREST
+    hidden: true
+    trigger:
+      triggerType: DIALOGUE_COUNT
+      triggerTarget: NPC_FOREST_HERMIT
+      triggerCount: 3
+    prerequisiteQuestId: QUEST_MAIN_04
+    objectives:
+      - { objectiveId: OBJ_H03_1, type: DIALOGUE, targetId: NPC_FOREST_HERMIT, targetCount: 1, description: 再次与森林隐士对话 }
+    rewards:
+      fixed:
+        - { type: GOLD, quantity: 500 }
+        - { type: EXP, quantity: 1000 }
+        - { type: ITEM, itemId: ITEM_REVIVE, quantity: 5 }
+
+# ==================== NPC 对话配置 ====================
+npcs:
+  - npcId: NPC_VILLAGE_ELDER
+    name: 村长
+    regionId: MAP_START_VILLAGE
+    dialogues:
+      - { nodeId: INTRO, text: 年轻的训练师，欢迎来到晨曦村。最近青草原上出现了异常的宠物活动，你能去调查一下吗？, nextNode: DETAIL }
+      - { nodeId: DETAIL, text: 据说有些宠物的行为变得暴躁，似乎在守护着什么。去青原找巡逻员了解更多情况吧。, nextNode: null }
+
+  - npcId: NPC_MEADOW_SCOUT
+    name: 草原巡逻员
+    regionId: MAP_AREA_MEADOW
+    dialogues:
+      - { nodeId: INTRO, text: 你也被派来调查了？这些宠物的异常不是偶然的，似乎有更强的力量在幕后操纵。, nextNode: DETAIL }
+      - { nodeId: DETAIL, text: 草原深处的守卫者——岩甲犀，最近也变得异常活跃。也许击败它能找到答案。, nextNode: null }
+
+  - npcId: NPC_FOREST_HERMIT
+    name: 森林隐士
+    regionId: MAP_AREA_FOREST
+    dialogues:
+      - { nodeId: INTRO, text: 哦？你居然能走到这里来。翠树林的深处已经很久没有外人踏足了。, nextNode: DETAIL }
+      - { nodeId: DETAIL, text: 森林之王——翠牙狼，是这片林地的守护者。它的力量源于自然本身。如果你能战胜它，或许能打开更远的道路。, nextNode: EXTRA }
+      - { nodeId: EXTRA, text: 顺便说一句，静水湖域和雷鸣高地那边，最近也不太平静。你可能需要去那边看看。, nextNode: null }
+
+  - npcId: NPC_WATERS_KEEPER
+    name: 湖域守护者
+    regionId: MAP_AREA_WATERS
+    dialogues:
+      - { nodeId: INTRO, text: 你来了。水脉的异动已经持续了很久，湖底的守护者已经变得暴躁不安。, nextNode: DETAIL }
+      - { nodeId: DETAIL, text: 潮汐蟒是这片水域的守护灵兽。只有击败它，才能净化水脉的异常。准备好了吗？, nextNode: null }
+
+  - npcId: NPC_THUNDER_SAGE
+    name: 雷鸣贤者
+    regionId: MAP_AREA_THUNDER
+    dialogues:
+      - { nodeId: INTRO, text: 雷鸣高地的雷电已经失控了。紫电龙——这片土地的主宰，正在暴走。, nextNode: DETAIL }
+      - { nodeId: DETAIL, text: 你需要证明自己的实力才能平息它的怒火。收集雷鸣高地的资源，做好充分准备再来挑战。, nextNode: null }
+
+  - npcId: NPC_RUINS_GUIDE
+    name: 遗迹向导
+    regionId: MAP_AREA_RUINS
+    dialogues:
+      - { nodeId: INTRO, text: 终于有人来了。这座远古遗迹蕴含着超乎想象的力量，而守护者——冥渊龙正在最深处等待。, nextNode: DETAIL }
+      - { nodeId: DETAIL, text: 只有同时掌握水脉与雷霆之力的训练师，才有资格挑战最终守护者。去吧，证明你配得上这份荣耀。, nextNode: null }
+
+  - npcId: NPC_LOST_TRAVELER
+    name: 迷路旅人
+    regionId: MAP_AREA_MEADOW
+    dialogues:
+      - { nodeId: INTRO, text: 太好了！终于有人来了！我在草原迷路了好久，你能帮我指路回晨曦村吗？, nextNode: null }
+
+  - npcId: NPC_SHADOW_SPIRIT
+    name: 神秘影子
+    regionId: MAP_AREA_FOREST
+    dialogues:
+      - { nodeId: INTRO, text: ……你能看到我？很久没有人能看到我了。, nextNode: DETAIL }
+      - { nodeId: DETAIL, text: 我是这片森林的古老守护灵。如果你能证明自己的实力，我愿意成为你的伙伴。, nextNode: null }
+
+  - npcId: NPC_FOREST_MERCHANT
+    name: 旅行商人
+    regionId: MAP_AREA_FOREST
+    dialogues:
+      - { nodeId: INTRO, text: 感谢你清理了商路！现在我可以在这做生意了。以后欢迎常来！, nextNode: null }
+
+# ==================== 新手教学 ====================
+tutorials:
+  - stepId: TUT_MOVE
+    name: 移动操作
+    description: 使用方向键或 WASD 移动角色，探索这个世界。
+    triggerType: ARRIVE
+    triggerTarget: MAP_AREA_MEADOW
+    order: 1
+    skippable: true
+
+  - stepId: TUT_ENCOUNTER
+    name: 野生遭遇
+    description: 靠近野生宠物会触发战斗。使用技能击败对手来积累经验。
+    triggerType: DEFEAT
+    triggerTarget: "*"
+    order: 2
+    skippable: true
+
+  - stepId: TUT_CAPTURE
+    name: 捕捉宠物
+    description: 在野生战斗中使用捕捉球可以捕获宠物。HP 越低捕获率越高！
+    triggerType: CAPTURE
+    triggerTarget: "*"
+    order: 3
+    skippable: true
+    rewards:
+      - { type: SKILL_BOOK, itemId: ITEM_SKILL_BOOK_LEAVE_ALIVE, quantity: 1 }
+
+  - stepId: TUT_EXP_POOL
+    name: 经验池
+    description: 战斗获得的经验会进入公共经验池。你可以自由分配经验给任意宠物升级。
+    triggerType: DEFEAT
+    triggerTarget: "*"
+    order: 4
+    skippable: true
+
+  - stepId: TUT_FREE_POINTS
+    name: 自由加点
+    description: 每次升级会获得自由属性点。在宠物详情页分配点数来强化宠物。
+    triggerType: DEFEAT
+    triggerTarget: "*"
+    order: 5
+    skippable: true
+
+  - stepId: TUT_SKILLS
+    name: 技能系统
+    description: 宠物升级会自动学习新技能。在技能标签页装备或卸下技能。
+    triggerType: DEFEAT
+    triggerTarget: "*"
+    order: 6
+    skippable: true
+
+  - stepId: TUT_ELEMENTS
+    name: 属性克制
+    description: 9 种属性相互克制。克制时伤害 ×1.5，被克制时 ×0.75。合理搭配队伍很重要！
+    triggerType: DEFEAT
+    triggerTarget: "*"
+    order: 7
+    skippable: true
+
+  - stepId: TUT_TEAM
+    name: 队伍编成
+    description: 你可以携带最多 6 只宠物，其中 3 只上场战斗。在队伍页面调整阵容。
+    triggerType: CAPTURE
+    triggerTarget: "*"
+    order: 8
+    skippable: true

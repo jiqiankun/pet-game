@@ -12,12 +12,14 @@ import {
 import { useMapStore } from '../../stores/map'
 import { useBattleStore } from '../../stores/battle'
 import { useGameStore } from '../../stores/game'
+import { useQuestStore } from '../../stores/quest'
 import type { RewardResultView } from '../../types/map'
 
 const router = useRouter()
 const mapStore = useMapStore()
 const battleStore = useBattleStore()
 const gameStore = useGameStore()
+const questStore = useQuestStore()
 
 // ---- Phaser 实例 ----
 const phaserContainer = ref<HTMLElement | null>(null)
@@ -109,8 +111,8 @@ function registerBridgeHandlers() {
     gameBridge.on('boss:touch', (payload) => {
       router.push({ path: '/boss', query: { bossId: payload.id } })
     }),
-    gameBridge.on('npc:touch', () => {
-      showToast('NPC（占位）：对话与任务将在阶段 9 开放')
+    gameBridge.on('npc:touch', async (payload) => {
+      await questStore.talkNpc(payload.id)
     }),
     gameBridge.on('hidden:touch', () => {
       showToast('这里似乎藏着什么……（隐藏遭遇内容将在后续阶段开放）')

@@ -40,6 +40,16 @@ items:
     usableInBattle: true
     discardable: true
 
+  - id: ITEM_POTION_LARGE
+    name: 大型恢复药
+    description: 为一只宠物恢复 400 点生命值。
+    category: RECOVERY
+    itemType: HEAL_HP
+    value: 400
+    usableOutsideBattle: true
+    usableInBattle: true
+    discardable: true
+
   # ---------- 捕捉类（阶段 5：仅 3 档，需求 §48） ----------
   - id: ITEM_CAPTURE_BALL_NORMAL
     name: 普通捕捉球
@@ -70,3 +80,14 @@ items:
     usableOutsideBattle: false
     usableInBattle: true
     discardable: true
+
+  # ---------- 技能书（阶段 9 教学赠送入背包，阶段 10 正式学习使用） ----------
+  - id: ITEM_SKILL_BOOK_LEAVE_ALIVE
+    name: 技能书·留生一击
+    description: 学习后永久掌握【留生一击】技能。致死时将可捕捉目标 HP 保留为 1 并附加震慑。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false

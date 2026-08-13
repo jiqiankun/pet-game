@@ -577,3 +577,55 @@ config/model/SystemRuleConfig.PokedexRuleConfig  # 图鉴配置内部类（嵌�
 - 复合主键无 @TableId，insert/select via LambdaQueryWrapper。
 - 历史记录放生不清除。
 - 迁移文件 `V6__pokedex_tables.sql`，**禁止手工改表**。
+
+---
+
+## 20. 任务系统实现约定（阶段 9 起）
+
+### 20.1 配置驱动
+
+- 任务配置位于 `game-config/quests/quests.yml`，含主线 12 节点 + 支线 10 + 隐藏 3、NPC 对话约 10、教学 8 步。
+- `QuestsConfig` 模型：`QuestConfig`（id/name/type/description/prerequisiteQuestId/hidden/trigger/objectives/rewards/mapChanges）、`ObjectiveConfig`（type: DIALOGUE/GATHER/CAPTURE/DEFEAT/DEFEAT_BOSS/ARRIVE）、`RewardConfig`（fixed/choices/giftPet）、`HiddenTriggerConfig`（triggerType: LOCATION/PET/ITEM/DIALOGUE_COUNT）、`MapChangeConfig`（changeType: OPEN_SHORTCUT/ADD_MERCHANT/REPAIR_ROAD/OPEN_RESTORE_POINT）、`NpcConfig`（npcId/dialogues）、`TutorialStepConfig`（stepId/skippable/rewards）。
+- `GameConfigRegistry` 新增 `getQuest()`、`getNpc()`、`getQuestsByRegion()`、`getMainQuests()`、`getSideQuests()`、`getTutorials()` 等索引查询。
+- `GameConfigValidator.validateQuests()` 校验：ID 唯一性、prerequisite 引用完整性、目标类型枚举合法性、targetId 引用完整性、奖励道具引用、赠送宠物种族引用、NPC regionId 引用。
+
+### 20.2 任务状态机
+
+- 状态流转：`AVAILABLE` → `ACTIVE` → `COMPLETED`。
+- 前置任务支持逗号分隔多前置（如 `QUEST_MAIN_09` 需要 `QUEST_MAIN_07,QUEST_MAIN_08`）。
+- 并行分支：森林 Boss 后水域+雷域同时解锁（`unlockRegionId: MAP_AREA_WATERS,MAP_AREA_THUNDER`），两者都完成后解锁遗迹。
+- 隐藏任务通过 `HiddenTriggerConfig` 触发（LOCATION/PET/ITEM/DIALOGUE_COUNT 类型），触发后才可见于任务列表。
+
+### 20.3 事件驱动推进
+
+- `QuestService.checkObjectiveProgress(saveId, eventType, targetId, count)` 使用 `@Transactional(propagation = Propagation.REQUIRES_NEW)` 传播。
+- 内部 try-catch 不阻断主流程。
+- 事件钩子接入点：
+  - `BattleService.settleBattle()` → CAPTURE/DEFEAT/DEFEAT_BOSS
+  - `MapExplorationService.enterRegion()` → ARRIVE + LOCATION 隐藏触发器
+  - `MapExplorationService.gather()` → GATHER
+  - `NpcDialogueService.talk()` → DIALOGUE + DIALOGUE_COUNT 隐藏触发
+
+### 20.4 任务完成事务
+
+- `completeQuest()` 在单事务内完成：状态更新 + 固定奖励发放 + 区域解锁 + 地图变更激活 + 赠送宠物 + 通关标记。
+- 三选一奖励通过 `chooseReward()` 单独调用，锁定后不可更改。
+- 赠送宠物完整流程：创建 `PlayerPetEntity` → 种族技能装备 → 额外技能 → 图鉴补录 → HP 计算。
+- 通关条件：最终遗迹区域 NORMAL Boss 首通，标记 `PlayerEntity.storyCompleted = true`。
+
+### 20.5 循环依赖处理
+
+- QuestService 注入 PokedexService 使用 `@Lazy`。
+- BattleService / MapExplorationService 注入 QuestService 使用 `@Lazy`。
+
+### 20.6 数据库迁移（V7）
+
+- 6 张任务系统表（复合主键无 @TableId）：
+  - `player_quest`（save_id + quest_id）
+  - `player_quest_objective`（save_id + quest_id + objective_id）
+  - `player_dialogue`（save_id + npc_id）
+  - `player_tutorial`（save_id + step_id）
+  - `player_map_change`（save_id + change_id）
+  - `player_hidden_trigger`（save_id + trigger_key）
+- ALTER `player` 表新增 `story_completed` 字段。
+- 迁移文件 `V7__quest_tables.sql`，**禁止手工改表**。

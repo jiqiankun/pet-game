@@ -155,3 +155,423 @@ bosses:
             - { itemId: ITEM_REVIVE, qty: 3, chance: 0.28, exchangeQty: 1 }
           LEGENDARY:
             - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.10, exchangeQty: 1 }
+
+  # ==================== 水域 Boss（阶段 9） ====================
+  - id: BOSS_WATERS_GUARDIAN
+    name: 湖泊守卫者·潮灵蛇
+    mapId: MAP_AREA_WATERS
+    element: WATER
+    recommendedLevel: 20
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 1200, strength: 40, spirit: 55, defense: 45, resistance: 50, speed: 35 }
+        skills: [SKILL_WATER_PULSE, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK]
+        passives: [PASSIVE_REGENERATE]
+        luckGain: 5
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 3, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 3, chance: 0.35, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.15, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.04, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 1800, strength: 55, spirit: 72, defense: 58, resistance: 65, speed: 42 }
+        skills: [SKILL_WATER_PULSE, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_CURSE]
+        passives: [PASSIVE_REGENERATE, PASSIVE_THICK_HIDE]
+        luckGain: 8
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 250 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 2, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 4, chance: 0.45, exchangeQty: 2 }
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.25, exchangeQty: 1 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.18, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.07, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 2600, strength: 72, spirit: 95, defense: 72, resistance: 82, speed: 50 }
+        skills: [SKILL_WATER_PULSE, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_CURSE, SKILL_SHADOW_BALL]
+        passives: [PASSIVE_REGENERATE, PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING]
+        luckGain: 12
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+              - { type: ADD_SHIELD, shieldValue: 200 }
+          - hpPercent: 0.25
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 400 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 3, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.50, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.28, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.12, exchangeQty: 1 }
+
+  # ==================== 雷域 Boss（阶段 9） ====================
+  - id: BOSS_THUNDER_GUARDIAN
+    name: 雷霆之主·雷翼鹰
+    mapId: MAP_AREA_THUNDER
+    element: THUNDER
+    recommendedLevel: 20
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 1100, strength: 55, spirit: 50, defense: 35, resistance: 40, speed: 55 }
+        skills: [SKILL_THUNDERBOLT, SKILL_QUICK_ATTACK, SKILL_HEADBUTT]
+        passives: [PASSIVE_TAILWIND]
+        luckGain: 5
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 3, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 3, chance: 0.35, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.15, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.04, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 1700, strength: 72, spirit: 65, defense: 48, resistance: 52, speed: 68 }
+        skills: [SKILL_THUNDERBOLT, SKILL_QUICK_ATTACK, SKILL_HEADBUTT, SKILL_TAUNT]
+        passives: [PASSIVE_TAILWIND, PASSIVE_REGENERATE]
+        luckGain: 8
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 200 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 2, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 4, chance: 0.45, exchangeQty: 2 }
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.25, exchangeQty: 1 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.18, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.07, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 2500, strength: 95, spirit: 85, defense: 60, resistance: 68, speed: 82 }
+        skills: [SKILL_THUNDERBOLT, SKILL_QUICK_ATTACK, SKILL_HEADBUTT, SKILL_TAUNT, SKILL_ARMOR_CRUSH]
+        passives: [PASSIVE_TAILWIND, PASSIVE_REGENERATE, PASSIVE_UNYIELDING]
+        luckGain: 12
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+              - { type: ADD_SHIELD, shieldValue: 150 }
+          - hpPercent: 0.25
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 350 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 3, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.50, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.28, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.12, exchangeQty: 1 }
+
+  # ==================== 遗迹 Boss（阶段 9，最终 Boss） ====================
+  - id: BOSS_RUINS_GUARDIAN
+    name: 远古守护者·暗影巨像
+    mapId: MAP_AREA_RUINS
+    element: DARK
+    recommendedLevel: 35
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 2000, strength: 70, spirit: 65, defense: 65, resistance: 60, speed: 40 }
+        skills: [SKILL_SHADOW_STRIKE, SKILL_EARTHQUAKE, SKILL_CURSE, SKILL_ARMOR_CRUSH]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING]
+        luckGain: 8
+        phases:
+          - hpPercent: 0.60
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 400 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 3, chance: 0.85, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.40, exchangeQty: 2 }
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.30, exchangeQty: 1 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.20, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.08, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 3000, strength: 92, spirit: 85, defense: 82, resistance: 78, speed: 48 }
+        skills: [SKILL_SHADOW_STRIKE, SKILL_EARTHQUAKE, SKILL_CURSE, SKILL_ARMOR_CRUSH, SKILL_SHADOW_BALL]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING, PASSIVE_REGENERATE]
+        luckGain: 12
+        phases:
+          - hpPercent: 0.60
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+              - { type: ADD_SHIELD, shieldValue: 300 }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 600 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 4, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.50, exchangeQty: 2 }
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.35, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 4, chance: 0.25, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 3, chance: 0.12, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 4500, strength: 120, spirit: 110, defense: 100, resistance: 95, speed: 55 }
+        skills: [SKILL_SHADOW_STRIKE, SKILL_EARTHQUAKE, SKILL_CURSE, SKILL_ARMOR_CRUSH, SKILL_SHADOW_BALL, SKILL_THUNDERBOLT]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING, PASSIVE_REGENERATE, PASSIVE_TAILWIND]
+        luckGain: 16
+        phases:
+          - hpPercent: 0.60
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+              - { type: ADD_SHIELD, shieldValue: 500 }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 800 }
+              - { type: BUFF_SELF, statusId: SPD_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 5, chance: 0.95, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 4, chance: 0.60, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 5, chance: 0.35, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 4, chance: 0.18, exchangeQty: 1 }
+
+  # ==================== 隐藏 Boss：草原暗影（阶段 9） ====================
+  - id: BOSS_HIDDEN_SHADOW
+    name: 月下之影·暗纱狐
+    mapId: MAP_AREA_MEADOW
+    element: DARK
+    recommendedLevel: 15
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 900, strength: 50, spirit: 55, defense: 35, resistance: 45, speed: 50 }
+        skills: [SKILL_SHADOW_STRIKE, SKILL_QUICK_ATTACK, SKILL_CURSE]
+        passives: [PASSIVE_TAILWIND]
+        luckGain: 5
+        phases:
+          - hpPercent: 0.40
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 3, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 3, chance: 0.40, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.18, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.05, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 1400, strength: 68, spirit: 72, defense: 48, resistance: 58, speed: 62 }
+        skills: [SKILL_SHADOW_STRIKE, SKILL_QUICK_ATTACK, SKILL_CURSE, SKILL_SHADOW_BALL]
+        passives: [PASSIVE_TAILWIND, PASSIVE_REGENERATE]
+        luckGain: 8
+        phases:
+          - hpPercent: 0.40
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+              - { type: ADD_SHIELD, shieldValue: 150 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 2, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.30, exchangeQty: 1 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.20, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.08, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 2100, strength: 90, spirit: 95, defense: 62, resistance: 75, speed: 75 }
+        skills: [SKILL_SHADOW_STRIKE, SKILL_QUICK_ATTACK, SKILL_CURSE, SKILL_SHADOW_BALL, SKILL_THORN_BIND]
+        passives: [PASSIVE_TAILWIND, PASSIVE_REGENERATE, PASSIVE_UNYIELDING]
+        luckGain: 12
+        phases:
+          - hpPercent: 0.40
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+              - { type: ADD_SHIELD, shieldValue: 250 }
+          - hpPercent: 0.20
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 350 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 3, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.50, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.28, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.12, exchangeQty: 1 }
+
+  # ==================== 精英 Boss：森林精英（阶段 9） ====================
+  - id: BOSS_ELITE_FOREST
+    name: 林间霸主·翠鳞蟒
+    mapId: MAP_AREA_FOREST
+    element: WOOD
+    recommendedLevel: 20
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 1100, strength: 52, spirit: 45, defense: 50, resistance: 42, speed: 38 }
+        skills: [SKILL_THORN_BIND, SKILL_HEADBUTT, SKILL_EARTHQUAKE]
+        passives: [PASSIVE_THICK_HIDE]
+        luckGain: 5
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_MEDIUM, qty: 3, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_GREAT, qty: 3, chance: 0.35, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.15, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.04, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 1700, strength: 68, spirit: 60, defense: 65, resistance: 55, speed: 48 }
+        skills: [SKILL_THORN_BIND, SKILL_HEADBUTT, SKILL_EARTHQUAKE, SKILL_CURSE]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_REGENERATE]
+        luckGain: 8
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+          - hpPercent: 0.30
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 220 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 2, chance: 0.80, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 1, chance: 0.30, exchangeQty: 1 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.20, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.07, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 2500, strength: 90, spirit: 78, defense: 82, resistance: 72, speed: 58 }
+        skills: [SKILL_THORN_BIND, SKILL_HEADBUTT, SKILL_EARTHQUAKE, SKILL_CURSE, SKILL_ARMOR_CRUSH]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_REGENERATE, PASSIVE_UNYIELDING]
+        luckGain: 12
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: DEF_UP }
+              - { type: ADD_SHIELD, shieldValue: 200 }
+          - hpPercent: 0.25
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 400 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 3, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.50, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.28, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.12, exchangeQty: 1 }
+
+  # ==================== 隐藏 Boss：遗迹光灵（阶段 9） ====================
+  - id: BOSS_HIDDEN_RUINS
+    name: 远古光灵·星辰鹿
+    mapId: MAP_AREA_RUINS
+    element: LIGHT
+    recommendedLevel: 40
+    difficulties:
+      NORMAL:
+        stats: { maxHp: 1800, strength: 60, spirit: 70, defense: 55, resistance: 65, speed: 50 }
+        skills: [SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_BALL]
+        passives: [PASSIVE_REGENERATE, PASSIVE_TAILWIND]
+        luckGain: 8
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 3, chance: 0.85, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.40, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 2, chance: 0.20, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.08, exchangeQty: 1 }
+      HARD:
+        stats: { maxHp: 2800, strength: 78, spirit: 92, defense: 72, resistance: 82, speed: 62 }
+        skills: [SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_BALL, SKILL_CURSE]
+        passives: [PASSIVE_REGENERATE, PASSIVE_TAILWIND, PASSIVE_THICK_HIDE]
+        luckGain: 12
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+              - { type: ADD_SHIELD, shieldValue: 350 }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 4, chance: 0.90, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 3, chance: 0.50, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 4, chance: 0.25, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 3, chance: 0.12, exchangeQty: 1 }
+      NIGHTMARE:
+        stats: { maxHp: 4200, strength: 100, spirit: 120, defense: 90, resistance: 105, speed: 75 }
+        skills: [SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_BALL, SKILL_CURSE, SKILL_THUNDERBOLT]
+        passives: [PASSIVE_REGENERATE, PASSIVE_TAILWIND, PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING]
+        luckGain: 16
+        phases:
+          - hpPercent: 0.50
+            effects:
+              - { type: BUFF_SELF, statusId: SPD_UP }
+              - { type: ADD_SHIELD, shieldValue: 500 }
+          - hpPercent: 0.25
+            effects:
+              - { type: ADD_SHIELD, shieldValue: 700 }
+              - { type: BUFF_SELF, statusId: DEF_UP }
+        drops:
+          COMMON:
+            - { itemId: ITEM_POTION_LARGE, qty: 5, chance: 0.95, exchangeQty: 5 }
+          RARE:
+            - { itemId: ITEM_REVIVE, qty: 4, chance: 0.60, exchangeQty: 2 }
+          EPIC:
+            - { itemId: ITEM_REVIVE, qty: 5, chance: 0.35, exchangeQty: 1 }
+          LEGENDARY:
+            - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 4, chance: 0.18, exchangeQty: 1 }

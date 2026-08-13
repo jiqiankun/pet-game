@@ -23,6 +23,8 @@ public class PlayerEntity {
     private String currentMapId;
     private String mainQuestId;
     private Long playTimeSeconds;
+    /** 第一阶段通关标记（阶段 9，V7 迁移）。 */
+    private Boolean storyCompleted;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)

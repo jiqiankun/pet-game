@@ -267,3 +267,36 @@ frontend/
 - **卡片样式**：未发现灰暗 + 问号（`card-unknown`）、已发现正常 + 边框（`card-seen`）、已捕获全彩 + 徽章（`card-caught`）。
 - **详情面板**：研究等级进度条 + 按等级逐级展示已解锁信息（未解锁部分显示 `???`）；Lv.5 显示历史记录面板。
 - **Lv.5 野外识别**：遭遇时调用 identify 接口，返回资质预估等级标签（S/A/B/C/D），在遭遇界面展示提示。
+
+---
+
+## 18. 任务页面与教学约定（阶段 9 起）
+
+### 18.1 类型与 Store
+
+- **类型定义**：`types/quest.ts`（`QuestSummary`、`QuestListView`、`ObjectiveInfo`、`RewardPreview`、`QuestDetail`、`QuestCompleteResult`、`DialogueView`、`TutorialStateView`、`ActiveQuestSummary`、`MapChangeView`）。
+- **Store**：`stores/quest.ts`（`useQuestStore`），管理 `questList`、`currentDialogue`、`tutorialState`。
+- **方法**：`loadQuests()`、`loadQuestDetail(questId)`、`acceptQuest()`、`completeQuest()`、`chooseReward()`、`talkNpc()`、`continueDialogue()`、`closeDialogue()`、`loadTutorial()`、`completeTutorialStep()`、`skipTutorial()`、`getActiveSummary()`、`getMapChanges()`。
+
+### 18.2 任务页面布局
+
+- **QuestView**（`/quest`）：三标签布局（主线/支线/已完成），左列表+右详情双栏。
+- **QuestDetail** 组件：目标进度列表 + 奖励预览 + 三选一选择 + 赠送宠物预览 + 地图变更 + 操作按钮（接受/完成）。
+- 任务状态标签：可接受（蓝）、进行中（橙）、已完成（绿）、未解锁（灰）。
+- 隐藏任务未触发时不显示，已触发显示 `???` 名称。
+
+### 18.3 NPC 对话框
+
+- **DialogueBox** 组件：全局挂载在 `MainLayout`，由 `questStore.currentDialogue` 驱动显示。
+- 逐字打字效果（30ms/字），点击跳过打字或继续下一段对话，对话结束自动关闭。
+- ExploreView 通过 `npc:touch` bridge 事件调用 `questStore.talkNpc(npcId)` 触发对话。
+
+### 18.4 新手教学浮层
+
+- **TutorialOverlay** 组件：全局挂载在 `MainLayout`，由 `questStore.tutorialState` 驱动显示。
+- 未全部完成时显示当前未完成步骤（名称 + 描述 + 完成/跳过按钮）。
+- 捕捉教学完成时后端自动发放留生一击技能书。
+
+### 18.5 首页主线摘要
+
+- **HomeView** 新增「当前主线」卡片：任务名称 + 描述 + 当前目标进度条 + 「查看全部」链接跳转 `/quest`。

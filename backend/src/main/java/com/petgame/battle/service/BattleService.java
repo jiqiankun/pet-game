@@ -42,6 +42,7 @@ import com.petgame.team.mapper.PlayerTeamMemberMapper;
 import com.petgame.team.service.TeamService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +56,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.petgame.quest.service.QuestService;
 
 /**
  * 战斗服务（阶段 3 起提供战斗流程；阶段 4 接入结算）。
@@ -91,6 +94,7 @@ public class BattleService {
     private final TeamService teamService;
     private final com.petgame.map.service.MapExplorationService mapExplorationService;
     private final PokedexService pokedexService;
+    private final QuestService questService;
 
     /** 战斗上下文内存池：battleId → BattleContext。不落库。 */
     private final Map<String, BattleContext> battles = new ConcurrentHashMap<>();
@@ -111,7 +115,8 @@ public class BattleService {
                          WildEncounterService wildEncounterService,
                          TeamService teamService,
                          com.petgame.map.service.MapExplorationService mapExplorationService,
-                         PokedexService pokedexService) {
+                         PokedexService pokedexService,
+                         @Lazy QuestService questService) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.bossEngine = new BattleEngine(registry, bossDecisionProvider);
@@ -126,6 +131,7 @@ public class BattleService {
         this.teamService = teamService;
         this.mapExplorationService = mapExplorationService;
         this.pokedexService = pokedexService;
+        this.questService = questService;
     }
 
     /**
@@ -506,7 +512,32 @@ public class BattleService {
             consumeCaptureBalls(ctx, player);
         }
 
-        // 2.6 战败流程（阶段 6，需求 §44）：零惩罚 + 返回最近恢复点 + 队伍恢复 + 嘲讽提示。
+        // 2.6 阶段 9：任务系统事件钩子（REQUIRES_NEW 传播，失败不阻断主流程）
+        if (playerWon && questService != null) {
+            String saveId = player.getSaveId();
+            // CAPTURE 事件
+            for (BattleUnit captured : ctx.getCapturedUnits()) {
+                if (captured.getSpeciesId() != null) {
+                    questService.checkObjectiveProgress(saveId, "CAPTURE", captured.getSpeciesId(), 1);
+                }
+            }
+            // DEFEAT 事件（未被捕捉的敌方宠物）
+            Set<String> capturedSpeciesIds = new LinkedHashSet<>();
+            for (BattleUnit captured : ctx.getCapturedUnits()) {
+                capturedSpeciesIds.add(captured.getSpeciesId());
+            }
+            for (BattleUnit enemy : ctx.getEnemySide().getUnits()) {
+                if (enemy.getSpeciesId() != null && !capturedSpeciesIds.contains(enemy.getSpeciesId())) {
+                    questService.checkObjectiveProgress(saveId, "DEFEAT", enemy.getSpeciesId(), 1);
+                }
+            }
+            // BOSS 战斗 DEFEAT_BOSS 事件
+            if ("BOSS".equals(ctx.getBattleType()) && ctx.getBossId() != null) {
+                questService.checkObjectiveProgress(saveId, "DEFEAT_BOSS", ctx.getBossId(), 1);
+            }
+        }
+
+        // 2.7 战败流程（阶段 6，需求 §44）：零惩罚 + 返回最近恢复点 + 队伍恢复 + 嘲讽提示。
         //     逃跑成功同战败结算但不触发战败流程（玩家主动退出，队伍不自动恢复）。
         if (!playerWon && !ctx.isFled() && mapExplorationService != null) {
             settlement.setDefeat(mapExplorationService.handleDefeat(player));

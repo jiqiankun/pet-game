@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 游戏配置启动校验器。
@@ -81,6 +82,18 @@ public class GameConfigValidator {
                          SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
                          ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
                          ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses) {
+        validate(system, elements, initialPets, skills, statuses, testBattle, items,
+                pets, encounters, releaseGifts, maps, bosses, null);
+    }
+
+    /**
+     * 校验全部配置（阶段 9：含任务配置），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
+                         ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses,
+                         QuestsConfig quests) {
         List<String> errors = new ArrayList<>();
 
         validateSystemRules(system, errors);
@@ -108,6 +121,9 @@ public class GameConfigValidator {
         }
         if (bosses != null) {
             validateBosses(bosses, elements, skills, items, maps, errors);
+        }
+        if (quests != null) {
+            validateQuests(quests, items, pets, skills, maps, errors);
         }
         if (testBattle != null) {
             validateTestBattle(testBattle, skills, elements, errors);
@@ -1262,6 +1278,163 @@ public class GameConfigValidator {
                     if (diff.getLuckGain() < 0) {
                         errors.add(prefix + " luckGain 不可为负数");
                     }
+                }
+            }
+        }
+    }
+
+    // ==================== 阶段 9：任务配置校验 ====================
+
+    private static final Set<String> VALID_OBJECTIVE_TYPES = Set.of(
+            "DIALOGUE", "GATHER", "CAPTURE", "DEFEAT", "DEFEAT_BOSS", "ARRIVE");
+    private static final Set<String> VALID_QUEST_TYPES = Set.of("MAIN", "SIDE", "HIDDEN");
+    private static final Set<String> VALID_REWARD_TYPES = Set.of("GOLD", "EXP", "ITEM", "SKILL_BOOK");
+    private static final Set<String> VALID_TRIGGER_TYPES = Set.of(
+            "LOCATION", "PET", "ITEM", "DIALOGUE_COUNT");
+
+    private void validateQuests(QuestsConfig quests, ItemsConfig items, PetsConfig pets,
+                                SkillsConfig skills, MapsConfig maps, List<String> errors) {
+        if (quests == null || quests.getQuests() == null) {
+            return;
+        }
+
+        // 构建道具/种族/区域索引用于引用检查
+        Set<String> itemIds = items != null && items.getItems() != null
+                ? items.getItems().stream().map(ItemConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> speciesIds = pets != null && pets.getSpecies() != null
+                ? pets.getSpecies().stream().map(PetSpeciesConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> regionIds = maps != null && maps.getRegions() != null
+                ? maps.getRegions().stream().map(MapsConfig.RegionConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+
+        // 1. 任务 ID 唯一性
+        Set<String> questIds = new HashSet<>();
+        for (QuestsConfig.QuestConfig quest : quests.getQuests()) {
+            if (quest.getId() == null || quest.getId().isBlank()) {
+                errors.add("任务配置存在空 ID");
+                continue;
+            }
+            if (!questIds.add(quest.getId())) {
+                errors.add("任务 ID 重复: " + quest.getId());
+            }
+
+            // 2. 类型枚举合法性
+            if (quest.getType() != null && !VALID_QUEST_TYPES.contains(quest.getType())) {
+                errors.add("任务 " + quest.getId() + " 类型不合法: " + quest.getType());
+            }
+
+            // 3. prerequisiteQuestId 引用完整性（支持逗号分隔多前置）
+            if (quest.getPrerequisiteQuestId() != null && !quest.getPrerequisiteQuestId().isBlank()) {
+                for (String prereqId : quest.getPrerequisiteQuestId().split(",")) {
+                    String trimmed = prereqId.trim();
+                    if (!trimmed.isEmpty() && quests.getQuests().stream()
+                            .noneMatch(q -> trimmed.equals(q.getId()))) {
+                        errors.add("任务 " + quest.getId() + " 前置任务不存在: " + trimmed);
+                    }
+                }
+            }
+
+            // 4. 目标类型枚举合法性 + 引用检查
+            if (quest.getObjectives() != null) {
+                for (QuestsConfig.ObjectiveConfig obj : quest.getObjectives()) {
+                    if (obj.getType() != null && !VALID_OBJECTIVE_TYPES.contains(obj.getType())) {
+                        errors.add("任务 " + quest.getId() + " 目标类型不合法: " + obj.getType());
+                    }
+                    if (obj.getTargetCount() < 1) {
+                        errors.add("任务 " + quest.getId() + " 目标 targetCount 必须 >= 1");
+                    }
+                }
+            }
+
+            // 5. 奖励引用完整性
+            if (quest.getRewards() != null) {
+                validateRewardEntries(quest.getRewards().getFixed(), quest.getId(), "fixed", itemIds, errors);
+                if (quest.getRewards().getChoices() != null) {
+                    for (QuestsConfig.RewardChoiceGroup choice : quest.getRewards().getChoices()) {
+                        validateRewardEntries(choice.getOptions(), quest.getId(),
+                                "choice:" + choice.getChoiceId(), itemIds, errors);
+                    }
+                }
+                // 赠送宠物种族引用
+                if (quest.getRewards().getGiftPet() != null) {
+                    QuestsConfig.GiftPetConfig gp = quest.getRewards().getGiftPet();
+                    if (gp.getSpeciesId() != null && !speciesIds.contains(gp.getSpeciesId())) {
+                        errors.add("任务 " + quest.getId() + " 赠送宠物种族不存在: " + gp.getSpeciesId());
+                    }
+                    if (gp.getLevel() < 1 || gp.getLevel() > 50) {
+                        errors.add("任务 " + quest.getId() + " 赠送宠物等级必须在 1~50");
+                    }
+                }
+            }
+
+            // 6. 隐藏任务触发条件校验
+            if (quest.isHidden() && quest.getTrigger() != null) {
+                QuestsConfig.HiddenTriggerConfig trigger = quest.getTrigger();
+                if (trigger.getTriggerType() != null && !VALID_TRIGGER_TYPES.contains(trigger.getTriggerType())) {
+                    errors.add("隐藏任务 " + quest.getId() + " 触发类型不合法: " + trigger.getTriggerType());
+                }
+                if (trigger.getTriggerCount() < 1) {
+                    errors.add("隐藏任务 " + quest.getId() + " triggerCount 必须 >= 1");
+                }
+            }
+
+            // 7. 区域解锁 ID 引用
+            if (quest.getUnlockRegionId() != null && !quest.getUnlockRegionId().isBlank()) {
+                for (String rid : quest.getUnlockRegionId().split(",")) {
+                    String trimmed = rid.trim();
+                    if (!trimmed.isEmpty() && !regionIds.contains(trimmed)) {
+                        errors.add("任务 " + quest.getId() + " 解锁区域不存在: " + trimmed);
+                    }
+                }
+            }
+        }
+
+        // 8. NPC 校验
+        if (quests.getNpcs() != null) {
+            Set<String> npcIds = new HashSet<>();
+            for (QuestsConfig.NpcConfig npc : quests.getNpcs()) {
+                if (npc.getNpcId() == null || npc.getNpcId().isBlank()) {
+                    errors.add("NPC 配置存在空 npcId");
+                    continue;
+                }
+                if (!npcIds.add(npc.getNpcId())) {
+                    errors.add("NPC ID 重复: " + npc.getNpcId());
+                }
+                if (npc.getRegionId() != null && !regionIds.contains(npc.getRegionId())) {
+                    errors.add("NPC " + npc.getNpcId() + " 所在区域不存在: " + npc.getRegionId());
+                }
+            }
+        }
+
+        // 9. 教学步骤校验
+        if (quests.getTutorials() != null) {
+            Set<String> stepIds = new HashSet<>();
+            for (QuestsConfig.TutorialStepConfig step : quests.getTutorials()) {
+                if (step.getStepId() == null || step.getStepId().isBlank()) {
+                    errors.add("教学步骤存在空 stepId");
+                    continue;
+                }
+                if (!stepIds.add(step.getStepId())) {
+                    errors.add("教学步骤 ID 重复: " + step.getStepId());
+                }
+            }
+        }
+    }
+
+    private void validateRewardEntries(List<QuestsConfig.RewardEntry> entries, String questId,
+                                       String context, Set<String> itemIds, List<String> errors) {
+        if (entries == null) {
+            return;
+        }
+        for (QuestsConfig.RewardEntry entry : entries) {
+            if (entry.getType() != null && !VALID_REWARD_TYPES.contains(entry.getType())) {
+                errors.add("任务 " + questId + " " + context + " 奖励类型不合法: " + entry.getType());
+            }
+            if ("ITEM".equals(entry.getType()) || "SKILL_BOOK".equals(entry.getType())) {
+                if (entry.getItemId() != null && !itemIds.contains(entry.getItemId())) {
+                    errors.add("任务 " + questId + " " + context + " 道具不存在: " + entry.getItemId());
                 }
             }
         }

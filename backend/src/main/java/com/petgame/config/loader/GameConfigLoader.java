@@ -11,6 +11,7 @@ import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemsConfig;
 import com.petgame.config.model.MapsConfig;
 import com.petgame.config.model.PetsConfig;
+import com.petgame.config.model.QuestsConfig;
 import com.petgame.config.model.ReleaseGiftsConfig;
 import com.petgame.config.model.SkillsConfig;
 import com.petgame.config.model.StatusesConfig;
@@ -50,6 +51,7 @@ public class GameConfigLoader {
     private static final String RELEASE_GIFTS_YML = "drops/release-gifts.yml";
     private static final String MAPS_YML = "maps/maps.yml";
     private static final String BOSSES_YML = "bosses/bosses.yml";
+    private static final String QUESTS_YML = "quests/quests.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -251,6 +253,23 @@ public class GameConfigLoader {
         BossesConfig external = loadExternalYaml(BOSSES_YML, BossesConfig.class);
         if (external != null) {
             log.info("已加载外部 bosses/bosses.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载任务配置（阶段 9：主线/支线/隐藏/NPC对话/教学）。
+     */
+    public QuestsConfig loadQuestsConfig() {
+        QuestsConfig config = loadInternalYaml(QUESTS_YML, QuestsConfig.class);
+        if (config == null) {
+            log.warn("内部 quests/quests.yml 未找到，使用空配置");
+            config = new QuestsConfig();
+        }
+        QuestsConfig external = loadExternalYaml(QUESTS_YML, QuestsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 quests/quests.yml 覆盖内部配置");
             config = external;
         }
         return config;

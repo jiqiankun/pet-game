@@ -21,6 +21,8 @@ import com.petgame.team.entity.PlayerTeamEntity;
 import com.petgame.team.entity.PlayerTeamMemberEntity;
 import com.petgame.team.mapper.PlayerTeamMapper;
 import com.petgame.team.mapper.PlayerTeamMemberMapper;
+import com.petgame.quest.service.QuestService;
+import com.petgame.quest.service.TutorialService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -55,6 +57,8 @@ public class GameService {
     private final GameProperties gameProperties;
     private final PetGrowthService growthService;
     private final PokedexService pokedexService;
+    private final QuestService questService;
+    private final TutorialService tutorialService;
 
     public GameService(PlayerMapper playerMapper,
                        PlayerPetMapper playerPetMapper,
@@ -65,7 +69,9 @@ public class GameService {
                        GameConfigRegistry configRegistry,
                        GameProperties gameProperties,
                        PetGrowthService growthService,
-                       PokedexService pokedexService) {
+                       PokedexService pokedexService,
+                       QuestService questService,
+                       TutorialService tutorialService) {
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
@@ -76,6 +82,8 @@ public class GameService {
         this.gameProperties = gameProperties;
         this.growthService = growthService;
         this.pokedexService = pokedexService;
+        this.questService = questService;
+        this.tutorialService = tutorialService;
     }
 
     /**
@@ -320,6 +328,23 @@ public class GameService {
         data.setGameVersion(gameProperties.getVersion());
         data.setSaveVersion(gameProperties.getSaveVersion());
         data.setDeveloperMode(gameProperties.isDeveloperMode());
+
+        // 阶段 9：主线任务摘要 + 教学状态
+        try {
+            if (questService != null) {
+                data.setActiveMainQuest(questService.getActiveQuestSummary());
+            }
+        } catch (Exception e) {
+            log.warn("主线摘要加载失败（不阻断 Bootstrap）：{}", e.getMessage());
+        }
+        try {
+            if (tutorialService != null) {
+                data.setTutorialState(tutorialService.getTutorialState());
+            }
+        } catch (Exception e) {
+            log.warn("教学状态加载失败（不阻断 Bootstrap）：{}", e.getMessage());
+        }
+
         return data;
     }
 
@@ -371,6 +396,10 @@ public class GameService {
         private String gameVersion;
         private int saveVersion;
         private boolean developerMode;
+        /** 当前主线任务摘要（阶段 9）。 */
+        private QuestService.ActiveQuestSummary activeMainQuest;
+        /** 新手教学状态（阶段 9）。 */
+        private TutorialService.TutorialStateView tutorialState;
 
         /** 背包道具视图。 */
         @lombok.Data

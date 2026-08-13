@@ -31,6 +31,7 @@ import com.petgame.team.mapper.PlayerTeamMemberMapper;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +41,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import com.petgame.quest.mapper.PlayerMapChangeMapper;
+import com.petgame.quest.entity.PlayerMapChangeEntity;
+import com.petgame.quest.service.QuestService;
 
 /**
  * 地图探索与区域服务（阶段 6）。
@@ -73,6 +78,8 @@ public class MapExplorationService {
     private final PlayerChestLootMapper chestLootMapper;
     private final PlayerMapSessionMapper mapSessionMapper;
     private final PlayerGatherUsedMapper gatherUsedMapper;
+    private final QuestService questService;
+    private final PlayerMapChangeMapper playerMapChangeMapper;
 
     public MapExplorationService(GameConfigRegistry registry,
                                  PetGrowthService growthService,
@@ -85,7 +92,9 @@ public class MapExplorationService {
                                  PlayerCampActivationMapper campActivationMapper,
                                  PlayerChestLootMapper chestLootMapper,
                                  PlayerMapSessionMapper mapSessionMapper,
-                                 PlayerGatherUsedMapper gatherUsedMapper) {
+                                 PlayerGatherUsedMapper gatherUsedMapper,
+                                 @Lazy QuestService questService,
+                                 PlayerMapChangeMapper playerMapChangeMapper) {
         this.registry = registry;
         this.growthService = growthService;
         this.playerMapper = playerMapper;
@@ -98,6 +107,8 @@ public class MapExplorationService {
         this.chestLootMapper = chestLootMapper;
         this.mapSessionMapper = mapSessionMapper;
         this.gatherUsedMapper = gatherUsedMapper;
+        this.questService = questService;
+        this.playerMapChangeMapper = playerMapChangeMapper;
     }
 
     // ==================== 大地图 / 区域 ====================
@@ -121,6 +132,17 @@ public class MapExplorationService {
         for (PlayerCampActivationEntity camp : camps) {
             activatedCampIds.add(camp.getCampId());
         }
+
+        // 阶段 9：已激活永久地图变更
+        Set<String> activatedMapChangeIds = new HashSet<>();
+        if (playerMapChangeMapper != null) {
+            for (PlayerMapChangeEntity mc : playerMapChangeMapper.selectList(
+                    new LambdaQueryWrapper<PlayerMapChangeEntity>()
+                            .eq(PlayerMapChangeEntity::getSaveId, player.getSaveId()))) {
+                activatedMapChangeIds.add(mc.getChangeId());
+            }
+        }
+        view.setActivatedMapChanges(activatedMapChangeIds);
 
         for (MapsConfig.RegionConfig region : registry.getImplementedRegions()) {
             WorldMapView.RegionView rv = new WorldMapView.RegionView();
@@ -182,8 +204,19 @@ public class MapExplorationService {
         PlayerMapSessionEntity session = startNewSession(player.getSaveId(), region.getId());
         log.info("进入区域：mapId={}, sessionId={}, exit={}, entry={}",
                 mapId, session.getSessionId(), exitId, entryObjectId);
+        fireEnterRegionEvents(player, mapId);
         return buildEnterView(player, region, session,
                 entryObjectId != null ? entryObjectId : region.getSpawnObjectId());
+    }
+
+    // 阶段 9：进入区域事件钩子（在 enterRegion 内部调用）
+    private void fireEnterRegionEvents(PlayerEntity player, String mapId) {
+        if (questService == null) return;
+        String saveId = player.getSaveId();
+        // ARRIVE 事件
+        questService.checkObjectiveProgress(saveId, "ARRIVE", mapId, 1);
+        // 隐藏任务 LOCATION 触发器
+        questService.checkHiddenTrigger(saveId, "LOCATION", mapId);
     }
 
     /**
@@ -296,6 +329,10 @@ public class MapExplorationService {
 
         gatherUsedMapper.insert(new PlayerGatherUsedEntity(
                 player.getSaveId(), gatherId, session.getSessionId(), LocalDateTime.now()));
+        // 阶段 9：采集事件钩子
+        if (questService != null) {
+            questService.checkObjectiveProgress(player.getSaveId(), "GATHER", gatherId, 1);
+        }
         log.info("采集完成：gatherId={}, 金币+{}, 道具 {} 项", gatherId,
                 result.getGoldGained(), result.getItems().size());
         return result;
@@ -558,6 +595,14 @@ public class MapExplorationService {
                 view.getActivatedCampIds().add(camp.getCampId());
             }
         }
+        // 已激活永久地图变更（阶段 9）
+        if (playerMapChangeMapper != null) {
+            for (PlayerMapChangeEntity mc : playerMapChangeMapper.selectList(
+                    new LambdaQueryWrapper<PlayerMapChangeEntity>()
+                            .eq(PlayerMapChangeEntity::getSaveId, player.getSaveId()))) {
+                view.getActivatedMapChanges().add(mc.getChangeId());
+            }
+        }
         return view;
     }
 
@@ -628,6 +673,8 @@ public class MapExplorationService {
     public static class WorldMapView {
         private String currentMapId;
         private List<RegionView> regions = new ArrayList<>();
+        /** 已激活永久地图变更 ID（阶段 9）。 */
+        private Set<String> activatedMapChanges = new HashSet<>();
 
         @Data
         public static class RegionView {
@@ -667,6 +714,8 @@ public class MapExplorationService {
         private Set<String> usedGatherIds = new HashSet<>();
         /** 已激活营地 ID。 */
         private Set<String> activatedCampIds = new HashSet<>();
+        /** 已激活永久地图变更 ID（阶段 9）。 */
+        private Set<String> activatedMapChanges = new HashSet<>();
     }
 
     /** 营地休息结果。 */

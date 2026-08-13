@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DialogueBox from '../views/Quest/components/DialogueBox.vue'
+import TutorialOverlay from '../views/Quest/components/TutorialOverlay.vue'
 </script>
 
 <template>
@@ -7,7 +9,7 @@
     <header class="app-header">
       <div class="header-brand">
         <h1 class="header-title">宠物精灵</h1>
-        <span class="header-badge">Phase 6</span>
+        <span class="header-badge">Phase 9</span>
       </div>
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>
@@ -31,6 +33,11 @@
     <main class="app-main">
       <slot />
     </main>
+
+    <!-- 全局 NPC 对话框 -->
+    <DialogueBox />
+    <!-- 全局新手教学浮层 -->
+    <TutorialOverlay />
   </div>
 </template>
 

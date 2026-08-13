@@ -109,6 +109,14 @@ regions:
         name: 返回青草原
         targetMapId: MAP_AREA_MEADOW
         entryObjectId: ENTRY_MEADOW_FROM_FOREST
+      - exitId: EXIT_FOREST_TO_WATERS
+        name: 前往静水湖域
+        targetMapId: MAP_AREA_WATERS
+        entryObjectId: ENTRY_WATERS_FROM_FOREST
+      - exitId: EXIT_FOREST_TO_THUNDER
+        name: 前往雷鸣高地
+        targetMapId: MAP_AREA_THUNDER
+        entryObjectId: ENTRY_THUNDER_FROM_FOREST
     camps:
       - campId: CAMP_FOREST_1
         name: 翠树林营地
@@ -136,22 +144,135 @@ regions:
         goldMin: 100
         goldMax: 150
 
-  # ---------- 结构预留（阶段 9 开放，本阶段不实装） ----------
+  # ---------- 水域区域（阶段 9 实装） ----------
   - id: MAP_AREA_WATERS
-    name: 静水湖域（水域分支）
+    name: 静水湖域
     type: AREA
     recommendedLevel: "15~25"
     unlockType: QUEST
-    planned: true
+    planned: false
+    mapFile: waters
+    spawnObjectId: SPAWN_WATERS
+    encounterGroups:
+      - ENCOUNTER_WATERS
+    exits:
+      - exitId: EXIT_WATERS_TO_FOREST
+        name: 返回翠树林
+        targetMapId: MAP_AREA_FOREST
+        entryObjectId: ENTRY_FOREST_FROM_WATERS
+      - exitId: EXIT_WATERS_TO_RUINS
+        name: 前往远古遗迹
+        targetMapId: MAP_AREA_RUINS
+        entryObjectId: ENTRY_RUINS_FROM_WATERS
+    camps:
+      - campId: CAMP_WATERS_1
+        name: 湖畔营地
+        autoActivate: false
+    gathers:
+      - gatherId: GATHER_WATERS_1
+        name: 水草丛
+        rewards:
+          - { itemId: ITEM_POTION_MEDIUM, qtyMin: 1, qtyMax: 2 }
+        goldMin: 15
+        goldMax: 35
+      - gatherId: GATHER_WATERS_2
+        name: 湖底矿脉
+        rewards:
+          - { itemId: ITEM_POTION_LARGE, qtyMin: 1, qtyMax: 1 }
+        goldMin: 25
+        goldMax: 50
+    chests:
+      - chestId: CHEST_WATERS_HIDDEN_1
+        name: 湖底宝箱
+        rewards:
+          - { itemId: ITEM_POTION_LARGE, qtyMin: 1, qtyMax: 2 }
+          - { itemId: ITEM_CAPTURE_BALL_GREAT, qtyMin: 3, qtyMax: 5 }
+          - { itemId: ITEM_REVIVE, qtyMin: 1, qtyMax: 2 }
+        goldMin: 150
+        goldMax: 250
+
+  # ---------- 雷域区域（阶段 9 实装） ----------
   - id: MAP_AREA_THUNDER
-    name: 雷鸣高地（雷属性分支）
+    name: 雷鸣高地
     type: AREA
     recommendedLevel: "15~25"
     unlockType: QUEST
-    planned: true
+    planned: false
+    mapFile: thunder
+    spawnObjectId: SPAWN_THUNDER
+    encounterGroups:
+      - ENCOUNTER_THUNDER
+    exits:
+      - exitId: EXIT_THUNDER_TO_FOREST
+        name: 返回翠树林
+        targetMapId: MAP_AREA_FOREST
+        entryObjectId: ENTRY_FOREST_FROM_THUNDER
+      - exitId: EXIT_THUNDER_TO_RUINS
+        name: 前往远古遗迹
+        targetMapId: MAP_AREA_RUINS
+        entryObjectId: ENTRY_RUINS_FROM_THUNDER
+    camps:
+      - campId: CAMP_THUNDER_1
+        name: 雷岩营地
+        autoActivate: false
+    gathers:
+      - gatherId: GATHER_THUNDER_1
+        name: 雷电花丛
+        rewards:
+          - { itemId: ITEM_POTION_MEDIUM, qtyMin: 1, qtyMax: 2 }
+        goldMin: 15
+        goldMax: 35
+      - gatherId: GATHER_THUNDER_2
+        name: 矿石岩壁
+        rewards:
+          - { itemId: ITEM_POTION_LARGE, qtyMin: 1, qtyMax: 1 }
+        goldMin: 30
+        goldMax: 55
+    chests:
+      - chestId: CHEST_THUNDER_HIDDEN_1
+        name: 雷电宝箱
+        rewards:
+          - { itemId: ITEM_POTION_LARGE, qtyMin: 1, qtyMax: 2 }
+          - { itemId: ITEM_CAPTURE_BALL_GREAT, qtyMin: 3, qtyMax: 5 }
+          - { itemId: ITEM_REVIVE, qtyMin: 1, qtyMax: 2 }
+        goldMin: 150
+        goldMax: 250
+
+  # ---------- 远古遗迹（阶段 9 实装，最终区域） ----------
   - id: MAP_AREA_RUINS
-    name: 远古遗迹（最终区域）
+    name: 远古遗迹
     type: AREA
     recommendedLevel: "30~50"
     unlockType: QUEST
-    planned: true
+    planned: false
+    mapFile: ruins
+    spawnObjectId: SPAWN_RUINS
+    encounterGroups:
+      - ENCOUNTER_RUINS
+    exits: []
+    camps:
+      - campId: CAMP_RUINS_1
+        name: 遗迹营地
+        autoActivate: false
+    gathers:
+      - gatherId: GATHER_RUINS_1
+        name: 古代药园
+        rewards:
+          - { itemId: ITEM_POTION_LARGE, qtyMin: 1, qtyMax: 2 }
+        goldMin: 30
+        goldMax: 60
+      - gatherId: GATHER_RUINS_2
+        name: 遗迹宝箱残骸
+        rewards:
+          - { itemId: ITEM_REVIVE, qtyMin: 1, qtyMax: 1 }
+        goldMin: 40
+        goldMax: 80
+    chests:
+      - chestId: CHEST_RUINS_HIDDEN_1
+        name: 远古宝库
+        rewards:
+          - { itemId: ITEM_POTION_LARGE, qtyMin: 2, qtyMax: 4 }
+          - { itemId: ITEM_CAPTURE_BALL_ULTRA, qtyMin: 2, qtyMax: 4 }
+          - { itemId: ITEM_REVIVE, qtyMin: 2, qtyMax: 3 }
+        goldMin: 300
+        goldMax: 500

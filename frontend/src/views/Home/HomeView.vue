@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../../stores/game'
 import { useAppStore } from '../../stores'
+import { useQuestStore } from '../../stores/quest'
 import { apiGet } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
+import type { ActiveQuestSummary } from '../../types/quest'
 
 const router = useRouter()
 const appStore = useAppStore()
 const gameStore = useGameStore()
+const questStore = useQuestStore()
+
+const activeQuest = ref<ActiveQuestSummary | null>(null)
 
 onMounted(async () => {
   // 检查后端连接
@@ -22,6 +27,9 @@ onMounted(async () => {
 
   // 加载 Bootstrap 数据
   await gameStore.loadBootstrap()
+
+  // 加载主线摘要
+  activeQuest.value = await questStore.getActiveSummary()
 
   // 如果没有存档，跳转到新游戏页面
   if (gameStore.hasSave === false) {
@@ -61,6 +69,28 @@ async function handleSave() {
         <div class="status-card">
           <div class="card-label">当前区域</div>
           <div class="card-value map">{{ gameStore.player.currentMapId }}</div>
+        </div>
+      </div>
+
+      <!-- 当前主线任务 -->
+      <div v-if="activeQuest" class="section-card quest-summary">
+        <div class="section-header">
+          <h3>当前主线</h3>
+          <button class="btn-link" @click="router.push('/quest')">查看全部</button>
+        </div>
+        <div class="quest-summary-content">
+          <div class="quest-summary-name">{{ activeQuest.name }}</div>
+          <p class="quest-summary-desc">{{ activeQuest.description }}</p>
+          <div v-if="activeQuest.currentObjectiveDescription" class="quest-obj">
+            <span>{{ activeQuest.currentObjectiveDescription }}</span>
+            <span class="obj-progress">{{ activeQuest.currentProgress }}/{{ activeQuest.currentTarget }}</span>
+          </div>
+          <div class="quest-progress-bar">
+            <div
+              class="quest-progress-fill"
+              :style="{ width: activeQuest.currentTarget > 0 ? (activeQuest.currentProgress / activeQuest.currentTarget * 100) + '%' : '0%' }"
+            ></div>
+          </div>
         </div>
       </div>
 
@@ -214,6 +244,66 @@ async function handleSave() {
 .empty-text {
   color: var(--text-secondary);
   font-size: 14px;
+}
+
+.quest-summary {
+  border-left: 3px solid var(--color-primary);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.quest-summary-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.quest-summary-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.quest-obj {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.obj-progress {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.quest-progress-bar {
+  height: 6px;
+  background: var(--bg-secondary, #eee);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.quest-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 3px;
+  transition: width 0.3s;
 }
 
 .action-section {

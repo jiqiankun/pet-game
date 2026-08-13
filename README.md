@@ -117,11 +117,11 @@ pet-game/
 
 ## 开发进度
 
-当前阶段：**阶段 8（图鉴系统）— 已完成**
+当前阶段：**阶段 9（任务系统）— 已完成**
 
-已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8
+已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8、阶段 9
 
-下一阶段：阶段 9（以规划文档为准）
+下一阶段：阶段 10（以规划文档为准）
 
 详细的阶段划分与进度跟踪见 [`AGENTS.md`](AGENTS.md) §6「当前阶段状态」。
 
@@ -257,6 +257,20 @@ pet-game/
 - **既有行为接入**：BattleService（遭遇发现 + 捕捉记录 + 战斗参与/获胜）、PetService（技能解锁记录）、GameService（新游戏初始宠物补录）；所有记录方法使用 `REQUIRES_NEW` 传播策略，记录失败不阻断主流程
 - **前端图鉴页面**：`types/pokedex.ts`（PokedexEntry/PokedexDetail/PokedexHistory/WildIdentification）+ `stores/pokedex.ts`（Pinia Store，筛选/统计）+ `PokedexView.vue`（统计栏 + 筛选栏 + 卡片网格 + 详情面板，按等级逐级展示已解锁信息）
 - 单元测试：PokedexServiceTest 20+ 场景（研究等级计算/首次后续发现/捕获/高资质/稀有技能/特殊外观/精英捕获/战斗参与获胜/技能解锁/历史记录累加/野外识别）；GameConfigValidatorTest 追加 3 个图鉴配置校验测试
+
+### 阶段 9 完成内容
+
+- **Flyway V7 迁移**：6 张任务系统表（player_quest/player_quest_objective/player_dialogue/player_tutorial/player_map_change/player_hidden_trigger，复合主键无 @TableId）+ ALTER player 表新增 story_completed 字段
+- **任务配置 quests.yml**：主线 12 节点（含水域/雷域并行分支设计，森林 Boss 后同时解锁，两者都完成后解锁遗迹）+ 支线 10（含地图永久变更）+ 隐藏 3（LOCATION/PET/ITEM/DIALOGUE_COUNT 触发器）；NPC 对话约 10 个；新手教学 8 步
+- **QuestsConfig 配置模型**：QuestConfig/ObjectiveConfig/RewardConfig/HiddenTriggerConfig/MapChangeConfig/NpcConfig/TutorialStepConfig；GameConfigRegistry 新增 quest/npc/tutorial 索引；GameConfigValidator.validateQuests() 校验 ID 唯一性/前置引用/目标类型/targetId 引用/奖励引用/NPC 引用
+- **QuestService 核心服务**：任务列表/详情/接受/事件推进/完成/三选一奖励/区域解锁/地图变更/隐藏任务触发/赠送宠物/通关标记；事件钩子 REQUIRES_NEW 传播不阻断主流程
+- **NpcDialogueService + TutorialService**：NPC 线性对话树推进+对话次数累计+隐藏触发；教学步骤查询/完成/跳过+捕捉教学发放技能书
+- **QuestController REST API**：11 个端点（任务列表/详情/接受/完成/三选一/主线摘要/NPC 对话/教学状态/完成步骤/跳过/地图变更）
+- **已有系统集成**：BattleService（CAPTURE/DEFEAT/DEFEAT_BOSS）、MapExplorationService（ARRIVE/GATHER/LOCATION 触发）、GameService（主线摘要+教学状态 Bootstrap）；@Lazy 防循环依赖
+- **Boss 配置补齐**：6 个 Boss（水域/雷域/遗迹主 Boss + 初始区域隐藏/森林精英/遗迹隐藏）× 3 难度
+- **新区域实装**：3 区域从 planned 改为实装（静水湖域/雷鸣高地/远古遗迹，QUEST 解锁）+ 3 Tiled 占位地图（waters.json/thunder.json/ruins.json）+ 遭遇组配置
+- **前端实现**：QuestView（三标签布局）+ QuestDetail（目标进度+奖励+操作）+ DialogueBox（逐字打字对话框）+ TutorialOverlay（新手教学浮层）+ HomeView（主线摘要卡片）+ ExploreView（npc:touch 对话）+ MainLayout（全局对话框+教学浮层）
+- 单元测试：QuestServiceTest/NpcDialogueServiceTest/TutorialServiceTest/QuestConfigValidateTest；E2E 脚本 `e2e-quest-test.ps1`
 
 ---
 

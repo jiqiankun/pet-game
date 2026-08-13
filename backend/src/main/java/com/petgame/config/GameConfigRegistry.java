@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 游戏配置注册中心。
@@ -42,6 +43,7 @@ public class GameConfigRegistry {
     private ReleaseGiftsConfig releaseGiftsConfig;
     private MapsConfig mapsConfig;
     private BossesConfig bossesConfig;
+    private QuestsConfig questsConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -73,6 +75,12 @@ public class GameConfigRegistry {
     /** Boss ID → Boss 配置 的快速索引（阶段 7）。 */
     private Map<String, BossesConfig.BossConfig> bossIndex;
 
+    /** 任务 ID → 任务配置 的快速索引（阶段 9）。 */
+    private Map<String, QuestsConfig.QuestConfig> questIndex;
+
+    /** NPC ID → NPC 配置 的快速索引（阶段 9）。 */
+    private Map<String, QuestsConfig.NpcConfig> npcIndex;
+
     public GameConfigRegistry(GameConfigLoader loader, GameConfigValidator validator) {
         this.loader = loader;
         this.validator = validator;
@@ -98,12 +106,13 @@ public class GameConfigRegistry {
         this.releaseGiftsConfig = loader.loadReleaseGiftsConfig();
         this.mapsConfig = loader.loadMapsConfig();
         this.bossesConfig = loader.loadBossesConfig();
+        this.questsConfig = loader.loadQuestsConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
                 skillsConfig, statusesConfig, testBattleConfig, itemsConfig,
                 petsConfig, encountersConfig, releaseGiftsConfig, mapsConfig,
-                bossesConfig);
+                bossesConfig, questsConfig);
 
         // 构建索引
         buildElementIndex();
@@ -115,6 +124,7 @@ public class GameConfigRegistry {
         buildSpeciesIndex();
         buildRegionIndex();
         buildBossIndex();
+        buildQuestIndex();
 
         log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss",
                 elementsConfig.getElements().size(),
@@ -127,7 +137,8 @@ public class GameConfigRegistry {
                 petsConfig.getSpecies().size(),
                 encountersConfig.getEncounterGroups().size(),
                 mapsConfig.getRegions().size(),
-                bossesConfig.getBosses().size());
+                bossesConfig.getBosses().size(),
+                questsConfig.getQuests().size());
     }
 
     // ---- 查询方法 ----
@@ -190,6 +201,56 @@ public class GameConfigRegistry {
     /** 获取 Boss 配置（只读使用，阶段 7）。 */
     public BossesConfig getBossesConfig() {
         return bossesConfig;
+    }
+
+    /** 获取任务配置（只读使用，阶段 9）。 */
+    public QuestsConfig getQuestsConfig() {
+        return questsConfig;
+    }
+
+    /** 根据任务 ID 获取任务配置，不存在返回 null（阶段 9）。 */
+    public QuestsConfig.QuestConfig getQuest(String questId) {
+        return questId == null ? null : questIndex.get(questId);
+    }
+
+    /** 根据 NPC ID 获取 NPC 配置，不存在返回 null（阶段 9）。 */
+    public QuestsConfig.NpcConfig getNpc(String npcId) {
+        return npcId == null ? null : npcIndex.get(npcId);
+    }
+
+    /** 获取全部主线任务（按配置顺序，阶段 9）。 */
+    public List<QuestsConfig.QuestConfig> getMainQuests() {
+        return questsConfig.getQuests().stream()
+                .filter(q -> "MAIN".equals(q.getType()))
+                .collect(Collectors.toList());
+    }
+
+    /** 获取全部支线任务（按配置顺序，阶段 9）。 */
+    public List<QuestsConfig.QuestConfig> getSideQuests() {
+        return questsConfig.getQuests().stream()
+                .filter(q -> "SIDE".equals(q.getType()))
+                .collect(Collectors.toList());
+    }
+
+    /** 获取全部隐藏任务（按配置顺序，阶段 9）。 */
+    public List<QuestsConfig.QuestConfig> getHiddenQuests() {
+        return questsConfig.getQuests().stream()
+                .filter(q -> "HIDDEN".equals(q.getType()))
+                .collect(Collectors.toList());
+    }
+
+    /** 获取指定区域的任务（阶段 9）。 */
+    public List<QuestsConfig.QuestConfig> getQuestsByRegion(String regionId) {
+        return questsConfig.getQuests().stream()
+                .filter(q -> regionId.equals(q.getRegionId()))
+                .collect(Collectors.toList());
+    }
+
+    /** 获取教学步骤配置（按 order 排序，阶段 9）。 */
+    public List<QuestsConfig.TutorialStepConfig> getTutorials() {
+        return questsConfig.getTutorials().stream()
+                .sorted(Comparator.comparingInt(QuestsConfig.TutorialStepConfig::getOrder))
+                .collect(Collectors.toList());
     }
 
     /** 根据 Boss ID 获取 Boss 配置，不存在返回 null（阶段 7）。 */
@@ -360,6 +421,23 @@ public class GameConfigRegistry {
         if (bossesConfig != null && bossesConfig.getBosses() != null) {
             for (BossesConfig.BossConfig boss : bossesConfig.getBosses()) {
                 bossIndex.put(boss.getId(), boss);
+            }
+        }
+    }
+
+    private void buildQuestIndex() {
+        questIndex = new LinkedHashMap<>();
+        npcIndex = new LinkedHashMap<>();
+        if (questsConfig != null) {
+            if (questsConfig.getQuests() != null) {
+                for (QuestsConfig.QuestConfig quest : questsConfig.getQuests()) {
+                    questIndex.put(quest.getId(), quest);
+                }
+            }
+            if (questsConfig.getNpcs() != null) {
+                for (QuestsConfig.NpcConfig npc : questsConfig.getNpcs()) {
+                    npcIndex.put(npc.getNpcId(), npc);
+                }
             }
         }
     }

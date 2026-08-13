@@ -82,3 +82,55 @@ encounterGroups:
       - { speciesId: PET_WIND_003, weight: 2, levelMin: 6, levelMax: 10 }
       - { speciesId: PET_THUNDER_003, weight: 2, levelMin: 6, levelMax: 10 }
       - { speciesId: PET_LIGHT_003, weight: 1, levelMin: 8, levelMax: 12 }
+
+  # ---------- 阶段 9：新区域刷新组 ----------
+  # 静水湖域（水域分支，推荐 Lv.15~25）：水系为主
+  - id: ENCOUNTER_WATERS
+    name: 静水湖域野怪
+    teamSizeMin: 2
+    teamSizeMax: 3
+    expPerLevel: 16
+    goldPerLevel: 5
+    species:
+      - { speciesId: PET_WATER_001, weight: 12, levelMin: 13, levelMax: 20 }
+      - { speciesId: PET_WATER_002, weight: 12, levelMin: 14, levelMax: 22 }
+      - { speciesId: PET_WATER_003, weight: 10, levelMin: 15, levelMax: 25 }
+      - { speciesId: PET_EARTH_002, weight: 6, levelMin: 14, levelMax: 20 }
+      - { speciesId: PET_WOOD_003, weight: 6, levelMin: 14, levelMax: 20 }
+      - { speciesId: PET_METAL_002, weight: 5, levelMin: 16, levelMax: 25 }
+      - { speciesId: PET_LIGHT_002, weight: 3, levelMin: 18, levelMax: 25 }
+
+  # 雷鸣高地（雷属性分支，推荐 Lv.15~25）：雷系为主
+  - id: ENCOUNTER_THUNDER
+    name: 雷鸣高地野怪
+    teamSizeMin: 2
+    teamSizeMax: 3
+    expPerLevel: 16
+    goldPerLevel: 5
+    species:
+      - { speciesId: PET_THUNDER_001, weight: 12, levelMin: 13, levelMax: 20 }
+      - { speciesId: PET_THUNDER_002, weight: 12, levelMin: 14, levelMax: 22 }
+      - { speciesId: PET_THUNDER_003, weight: 10, levelMin: 15, levelMax: 25 }
+      - { speciesId: PET_METAL_002, weight: 6, levelMin: 14, levelMax: 20 }
+      - { speciesId: PET_FIRE_002, weight: 6, levelMin: 14, levelMax: 20 }
+      - { speciesId: PET_WIND_002, weight: 6, levelMin: 14, levelMax: 22 }
+      - { speciesId: PET_DARK_002, weight: 4, levelMin: 16, levelMax: 25 }
+      - { speciesId: PET_LIGHT_002, weight: 3, levelMin: 18, levelMax: 25 }
+
+  # 远古遗迹（最终区域，推荐 Lv.30~50）：混合高阶种族
+  - id: ENCOUNTER_RUINS
+    name: 远古遗迹野怪
+    teamSizeMin: 2
+    teamSizeMax: 4
+    expPerLevel: 20
+    goldPerLevel: 7
+    species:
+      - { speciesId: PET_DARK_003, weight: 10, levelMin: 28, levelMax: 40 }
+      - { speciesId: PET_LIGHT_003, weight: 10, levelMin: 28, levelMax: 40 }
+      - { speciesId: PET_METAL_003, weight: 8, levelMin: 30, levelMax: 42 }
+      - { speciesId: PET_FIRE_003, weight: 8, levelMin: 30, levelMax: 42 }
+      - { speciesId: PET_WATER_003, weight: 8, levelMin: 30, levelMax: 42 }
+      - { speciesId: PET_WIND_003, weight: 8, levelMin: 30, levelMax: 42 }
+      - { speciesId: PET_THUNDER_003, weight: 8, levelMin: 30, levelMax: 42 }
+      - { speciesId: PET_EARTH_003, weight: 8, levelMin: 30, levelMax: 42 }
+      - { speciesId: PET_DARK_001, weight: 3, levelMin: 35, levelMax: 50 }
