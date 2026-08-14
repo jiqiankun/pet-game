@@ -1,7 +1,7 @@
 # 美术资源清单与批次追溯
 
 状态：Batch 8 已通过（全量资源 QC 与前端构建）；核心场景实机截图仍随阶段 14 总验收执行。  
-当前用途：本文件是正式资源、候选源图、批次与 QC 的**当前追溯清单**。新增资源按 `docs/art/README.md`、`art-resource-management.md` 和 `art-generation-workflow.md` 执行后，在本文件追加记录；历史执行矩阵仅见 `docs/art-resource-generation-execution-plan.md`。
+当前用途：本文件是正式资源、候选源图、批次与 QC 的**当前追溯清单**。新增资源按 `docs/art/README.md`、`art-resource-management.md` 和 `art-generation-workflow.md` 执行后，在本文件追加记录；历史执行矩阵仅见 `docs/art/art-resource-generation-execution-plan.md`。
 
 ## 当前资源索引
 

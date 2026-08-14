@@ -39,7 +39,7 @@ import java.util.Set;
  *   <li>只返回合法行动；无任何候选时回退 DEFEND（引擎兜底），永不卡死。</li>
  *   <li>不读取玩家等级/战力做动态缩放，决策仅来源于配置与战场状态。</li>
  * </ul>
- * 详细设计见 docs/AUTO_BATTLE_DESIGN.md。
+ * 详细设计见 docs/technical/AUTO_BATTLE_DESIGN.md。
  */
 @Component
 public class AutoBattleDecisionProvider implements DecisionProvider {

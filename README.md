@@ -110,15 +110,24 @@ pet-game.jar
 pet-game/
 ├── frontend/          # Vue 前端与 Phaser 游戏表现
 ├── backend/           # Spring Boot 后端业务
-├── docs/              # 项目文档（玩法 / 架构 / 规范）
-├── plans/             # 开发计划与设计草稿
-├── scripts/           # 构建与验收脚本
+├── docs/              # 项目文档
+│   ├── requirements/  #   需求设计（唯一依据）
+│   ├── technical/     #   技术方案与子系统设计
+│   ├── architecture/  #   架构与代码目录说明
+│   ├── planning/      #   开发阶段与规划
+│   ├── development/   #   开发规范与状态
+│   ├── guide/         #   安装运行与玩法指南
+│   ├── prompts/       #   AI 开发提示词
+│   └── art/           #   美术生产规范与资源
+├── scripts/           # 构建/启动脚本 + E2E 验收脚本
+│   ├── build.sh / build.bat / start.sh / start.bat / dev-hint.bat
+│   └── e2e/           #   E2E 验收脚本
 ├── config-example/    # 外部配置示例
 ├── AGENTS.md          # AI / 开发规范（开发前必读）
 └── README.md
 ```
 
-各目录详细职责见 [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)。
+完整目录职责与模块说明见 [docs/architecture/PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md)，文档总索引见 [docs/README.md](docs/README.md)。
 
 ## 快速开始
 
@@ -131,17 +140,20 @@ npm install
 npm run dev        # Vite 代理 /api → localhost:8080
 ```
 
-完整安装与配置见 [docs/QUICK_START.md](docs/QUICK_START.md)。
+完整安装与配置见 [docs/guide/QUICK_START.md](docs/guide/QUICK_START.md)。
 
 ## 构建与运行
 
 ```bash
 # 正式构建（前端 build → 复制静态资源 → Maven package → release 目录）
-build.bat          # Windows
-./build.sh         # Linux / macOS
+scripts/build.bat    # Windows
+scripts/build.sh     # Linux / macOS
 
-# 运行
+# 启动
 java -jar pet-game.jar
+# 或使用启动脚本
+scripts/start.bat    # Windows
+scripts/start.sh     # Linux / macOS
 ```
 
 访问 `http://localhost:8080`。
@@ -154,35 +166,40 @@ java -jar pet-game.jar
 
 已完成内容：存档备份 / 恢复 + 开发者工具 + 战斗调试 / 随机数调试 + 新手教学完善 + 内容补齐（85 主动 + 51 被动 + 27 宠技能映射）+ 被动技能体系结构性整合 + 27 宠核心特色被动 + 数值平衡初调 + 美术资源 Batch 0～8 + 响应式兼容适配（全局 CSS + 13 页面 @media 768px）+ 前端战斗调试信息展示面板 + E2E 九大核心场景验收脚本。后端 507 测试全绿，前端类型检查与生产构建通过。
 
-已完成：阶段 0 ~ 阶段 13。各阶段进度、遗留问题与已完成内容详见 [docs/DEVELOPMENT_STATUS.md](docs/DEVELOPMENT_STATUS.md)。
+已完成：阶段 0 ~ 阶段 13。各阶段进度、遗留问题与已完成内容详见 [docs/development/DEVELOPMENT_STATUS.md](docs/development/DEVELOPMENT_STATUS.md)。
 
-## 项目文档
+## 文档导航
 
-### 玩家文档
-
-- [快速开始](docs/QUICK_START.md) — 安装与运行
-- [游戏玩法说明](docs/GAMEPLAY.md) — 怎么玩
-
-### 开发文档
-
-- [系统架构](docs/ARCHITECTURE.md) — 当前系统实际结构
-- [项目结构](docs/PROJECT_STRUCTURE.md) — 代码目录与模块职责
-- [前端开发规范](docs/FRONTEND_STANDARDS.md)
-- [后端开发规范](docs/BACKEND_STANDARDS.md)
-- [测试规约](docs/TESTING_STANDARDS.md)
-- [开发状态](docs/DEVELOPMENT_STATUS.md)
-- [动态难度、野外缩放、Boss 自适应与等级压制方案](docs/动态难度、野外缩放、Boss自适应与等级压制系统方案.md)
+> 完整文档索引见 [docs/README.md](docs/README.md)。
 
 ### 项目设计（权威来源）
 
-- [《宠物精灵游戏第一阶段需求设计文档 V1.0》](宠物精灵游戏第一阶段需求设计文档 V1.0.md) — 玩法规则、数值规则、内容规模的唯一依据
-- 《宠物精灵游戏第一阶段技术方案说明 V1.0.md》 — 技术栈、架构边界、部署方式、数据方案
-- 《宠物精灵游戏分阶段开发规划 V1.0.md》 — 开发顺序、阶段范围、验收标准
+- [《宠物精灵游戏第一阶段需求设计文档 V1.0》](docs/requirements/宠物精灵游戏第一阶段需求设计文档 V1.0.md) — 玩法规则、数值规则、内容规模的唯一依据
+- [《宠物精灵游戏第一阶段技术方案说明 V1.0》](docs/technical/宠物精灵游戏第一阶段技术方案说明 V1.0.md) — 技术栈、架构边界、部署方式、数据方案
+- [《宠物精灵游戏分阶段开发规划 V1.0》](docs/planning/宠物精灵游戏分阶段开发规划 V1.0.md) — 开发顺序、阶段范围、验收标准
 - [AI / 开发规范](AGENTS.md) — 开发前必读
+
+### 玩家指南
+
+- [快速开始](docs/guide/QUICK_START.md) — 安装与运行
+- [游戏玩法说明](docs/guide/GAMEPLAY.md) — 怎么玩
+
+### 架构与结构
+
+- [系统架构](docs/architecture/ARCHITECTURE.md) — 当前系统实际结构
+- [项目结构](docs/architecture/PROJECT_STRUCTURE.md) — 代码目录与模块职责
+
+### 开发与测试
+
+- [前端开发规范](docs/development/FRONTEND_STANDARDS.md)
+- [后端开发规范](docs/development/BACKEND_STANDARDS.md)
+- [测试规约](docs/development/TESTING_STANDARDS.md)
+- [开发状态](docs/development/DEVELOPMENT_STATUS.md)
+- [动态难度、野外缩放、Boss 自适应与等级压制方案](docs/technical/动态难度、野外缩放、Boss自适应与等级压制系统方案.md)
 
 ## 开发说明
 
 - 开发前必须阅读 [AGENTS.md](AGENTS.md) 与上述权威文档。
-- 前端代码怎么写见 [docs/FRONTEND_STANDARDS.md](docs/FRONTEND_STANDARDS.md)。
-- 后端代码怎么写见 [docs/BACKEND_STANDARDS.md](docs/BACKEND_STANDARDS.md)。
-- 怎么测试与验收见 [docs/TESTING_STANDARDS.md](docs/TESTING_STANDARDS.md)。
+- 前端代码怎么写见 [docs/development/FRONTEND_STANDARDS.md](docs/development/FRONTEND_STANDARDS.md)。
+- 后端代码怎么写见 [docs/development/BACKEND_STANDARDS.md](docs/development/BACKEND_STANDARDS.md)。
+- 怎么测试与验收见 [docs/development/TESTING_STANDARDS.md](docs/development/TESTING_STANDARDS.md)。

@@ -33,7 +33,7 @@ import java.util.List;
  *   <li>不读取玩家等级/战力做动态缩放（需求 §80），难度仅来源于配置与战场状态</li>
  * </ul>
  * AI 只做估算排序；伤害/克制/控制成功率的实际结算仍由 BattleEngine 负责。
- * 详细设计见 docs/BOSS_AI_REWORK.md。
+ * 详细设计见 docs/technical/BOSS_AI_REWORK.md。
  */
 @Component
 public class BossDecisionProvider implements DecisionProvider {

@@ -28,9 +28,9 @@
 
 以下文件保留为本轮生成的可追溯证据，**不是新增资源时的当前规范**：
 
-- `docs/art-resource-inventory.md`：生成前基线与缺口盘点；
-- `docs/art-resource-generation-execution-plan.md`：Batch 0～8 的历史执行矩阵；
-- `plans/《宠物精灵》AI 美术资源批量生成提示词.md`：本轮的一次性任务提示词；
+- `docs/art/art-resource-inventory.md`：生成前基线与缺口盘点；
+- `docs/art/art-resource-generation-execution-plan.md`：Batch 0～8 的历史执行矩阵；
+- `docs/art/《宠物精灵》AI 美术资源批量生成提示词.md`：本轮的一次性任务提示词；
 - `pet-spirit-art-skills/`：生成前的通用 Skill 草案，已与实际规格出现差异，见其 README 的归档说明。
 
 不删除这些记录，以便复盘候选图、脚本处理和批次决策。今后只维护本目录中的当前规范和 `asset-manifest.md`。

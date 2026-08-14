@@ -25,6 +25,9 @@ frontend/node_modules/
 frontend/.vite/
 *.tsbuildinfo
 
+# pnpm store（本地缓存，不应入库）
+.pnpm-store/
+
 # ================================
 # Java / Backend
 # ================================

@@ -18,18 +18,18 @@
 
 | 文档 | 职责 |
 |---|---|
-| `宠物精灵游戏第一阶段需求设计文档 V1.0.md` | 玩法规则、数值规则、内容规模的唯一依据 |
-| `宠物精灵游戏第一阶段技术方案说明 V1.0.md` | 技术栈、架构边界、部署方式、数据方案的唯一依据 |
-| `宠物精灵游戏分阶段开发规划 V1.0.md` | 开发顺序、阶段范围、验收标准、阶段约束的唯一依据 |
+| `docs/requirements/宠物精灵游戏第一阶段需求设计文档 V1.0.md` | 玩法规则、数值规则、内容规模的唯一依据 |
+| `docs/technical/宠物精灵游戏第一阶段技术方案说明 V1.0.md` | 技术栈、架构边界、部署方式、数据方案的唯一依据 |
+| `docs/planning/宠物精灵游戏分阶段开发规划 V1.0.md` | 开发顺序、阶段范围、验收标准、阶段约束的唯一依据 |
 | `AGENTS.md`（本文件） | 项目级开发规范与 AI 协作约束 |
-| `docs/FRONTEND_STANDARDS.md` | 前端编码规范、组件约定、Phaser 边界 |
-| `docs/BACKEND_STANDARDS.md` | 后端编码规范、模块结构、配置与事务约定 |
-| `docs/TESTING_STANDARDS.md` | 测试规约、测试重点、阶段验收规则 |
-| `docs/ARCHITECTURE.md` | 当前系统实际技术结构（了解代码如何工作） |
-| `docs/PROJECT_STRUCTURE.md` | 实际代码目录与模块职责 |
-| `docs/DEVELOPMENT_STATUS.md` | 当前开发状态、历史阶段记录、遗留问题、临时技术债务 |
+| `docs/development/FRONTEND_STANDARDS.md` | 前端编码规范、组件约定、Phaser 边界 |
+| `docs/development/BACKEND_STANDARDS.md` | 后端编码规范、模块结构、配置与事务约定 |
+| `docs/development/TESTING_STANDARDS.md` | 测试规约、测试重点、阶段验收规则 |
+| `docs/architecture/ARCHITECTURE.md` | 当前系统实际技术结构（了解代码如何工作） |
+| `docs/architecture/PROJECT_STRUCTURE.md` | 实际代码目录与模块职责 |
+| `docs/development/DEVELOPMENT_STATUS.md` | 当前开发状态、历史阶段记录、遗留问题、临时技术债务 |
 
-> 安装运行见 `docs/QUICK_START.md`；玩家玩法说明见 `docs/GAMEPLAY.md`。
+> 安装运行见 `docs/guide/QUICK_START.md`；玩家玩法说明见 `docs/guide/GAMEPLAY.md`。
 
 **文档优先级：** 用户当前明确要求 > 需求/技术文档 > 分阶段开发规划 > 本文件其余内容 > 历史结论。文档之间出现冲突时，**必须上报并等待确认，禁止自行选择一方并隐式修改需求**。
 
@@ -40,7 +40,7 @@
 - 数据：MyBatis-Plus + MySQL 8.4 LTS，Flyway 管理表结构变更。
 - 接口：REST JSON，统一前缀 `/api/**`，统一响应结构 `{ success, data, message, code }`，业务错误使用稳定 errorCode。
 - 部署：前端构建产物打入 Spring Boot 静态资源，输出单个可执行 `pet-game.jar`，`java -jar` 运行，默认监听 `127.0.0.1:8080`。
-- 仓库：单 Git 仓库，目录为 frontend / backend / docs / plans / scripts / config-example。
+- 仓库：单 Git 仓库，目录为 frontend / backend / docs（下分 requirements / technical / architecture / planning / development / guide / prompts / art）/ scripts / config-example。
 
 **架构边界（必须遵守）：**
 
@@ -61,7 +61,7 @@
 - 正式运行只需 Java 21 + MySQL 8.4 + `pet-game.jar`；玩家环境不需要 Node。
 - 数据库结构变更只允许通过 Flyway 迁移文件，**禁止手工改表**。
 
-> 详细安装与运行步骤见 `docs/QUICK_START.md`。
+> 详细安装与运行步骤见 `docs/guide/QUICK_START.md`。
 
 ## 5. 分阶段开发规则
 
@@ -73,16 +73,16 @@
 4. **只实现当前阶段**：对照该阶段「本阶段不包含」逐项自查；不得因「顺便实现比较方便」提前实现后续系统。
 5. **不修改无关模块**：不重构未涉及代码；确需变更表结构时随 Flyway 新增迁移并说明理由。
 6. **不扩展需求**：发现设计缺失时执行「标记问题 → 给出建议 → 等待确认」，不直接实现。
-7. **测试验证**：实现过程中按《docs/TESTING_STANDARDS.md》编写测试；完成后逐条对照该阶段「完成标准」与「核心业务规则」验证。
+7. **测试验证**：实现过程中按《docs/development/TESTING_STANDARDS.md》编写测试；完成后逐条对照该阶段「完成标准」与「核心业务规则」验证。
 8. **验收自查**：汇报已完成项、验证结果、遗留问题、风险。
-9. **更新进度**：阶段验收通过后，更新 `docs/DEVELOPMENT_STATUS.md` 与本文件「当前阶段状态」一节。
+9. **更新进度**：阶段验收通过后，更新 `docs/development/DEVELOPMENT_STATUS.md` 与本文件「当前阶段状态」一节。
 10. **同步更新文档**：每个开发阶段验收通过后，必须同步更新以下文档（**文档更新是阶段验收的必要条件，未更新文档视为验收未通过**）：
     - `README.md`：更新项目进度、已完成阶段、当前状态等信息。
     - `AGENTS.md`：更新「当前开发阶段状态」（§6）及相关约束。
-    - `docs/DEVELOPMENT_STATUS.md`：更新当前阶段、已完成阶段、遗留问题、临时技术债务。
-    - `docs/FRONTEND_STANDARDS.md`：如本阶段涉及前端新增约定或技术变更，同步更新。
-    - `docs/BACKEND_STANDARDS.md`：如本阶段涉及后端新增约定、模块结构或数据库规范变更，同步更新。
-    - `docs/TESTING_STANDARDS.md`：如本阶段新增测试重点或验收规则，同步更新。
+    - `docs/development/DEVELOPMENT_STATUS.md`：更新当前阶段、已完成阶段、遗留问题、临时技术债务。
+    - `docs/development/FRONTEND_STANDARDS.md`：如本阶段涉及前端新增约定或技术变更，同步更新。
+    - `docs/development/BACKEND_STANDARDS.md`：如本阶段涉及后端新增约定、模块结构或数据库规范变更，同步更新。
+    - `docs/development/TESTING_STANDARDS.md`：如本阶段新增测试重点或验收规则，同步更新。
 
 **阶段验收通过前，不开启下一阶段开发。**
 
@@ -93,9 +93,9 @@
   - 后端 507 测试全绿，前端 vue-tsc + vite build 通过
 - 当前状态：第一阶段全部 15 个阶段（阶段 0 ~ 阶段 14）已完成
 - 下一阶段：无（阶段 14 为第一阶段的最后阶段）
-- 各阶段实现详情、遗留问题、已知限制与临时技术债务：见 [docs/DEVELOPMENT_STATUS.md](docs/DEVELOPMENT_STATUS.md)
+- 各阶段实现详情、遗留问题、已知限制与临时技术债务：见 [docs/development/DEVELOPMENT_STATUS.md](docs/development/DEVELOPMENT_STATUS.md)
 
-> 本文件仅记录当前阶段与进展指针；历史阶段实现记录与遗留事项统一维护在 `docs/DEVELOPMENT_STATUS.md`，避免本文件演变为历史日志。
+> 本文件仅记录当前阶段与进展指针；历史阶段实现记录与遗留事项统一维护在 `docs/development/DEVELOPMENT_STATUS.md`，避免本文件演变为历史日志。
 
 ## 7. 固定规则速查（不得擅自修改）
 
