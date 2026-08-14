@@ -34,6 +34,18 @@ public class BossesConfig {
         private String element;
         /** 推荐等级。 */
         private int recommendedLevel;
+        /** Boss 固定核心单位数量。当前既有 Boss 配置对应 1 个核心。 */
+        private int minTeamSize = 1;
+        /** Boss 队伍最大数量，仍受标准战斗上场数限制。 */
+        private int maxTeamSize = 3;
+        /** 可选支援种族候选池（阶段 13，不重复抽取）。 */
+        private List<String> optionalSpeciesIds = new ArrayList<>();
+        /**
+         * 胜利表现风格（阶段 12，可选）：ARROGANT/SMUG/SARCASTIC/PLAYFUL/CALM/
+         * HOT_BLOODED/VILLAIN/GENTLE。用于战败后 Boss 胜利互动匹配（victoryStyle）。
+         * 未配置时使用 Boss 通用公共池（style 为空的那部分）。
+         */
+        private String victoryStyle;
         /** 难度配置：key = NORMAL/HARD/NIGHTMARE。 */
         private Map<String, DifficultyConfig> difficulties = new LinkedHashMap<>();
     }

@@ -117,6 +117,73 @@ class TutorialServiceTest {
         verify(playerTutorialMapper, times(1)).insert(any(PlayerTutorialEntity.class));
     }
 
+    // ==================== 阶段 14：重置教学提示 ====================
+
+    @Test
+    void resetTutorial_clearsCompletedAndSkipped() {
+        // 已有完成/跳过记录
+        PlayerTutorialEntity done = new PlayerTutorialEntity();
+        done.setSaveId(SAVE_ID);
+        done.setStepId("TUT_MOVE");
+        done.setCompleted(true);
+        done.setSkipped(false);
+        PlayerTutorialEntity skip = new PlayerTutorialEntity();
+        skip.setSaveId(SAVE_ID);
+        skip.setStepId("TUT_CAPTURE");
+        skip.setCompleted(false);
+        skip.setSkipped(true);
+        when(playerTutorialMapper.selectOne(any())).thenReturn(done, skip);
+
+        tutorialService.resetTutorial();
+
+        // 两次 update，均被清空完成/跳过
+        verify(playerTutorialMapper, times(2)).update(any(), any());
+        assertEquals(Boolean.FALSE, done.getCompleted());
+        assertEquals(Boolean.FALSE, done.getSkipped());
+        assertEquals(Boolean.FALSE, skip.getCompleted());
+        assertEquals(Boolean.FALSE, skip.getSkipped());
+    }
+
+    @Test
+    void resetTutorial_noRecord_skipsStep() {
+        when(playerTutorialMapper.selectOne(any())).thenReturn(null);
+
+        tutorialService.resetTutorial();
+
+        verify(playerTutorialMapper, never()).update(any(), any());
+    }
+
+    @Test
+    void completeStep_afterReset_doesNotRegrantReward() {
+        // 首次完成已发放奖励（rewardGranted=true）
+        PlayerTutorialEntity existing = new PlayerTutorialEntity();
+        existing.setSaveId(SAVE_ID);
+        existing.setStepId("TUT_CAPTURE");
+        existing.setCompleted(true);
+        existing.setSkipped(false);
+        existing.setRewardGranted(true);
+        when(playerTutorialMapper.selectOne(any())).thenReturn(existing);
+
+        tutorialService.completeStep("TUT_CAPTURE");
+
+        // existing.completed 已 true → 幂等直接返回，不重复发放
+        verify(playerInventoryMapper, never()).insert(any(PlayerInventoryEntity.class));
+        verify(playerInventoryMapper, never()).updateById(any(PlayerInventoryEntity.class));
+    }
+
+    @Test
+    void completeStep_reward_grantedFlagSetOnFirstCompletion() {
+        // selectOne 返回 null（首次完成）
+        when(playerTutorialMapper.selectOne(any())).thenReturn(null);
+
+        tutorialService.completeStep("TUT_CAPTURE");
+
+        // 首次完成应发放奖励
+        verify(playerInventoryMapper).insert(any(PlayerInventoryEntity.class));
+        // 发放后应 update 一次以置 rewardGranted=true
+        verify(playerTutorialMapper, times(1)).update(any(), any());
+    }
+
     private static GameConfigRegistry buildRegistry(QuestsConfig questsConfig) throws Exception {
         GameConfigRegistry registry = new GameConfigRegistry(null, null);
         setField(registry, "questsConfig", questsConfig);

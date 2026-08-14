@@ -194,7 +194,7 @@ frontend/
 
 ### 15.1 Phaser 集成约定
 
-- **Phaser 版本**：3.90.0，通过 `src/game/PhaserGame.ts` 创建实例，ExploreView 在 `onMounted` 启动、`onBeforeUnmount` 销毁。
+- **Phaser 版本**：4.2.1（与 `frontend/package.json` 的 `phaser` 依赖一致），通过 `src/game/PhaserGame.ts` 创建实例，ExploreView 在 `onMounted` 启动、`onBeforeUnmount` 销毁。
 - **3 核心 Scene**：`BootScene`（资源加载，含未数据保护）、`MapScene`（地图渲染 + 野怪 AI + 交互）、`BattleScene`（预留，后续阶段接入）。不为每张地图创建独立 Scene，地图差异通过 Tiled JSON 解决。
 - **GameBridge 事件桥**：`src/game/bridge/GameBridge.ts`，类型化事件总线（`emit`/`on`/`off`）；Phaser 只通过 bridge 向 Vue 层发送事件，Vue 层处理后回传结果；Phaser 禁止直接调用后端 API、禁止操作 Pinia Store。
 - **bridge 命令约定**：Vue → Phaser 使用前缀 `cmd:`（如 `cmd:restart-map`、`cmd:remove-wild`、`cmd:set-input-lock`）；Phaser → Vue 使用业务事件名（如 `encounter`、`exit`、`camp`、`gather`、`chest`）。
@@ -327,3 +327,12 @@ frontend/
 - 战斗头部新增速度控制：1x / 2x / 3x 按钮 + 「自动」开关；自动模式按速度档位（1500/600/200ms）自动提交回合（未选行动宠物自动防御）。
 - 战斗结束/离开页面时自动停止自动播放（`onBeforeUnmount` 清理定时器）。
 - `UnitSnapshot` 新增 `elite` 字段，敌方卡片展示「✨精英」徽章。
+
+---
+
+## 20. 动态难度与等级压制展示约定（阶段 13）
+
+- 设置页通过 `GET/PUT /api/game/difficulty` 读取和保存全局难度；前端只提交难度 ID，不计算野外等级、Boss 数值或等级上限。
+- Boss 页通过 `GET /api/bosses/{bossId}/encounter-snapshot?difficulty=...` 展示已锁定遭遇；只有后端返回 `canReset=true` 时显示重置按钮，并在点击前要求用户明确确认。
+- `UnitSnapshot.actualLevel/effectiveLevel` 仅用于展示。有效等级低于真实等级时统一展示为 `Lv.真实 → 有效`，不得在前端自行按比例重算 HP、属性、技能或自由点。
+- Boss 快照为空时仅提示「首次挑战后固定」；全局难度与快照难度不一致时必须明确告知「本次仍按旧快照挑战」。

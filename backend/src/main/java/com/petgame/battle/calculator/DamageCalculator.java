@@ -94,6 +94,16 @@ public class DamageCalculator {
      */
     public DamageResult calculate(BattleUnit attacker, BattleUnit defender, SkillConfig skill,
                                   double baseValue, GameRandom random, boolean forceNoCrit) {
+        return calculate(attacker, defender, skill, baseValue, random, forceNoCrit, false);
+    }
+
+    /**
+     * 完整伤害结算（含强制暴击开关，供开发者战斗调试「固定暴击」使用）。
+     *
+     * @param forceCrit 强制暴击：true 时必定暴击（仍按配置随机倍率，保证可复现）
+     */
+    public DamageResult calculate(BattleUnit attacker, BattleUnit defender, SkillConfig skill,
+                                  double baseValue, GameRandom random, boolean forceNoCrit, boolean forceCrit) {
         SystemRuleConfig rules = registry.getSystemRules();
         Map<String, com.petgame.config.model.StatusEffectConfig> statusIndex = registry.getStatusIndex();
 
@@ -161,10 +171,10 @@ public class DamageCalculator {
         }
         result.buffMultiplier = buffMultiplier;
 
-        // 6. 暴击
+        // 6. 暴击（开发者「固定暴击」强制命中，倍率仍按配置均匀随机）
         double critMultiplier = 1.0;
         boolean critical = false;
-        if (!forceNoCrit && CriticalCalculator.roll(random, rules.getCritRate())) {
+        if (!forceNoCrit && (forceCrit || CriticalCalculator.roll(random, rules.getCritRate()))) {
             critical = true;
             critMultiplier = CriticalCalculator.rollMultiplier(
                     random, rules.getCritMultiplierMin(), rules.getCritMultiplierMax());

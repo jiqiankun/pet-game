@@ -210,6 +210,9 @@ public class SystemRuleConfig {
     /** 玩家自动战斗决策参数（AutoBattleDecisionProvider 评分权重，均不影响实际战斗结算，阶段 10）。 */
     private AutoBattleConfig autoBattle = new AutoBattleConfig();
 
+    /** 全局难度参数（阶段 13）：野外、Boss 与有效等级统一从此读取。 */
+    private GameDifficultyConfig gameDifficulty = new GameDifficultyConfig();
+
     // ---- Boss 控制抗性（阶段 7，需求 §43 + 决策六）----
 
     /** 控制抗性：key = NORMAL/ELITE/BOSS，value = 异常成功率修正系数。 */
@@ -432,6 +435,56 @@ public class SystemRuleConfig {
             map.put("CONTROL", java.util.Map.of("CONTROL", 1.4, "ACTION_ORDER", 1.2, "DAMAGE", 0.95));
             return map;
         }
+    }
+
+    /** 全局难度根配置。 */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class GameDifficultyConfig {
+        /** 新存档默认难度。 */
+        private String defaultDifficulty = "NORMAL";
+        /** 难度 ID → 参数。固定支持 NORMAL/ELITE/NIGHTMARE/HELL。 */
+        private java.util.Map<String, DifficultyProfile> profiles = defaultProfiles();
+
+        private static java.util.Map<String, DifficultyProfile> defaultProfiles() {
+            java.util.Map<String, DifficultyProfile> profiles = new java.util.LinkedHashMap<>();
+            for (String key : java.util.List.of("NORMAL", "ELITE", "NIGHTMARE", "HELL")) {
+                profiles.put(key, new DifficultyProfile());
+            }
+            return profiles;
+        }
+    }
+
+    /** 单档全局难度参数。所有等级偏移均相对地图/Boss 基准等级。 */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class DifficultyProfile {
+        private int wildLevelOffset;
+        private int wildMinLevelOffset;
+        private int wildMaxLevelOffset;
+        private int eliteLevelOffset;
+        private int eliteMinLevelOffset;
+        private int eliteMaxLevelOffset;
+        private int wildPlayerAdjustmentMin;
+        private int wildPlayerAdjustmentMax;
+        private int wildMinTeamSize = 1;
+        private int wildMaxTeamSize = 1;
+        private int eliteMinTeamSize = 1;
+        private int eliteMaxTeamSize = 1;
+        private boolean roleSynergy;
+        private int bossLevelOffset;
+        /** Boss 仅允许向上适配的最大等级差。 */
+        private int bossPlayerLevelUpwardLimit;
+        private int bossOptionalSlotCount;
+        private double bossHpMultiplier = 1.0;
+        private double bossAttackMultiplier = 1.0;
+        private double bossDefenseMultiplier = 1.0;
+        private double bossSpeedMultiplier = 1.0;
+        /** 评分 AI 的稳健等级，越高越少随机。 */
+        private int bossAiLevel = 1;
+        private boolean effectiveLevelCapEnabled;
+        /** 玩家有效等级上限 = Boss 生成等级 + 该偏移。 */
+        private int playerLevelCapOffset;
     }
 
     /**

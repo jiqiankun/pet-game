@@ -40,4 +40,9 @@ public class GameProperties {
      * 开发者模式开关（默认关闭）。
      */
     private boolean developerMode = false;
+
+    /**
+     * 存档自动备份目录（阶段 14）。导入前、重置游戏前、开发者高风险操作前写入。
+     */
+    private String backupDir = "./data/backups";
 }

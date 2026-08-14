@@ -42,6 +42,12 @@ public class BattleUnit {
     /** 等级。 */
     private int level;
 
+    /** 真实等级（阶段 13；与 level 保持一致，显式供前端展示）。 */
+    private int actualLevel;
+
+    /** 本场战斗有效等级（高难 Boss 可低于真实等级）。 */
+    private int effectiveLevel;
+
     // ---- 基础六维（战斗开始时快照，不含战斗 Buff）----
 
     private int maxHp;

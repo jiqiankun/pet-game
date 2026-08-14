@@ -16,11 +16,13 @@ bosses:
     mapId: MAP_AREA_MEADOW
     element: EARTH
     recommendedLevel: 10
+    optionalSpeciesIds: [PET_EARTH_002, PET_WOOD_002, PET_WIND_002]
+    victoryStyle: ARROGANT
     difficulties:
       NORMAL:
-        stats: { maxHp: 800, strength: 45, spirit: 20, defense: 50, resistance: 30, speed: 25 }
+        stats: { maxHp: 1200, strength: 45, spirit: 20, defense: 50, resistance: 30, speed: 25 }
         skills: [SKILL_ROCK_THROW, SKILL_EARTHQUAKE, SKILL_HEADBUTT]
-        passives: [PASSIVE_THICK_HIDE]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_REGENERATE]
         luckGain: 4
         phases:
           - hpPercent: 0.50
@@ -37,7 +39,7 @@ bosses:
           LEGENDARY:
             - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.02, exchangeQty: 1 }
       HARD:
-        stats: { maxHp: 1200, strength: 60, spirit: 30, defense: 65, resistance: 40, speed: 30 }
+        stats: { maxHp: 1550, strength: 60, spirit: 30, defense: 65, resistance: 40, speed: 30 }
         skills: [SKILL_ROCK_THROW, SKILL_EARTHQUAKE, SKILL_HEADBUTT, SKILL_TAUNT]
         passives: [PASSIVE_THICK_HIDE, PASSIVE_REGENERATE]
         luckGain: 7
@@ -89,9 +91,11 @@ bosses:
     mapId: MAP_AREA_FOREST
     element: WOOD
     recommendedLevel: 15
+    optionalSpeciesIds: [PET_WOOD_002, PET_EARTH_001, PET_WIND_002]
+    victoryStyle: SMUG
     difficulties:
       NORMAL:
-        stats: { maxHp: 1000, strength: 55, spirit: 35, defense: 40, resistance: 35, speed: 45 }
+        stats: { maxHp: 1500, strength: 55, spirit: 35, defense: 40, resistance: 35, speed: 45 }
         skills: [SKILL_THORN_BIND, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_STRIKE]
         passives: [PASSIVE_REGENERATE]
         luckGain: 4
@@ -110,7 +114,7 @@ bosses:
           LEGENDARY:
             - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.03, exchangeQty: 1 }
       HARD:
-        stats: { maxHp: 1500, strength: 72, spirit: 48, defense: 55, resistance: 48, speed: 55 }
+        stats: { maxHp: 2000, strength: 72, spirit: 48, defense: 55, resistance: 48, speed: 55 }
         skills: [SKILL_THORN_BIND, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_SHADOW_STRIKE, SKILL_CURSE]
         passives: [PASSIVE_REGENERATE, PASSIVE_TAILWIND]
         luckGain: 7
@@ -162,9 +166,11 @@ bosses:
     mapId: MAP_AREA_WATERS
     element: WATER
     recommendedLevel: 20
+    optionalSpeciesIds: [PET_WATER_002, PET_EARTH_002, PET_WOOD_001]
+    victoryStyle: CALM
     difficulties:
       NORMAL:
-        stats: { maxHp: 1200, strength: 40, spirit: 55, defense: 45, resistance: 50, speed: 35 }
+        stats: { maxHp: 1800, strength: 40, spirit: 55, defense: 45, resistance: 50, speed: 35 }
         skills: [SKILL_WATER_PULSE, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK]
         passives: [PASSIVE_REGENERATE]
         luckGain: 5
@@ -182,7 +188,7 @@ bosses:
           LEGENDARY:
             - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.04, exchangeQty: 1 }
       HARD:
-        stats: { maxHp: 1800, strength: 55, spirit: 72, defense: 58, resistance: 65, speed: 42 }
+        stats: { maxHp: 2350, strength: 55, spirit: 72, defense: 58, resistance: 65, speed: 42 }
         skills: [SKILL_WATER_PULSE, SKILL_HEAL_SPORE, SKILL_QUICK_ATTACK, SKILL_CURSE]
         passives: [PASSIVE_REGENERATE, PASSIVE_THICK_HIDE]
         luckGain: 8
@@ -232,11 +238,13 @@ bosses:
     mapId: MAP_AREA_THUNDER
     element: THUNDER
     recommendedLevel: 20
+    optionalSpeciesIds: [PET_WIND_002, PET_EARTH_001, PET_LIGHT_002]
+    victoryStyle: HOT_BLOODED
     difficulties:
       NORMAL:
-        stats: { maxHp: 1100, strength: 55, spirit: 50, defense: 35, resistance: 40, speed: 55 }
+        stats: { maxHp: 1650, strength: 55, spirit: 50, defense: 35, resistance: 40, speed: 55 }
         skills: [SKILL_THUNDERBOLT, SKILL_QUICK_ATTACK, SKILL_HEADBUTT]
-        passives: [PASSIVE_TAILWIND]
+        passives: [PASSIVE_TAILWIND, PASSIVE_REGENERATE]
         luckGain: 5
         phases:
           - hpPercent: 0.50
@@ -252,7 +260,7 @@ bosses:
           LEGENDARY:
             - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 1, chance: 0.04, exchangeQty: 1 }
       HARD:
-        stats: { maxHp: 1700, strength: 72, spirit: 65, defense: 48, resistance: 52, speed: 68 }
+        stats: { maxHp: 2200, strength: 72, spirit: 65, defense: 48, resistance: 52, speed: 68 }
         skills: [SKILL_THUNDERBOLT, SKILL_QUICK_ATTACK, SKILL_HEADBUTT, SKILL_TAUNT]
         passives: [PASSIVE_TAILWIND, PASSIVE_REGENERATE]
         luckGain: 8
@@ -302,11 +310,13 @@ bosses:
     mapId: MAP_AREA_RUINS
     element: DARK
     recommendedLevel: 35
+    optionalSpeciesIds: [PET_METAL_003, PET_DARK_002, PET_LIGHT_002]
+    victoryStyle: VILLAIN
     difficulties:
       NORMAL:
-        stats: { maxHp: 2000, strength: 70, spirit: 65, defense: 65, resistance: 60, speed: 40 }
+        stats: { maxHp: 3000, strength: 70, spirit: 65, defense: 65, resistance: 60, speed: 40 }
         skills: [SKILL_SHADOW_STRIKE, SKILL_EARTHQUAKE, SKILL_CURSE, SKILL_ARMOR_CRUSH]
-        passives: [PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING]
+        passives: [PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING, PASSIVE_REGENERATE]
         luckGain: 8
         phases:
           - hpPercent: 0.60
@@ -326,7 +336,7 @@ bosses:
           LEGENDARY:
             - { itemId: ITEM_CAPTURE_BALL_ULTRA, qty: 2, chance: 0.08, exchangeQty: 1 }
       HARD:
-        stats: { maxHp: 3000, strength: 92, spirit: 85, defense: 82, resistance: 78, speed: 48 }
+        stats: { maxHp: 3400, strength: 92, spirit: 85, defense: 82, resistance: 78, speed: 48 }
         skills: [SKILL_SHADOW_STRIKE, SKILL_EARTHQUAKE, SKILL_CURSE, SKILL_ARMOR_CRUSH, SKILL_SHADOW_BALL]
         passives: [PASSIVE_THICK_HIDE, PASSIVE_UNYIELDING, PASSIVE_REGENERATE]
         luckGain: 12
@@ -378,6 +388,7 @@ bosses:
     mapId: MAP_AREA_MEADOW
     element: DARK
     recommendedLevel: 15
+    optionalSpeciesIds: [PET_DARK_002, PET_EARTH_001, PET_WOOD_002]
     difficulties:
       NORMAL:
         stats: { maxHp: 900, strength: 50, spirit: 55, defense: 35, resistance: 45, speed: 50 }
@@ -445,6 +456,7 @@ bosses:
     mapId: MAP_AREA_FOREST
     element: WOOD
     recommendedLevel: 20
+    optionalSpeciesIds: [PET_WOOD_002, PET_EARTH_001, PET_WIND_002]
     difficulties:
       NORMAL:
         stats: { maxHp: 1100, strength: 52, spirit: 45, defense: 50, resistance: 42, speed: 38 }
@@ -514,6 +526,7 @@ bosses:
     mapId: MAP_AREA_RUINS
     element: LIGHT
     recommendedLevel: 40
+    optionalSpeciesIds: [PET_LIGHT_002, PET_METAL_003, PET_WIND_002]
     difficulties:
       NORMAL:
         stats: { maxHp: 1800, strength: 60, spirit: 70, defense: 55, resistance: 65, speed: 50 }

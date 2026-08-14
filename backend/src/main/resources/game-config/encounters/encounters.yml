@@ -16,7 +16,7 @@ encounterGroups:
     name: 青草原野怪
     teamSizeMin: 1
     teamSizeMax: 2
-    expPerLevel: 12
+    expPerLevel: 15
     goldPerLevel: 3
     species:
       - { speciesId: PET_WOOD_001, weight: 12, levelMin: 2, levelMax: 6 }
@@ -33,7 +33,7 @@ encounterGroups:
     name: 翠树林野怪
     teamSizeMin: 1
     teamSizeMax: 3
-    expPerLevel: 14
+    expPerLevel: 18
     goldPerLevel: 4
     species:
       - { speciesId: PET_WOOD_002, weight: 12, levelMin: 6, levelMax: 11 }
@@ -52,7 +52,7 @@ encounterGroups:
     name: 通用野外
     teamSizeMin: 1
     teamSizeMax: 2
-    expPerLevel: 12
+    expPerLevel: 15
     goldPerLevel: 3
     species:
       - { speciesId: PET_METAL_001, weight: 10, levelMin: 2, levelMax: 6 }
@@ -89,7 +89,7 @@ encounterGroups:
     name: 静水湖域野怪
     teamSizeMin: 2
     teamSizeMax: 3
-    expPerLevel: 16
+    expPerLevel: 20
     goldPerLevel: 5
     species:
       - { speciesId: PET_WATER_001, weight: 12, levelMin: 13, levelMax: 20 }
@@ -105,7 +105,7 @@ encounterGroups:
     name: 雷鸣高地野怪
     teamSizeMin: 2
     teamSizeMax: 3
-    expPerLevel: 16
+    expPerLevel: 20
     goldPerLevel: 5
     species:
       - { speciesId: PET_THUNDER_001, weight: 12, levelMin: 13, levelMax: 20 }
@@ -122,7 +122,7 @@ encounterGroups:
     name: 远古遗迹野怪
     teamSizeMin: 2
     teamSizeMax: 4
-    expPerLevel: 20
+    expPerLevel: 26
     goldPerLevel: 7
     species:
       - { speciesId: PET_DARK_003, weight: 10, levelMin: 28, levelMax: 40 }

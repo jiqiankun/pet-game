@@ -88,10 +88,27 @@ public class GameController {
         return ApiResponse.success(Map.of("status", "saved"));
     }
 
+    /** 查询全局难度设置。 */
+    @GetMapping("/difficulty")
+    public ApiResponse<GameService.DifficultyView> getDifficulty() {
+        return ApiResponse.success(gameService.getDifficultyView());
+    }
+
+    /** 修改全局难度；已有 Boss 遭遇快照保持不变。 */
+    @PutMapping("/difficulty")
+    public ApiResponse<GameService.DifficultyView> updateDifficulty(@RequestBody DifficultyRequest request) {
+        return ApiResponse.success(gameService.updateDifficulty(request.getDifficulty()));
+    }
+
     @Data
     public static class NewGameRequest {
         private String playerName;
         private String avatarId;
         private String petChoiceId;
+    }
+
+    @Data
+    public static class DifficultyRequest {
+        private String difficulty;
     }
 }

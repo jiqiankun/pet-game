@@ -601,6 +601,142 @@ class PetServiceTest {
         assertTrue(detail.getAvailableSkills().isEmpty());
     }
 
+    // ==================== 被动技能书启用 / 卸下（阶段 14） ====================
+
+    @Test
+    void equipBookPassive_intoSlot7_succeeds() {
+        // 注册一个被动技能，供 equipBookPassive 校验 registry.getPassive != null
+        registerPassives(registry, List.of(passive("PASSIVE_BOOK_SPEED", "SPEED_BONUS", "HIGHEST_ONLY")));
+
+        PlayerPetEntity pet = pet(10, 50, 100);
+        PlayerPetSkillEntity learned = new PlayerPetSkillEntity();
+        learned.setId(30L);
+        learned.setPetId(1L);
+        learned.setSkillId("PASSIVE_BOOK_SPEED");
+        learned.setSourceType("SKILL_BOOK");
+        learned.setSlot(null); // 已学习未启用
+
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        // 第 1 次 selectOne：查询已学习记录；第 2 次：查询槽 7 占用（返回 null）
+        when(playerPetSkillMapper.selectOne(any())).thenReturn(learned, null);
+        when(playerMapper.selectOne(isNull())).thenReturn(playerWithExp(1000));
+        when(playerPetSkillMapper.selectList(any())).thenReturn(List.of(learned));
+
+        PetDetail detail = petService.equipBookPassive(1L, "PASSIVE_BOOK_SPEED", 7);
+
+        assertEquals(7, learned.getSlot(), "被动技能书应启用进槽 7");
+        verify(playerPetSkillMapper).updateById(learned);
+        assertNotNull(detail);
+        // 详情被动列表中应包含该技能书被动（source=BOOK, slot=7）
+        assertTrue(detail.getPassives().stream().anyMatch(p ->
+                "PASSIVE_BOOK_SPEED".equals(p.getPassiveId())
+                        && "BOOK".equals(p.getSource())
+                        && Integer.valueOf(7).equals(p.getSlot())),
+                "已启用被动技能书应出现在被动列表且带槽位");
+    }
+
+    @Test
+    void equipBookPassive_invalidSlot_rejected() {
+        // 被动技能书槽位必须为 7~8；槽 6（主动技能书区）应被拒绝
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> petService.equipBookPassive(1L, "PASSIVE_BOOK_SPEED", 6));
+        assertEquals("INVALID_SLOT", ex.getErrorCode());
+    }
+
+    @Test
+    void equipBookPassive_thirdSlot_rejected() {
+        // 槽 9 超出 2 槽范围（7~8），无法启用第 3 个
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> petService.equipBookPassive(1L, "PASSIVE_BOOK_SPEED", 9));
+        assertEquals("INVALID_SLOT", ex.getErrorCode());
+    }
+
+    @Test
+    void equipBookPassive_notLearned_rejected() {
+        PlayerPetEntity pet = pet(10, 50, 100);
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        when(playerPetSkillMapper.selectOne(any())).thenReturn(null); // 未学习
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> petService.equipBookPassive(1L, "PASSIVE_BOOK_SPEED", 7));
+        assertEquals("SKILL_NOT_BOOK", ex.getErrorCode());
+    }
+
+    @Test
+    void equipBookPassive_activeSkillBook_rejected() {
+        // 技能书关联的是主动技能（非被动），不应通过被动启用接口
+        PlayerPetEntity pet = pet(10, 50, 100);
+        PlayerPetSkillEntity learned = new PlayerPetSkillEntity();
+        learned.setId(30L);
+        learned.setSkillId("SKILL_A"); // 主动技能
+        learned.setSourceType("SKILL_BOOK");
+        learned.setSlot(null);
+
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        when(playerPetSkillMapper.selectOne(any())).thenReturn(learned);
+        // registry.getPassive("SKILL_A") 为 null → NOT_PASSIVE
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> petService.equipBookPassive(1L, "SKILL_A", 7));
+        assertEquals("NOT_PASSIVE", ex.getErrorCode());
+    }
+
+    @Test
+    void unequipBookPassive_clearsSlot() {
+        PlayerPetEntity pet = pet(10, 50, 100);
+        PlayerPetSkillEntity equipped = new PlayerPetSkillEntity();
+        equipped.setId(30L);
+        equipped.setSkillId("PASSIVE_BOOK_SPEED");
+        equipped.setSourceType("SKILL_BOOK");
+        equipped.setSlot(7);
+
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        when(playerPetSkillMapper.selectOne(any())).thenReturn(equipped);
+        when(playerMapper.selectOne(isNull())).thenReturn(playerWithExp(1000));
+        when(playerPetSkillMapper.selectList(any())).thenReturn(List.of(equipped));
+
+        petService.unequipBookPassive(1L, 7);
+
+        assertNull(equipped.getSlot(), "卸下后槽位应置空，立即失效");
+        verify(playerPetSkillMapper).updateById(equipped);
+    }
+
+    @Test
+    void unequipBookPassive_emptySlot_rejected() {
+        PlayerPetEntity pet = pet(10, 50, 100);
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        when(playerPetSkillMapper.selectOne(any())).thenReturn(null);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> petService.unequipBookPassive(1L, 7));
+        assertEquals("SLOT_EMPTY", ex.getErrorCode());
+    }
+
+    @Test
+    void getPetDetail_bookPassiveLearnedNotEnabled_slotNull() {
+        // 已学习但未启用的被动技能书：被动列表展示 slot=null（已学习 ≠ 当前生效）
+        registerPassives(registry, List.of(passive("PASSIVE_BOOK_SPEED", "SPEED_BONUS", "HIGHEST_ONLY")));
+
+        PlayerPetEntity pet = pet(10, 50, 100);
+        PlayerEntity player = playerWithExp(500);
+        PlayerPetSkillEntity bookPassive = new PlayerPetSkillEntity();
+        bookPassive.setSkillId("PASSIVE_BOOK_SPEED");
+        bookPassive.setSourceType("SKILL_BOOK");
+        bookPassive.setSlot(null); // 未启用
+
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        when(playerPetSkillMapper.selectList(any())).thenReturn(List.of(bookPassive));
+
+        PetDetail detail = petService.getPetDetail(1L);
+
+        assertTrue(detail.getPassives().stream().anyMatch(p ->
+                        "PASSIVE_BOOK_SPEED".equals(p.getPassiveId())
+                                && "BOOK".equals(p.getSource())
+                                && p.getSlot() == null),
+                "已学习未启用的技能书被动 slot 应为 null");
+    }
+
     // ==================== 工具方法 ====================
 
     private PlayerPetEntity pet(int level, int aptitude, int currentHp) {

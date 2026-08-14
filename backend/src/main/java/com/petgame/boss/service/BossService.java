@@ -55,6 +55,7 @@ public class BossService {
     private final BossLuckMapper luckMapper;
     private final BossDropUnlockMapper dropUnlockMapper;
     private final BossManualClearMapper manualClearMapper;
+    private final BossEncounterSnapshotService encounterSnapshotService;
 
     public BossService(GameConfigRegistry registry,
                        BossDecisionProvider bossDecisionProvider,
@@ -67,7 +68,8 @@ public class BossService {
                        BossDifficultyUnlockMapper difficultyUnlockMapper,
                        BossLuckMapper luckMapper,
                        BossDropUnlockMapper dropUnlockMapper,
-                       BossManualClearMapper manualClearMapper) {
+                       BossManualClearMapper manualClearMapper,
+                       BossEncounterSnapshotService encounterSnapshotService) {
         this.registry = registry;
         this.bossDecisionProvider = bossDecisionProvider;
         this.wildEnemyDecisionProvider = wildEnemyDecisionProvider;
@@ -80,6 +82,7 @@ public class BossService {
         this.luckMapper = luckMapper;
         this.dropUnlockMapper = dropUnlockMapper;
         this.manualClearMapper = manualClearMapper;
+        this.encounterSnapshotService = encounterSnapshotService;
     }
 
     // ---- 情报查询 ----
@@ -100,6 +103,26 @@ public class BossService {
             throw new BusinessException("BOSS_NOT_FOUND", "Boss 不存在: " + bossId);
         }
         return buildBossInfoDTO(saveId, boss);
+    }
+
+    /** 查询已生成的 Boss 遭遇快照；首次挑战前返回 null。 */
+    public BossEncounterSnapshotService.SnapshotView getEncounterSnapshot(
+            String saveId, String bossId, String difficulty) {
+        requireBossDifficulty(bossId, difficulty);
+        return encounterSnapshotService.getView(saveId, bossId, difficulty, currentGameDifficulty(saveId));
+    }
+
+    /** 在全局难度已变化时，明确重置当前 Boss 难度的遭遇快照。 */
+    @Transactional
+    public BossEncounterSnapshotService.SnapshotView resetEncounterSnapshot(
+            String saveId, String bossId, String difficulty) {
+        BossDifficultyPair pair = requireBossDifficulty(bossId, difficulty);
+        List<com.petgame.pet.entity.PlayerPetEntity> teamPets = battleService.getActiveTeamPetsForSnapshot(saveId);
+        if (teamPets.isEmpty()) {
+            throw new BusinessException("NO_TEAM", "未设置战斗队伍");
+        }
+        return encounterSnapshotService.resetForCurrentDifficulty(saveId, pair.boss(), pair.difficulty(),
+                difficulty, currentGameDifficulty(saveId), teamPets);
     }
 
     // ---- Boss 战斗 ----
@@ -194,6 +217,7 @@ public class BossService {
             boolean playerWon = "PLAYER".equals(ctx.getWinner());
             if (playerWon) {
                 wins++;
+                encounterSnapshotService.markDefeated(ctx.getBossSnapshotId());
                 // 累计击败次数
                 ensureDefeatCount(saveId, bossId, difficulty);
                 defeatCountMapper.incrementDefeatCount(saveId, bossId, difficulty, 1);
@@ -282,6 +306,34 @@ public class BossService {
     }
 
     // ---- 内部方法 ----
+
+    private BossDifficultyPair requireBossDifficulty(String bossId, String difficulty) {
+        BossesConfig.BossConfig boss = registry.getBoss(bossId);
+        if (boss == null) {
+            throw new BusinessException("BOSS_NOT_FOUND", "Boss 不存在: " + bossId);
+        }
+        BossesConfig.DifficultyConfig config = boss.getDifficulties().get(difficulty);
+        if (config == null) {
+            throw new BusinessException("INVALID_DIFFICULTY", "Boss 难度配置不存在: " + difficulty);
+        }
+        return new BossDifficultyPair(boss, config);
+    }
+
+    private String currentGameDifficulty(String saveId) {
+        var player = playerMapper.selectOne(new LambdaQueryWrapper<com.petgame.player.entity.PlayerEntity>()
+                .eq(com.petgame.player.entity.PlayerEntity::getSaveId, saveId));
+        if (player == null) {
+            throw new BusinessException("NO_SAVE", "不存在存档，请先创建新游戏");
+        }
+        var config = registry.getSystemRules().getGameDifficulty();
+        String stored = player.getGameDifficulty();
+        return stored != null && config.getProfiles().containsKey(stored.toUpperCase())
+                ? stored.toUpperCase() : config.getDefaultDifficulty();
+    }
+
+    private record BossDifficultyPair(BossesConfig.BossConfig boss,
+                                      BossesConfig.DifficultyConfig difficulty) {
+    }
 
     private BossInfoDTO buildBossInfoDTO(String saveId, BossesConfig.BossConfig boss) {
         BossInfoDTO dto = new BossInfoDTO();

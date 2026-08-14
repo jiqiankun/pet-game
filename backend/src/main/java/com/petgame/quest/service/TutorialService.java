@@ -121,11 +121,16 @@ public class TutorialService {
                             .eq(PlayerTutorialEntity::getStepId, stepId));
         }
 
-        // 发放步骤奖励（如捕捉教学赠送技能书）
-        if (config.getRewards() != null) {
+        // 发放步骤奖励（如捕捉教学赠送技能书）；仅首次发放，重置后不重复发放
+        if (config.getRewards() != null && !Boolean.TRUE.equals(existing.getRewardGranted())) {
             for (QuestsConfig.RewardEntry entry : config.getRewards()) {
                 grantReward(saveId, player, entry);
             }
+            existing.setRewardGranted(true);
+            playerTutorialMapper.update(existing,
+                    new LambdaQueryWrapper<PlayerTutorialEntity>()
+                            .eq(PlayerTutorialEntity::getSaveId, saveId)
+                            .eq(PlayerTutorialEntity::getStepId, stepId));
         }
 
         log.info("教学步骤完成：stepId={}, saveId={}", stepId, saveId);
@@ -166,6 +171,36 @@ public class TutorialService {
         }
 
         log.info("跳过所有可跳过教学步骤：saveId={}", saveId);
+    }
+
+    /**
+     * 重置教学提示（阶段 14）。
+     * <p>
+     * 将所有教学步骤的完成/跳过状态清空，教学从头开始重新引导；
+     * 步骤奖励标记（rewardGranted）保留，避免重复发放捕捉教学技能书。
+     */
+    @Transactional
+    public void resetTutorial() {
+        PlayerEntity player = requirePlayer();
+        String saveId = player.getSaveId();
+
+        for (QuestsConfig.TutorialStepConfig config : registry.getTutorials()) {
+            PlayerTutorialEntity existing = playerTutorialMapper.selectOne(
+                    new LambdaQueryWrapper<PlayerTutorialEntity>()
+                            .eq(PlayerTutorialEntity::getSaveId, saveId)
+                            .eq(PlayerTutorialEntity::getStepId, config.getStepId()));
+            if (existing == null) {
+                continue;
+            }
+            existing.setCompleted(false);
+            existing.setSkipped(false);
+            playerTutorialMapper.update(existing,
+                    new LambdaQueryWrapper<PlayerTutorialEntity>()
+                            .eq(PlayerTutorialEntity::getSaveId, saveId)
+                            .eq(PlayerTutorialEntity::getStepId, config.getStepId()));
+        }
+
+        log.info("重置教学提示：saveId={}", saveId);
     }
 
     // ==================== 内部工具 ====================

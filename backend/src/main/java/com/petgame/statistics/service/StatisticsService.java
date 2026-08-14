@@ -137,6 +137,30 @@ public class StatisticsService {
         }
     }
 
+    /** 设置统计键为指定值（用于可重置的计数，REQUIRES_NEW）。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void set(String saveId, String statKey, long value) {
+        try {
+            PlayerStatisticEntity exists = statisticMapper.selectOne(
+                    new LambdaQueryWrapper<PlayerStatisticEntity>()
+                            .eq(PlayerStatisticEntity::getSaveId, saveId)
+                            .eq(PlayerStatisticEntity::getStatKey, statKey));
+            if (exists != null) {
+                exists.setStatValue(value);
+                statisticMapper.updateById(exists);
+            } else {
+                exists = new PlayerStatisticEntity();
+                exists.setSaveId(saveId);
+                exists.setStatKey(statKey);
+                exists.setStatValue(value);
+                statisticMapper.insert(exists);
+            }
+        } catch (Exception e) {
+            log.warn("统计值写入异常（不阻断主流程）：saveId={}, key={}, value={}, error={}",
+                    saveId, statKey, value, e.getMessage());
+        }
+    }
+
     // ==================== 查询 ====================
 
     /** 读取单个统计值（不存在返回 0）。 */

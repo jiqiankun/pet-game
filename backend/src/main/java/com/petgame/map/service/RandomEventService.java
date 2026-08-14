@@ -3,6 +3,7 @@ package com.petgame.map.service;
 import com.petgame.common.GameRandom;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.RandomEventsConfig;
+import com.petgame.developer.DevContext;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +31,11 @@ public class RandomEventService {
     private static final double EVENT_TRIGGER_CHANCE = 0.15;
 
     private final GameConfigRegistry registry;
+    private final DevContext devContext;
 
-    public RandomEventService(GameConfigRegistry registry) {
+    public RandomEventService(GameConfigRegistry registry, DevContext devContext) {
         this.registry = registry;
+        this.devContext = devContext;
     }
 
     /**
@@ -48,8 +51,8 @@ public class RandomEventService {
             return null;
         }
 
-        // 按概率判定是否触发
-        if (!random.chance(EVENT_TRIGGER_CHANCE)) {
+        // 按概率判定是否触发；开发者工具强制触发时跳过概率判定（消费后清除）
+        if (!devContext.consumeForceRandomEvent() && !random.chance(EVENT_TRIGGER_CHANCE)) {
             return null;
         }
 

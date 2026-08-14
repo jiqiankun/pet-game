@@ -413,3 +413,131 @@ items:
     usableInBattle: false
     discardable: false
     price: 300
+
+  # ---------- 技能书·被动（阶段 14 内容补齐：10 本，习得即永久掌握被动） ----------
+
+  - id: ITEM_SKILL_BOOK_VANGUARD
+    name: 技能书·先锋
+    description: 学习后永久掌握【先锋】被动。战斗开始时提升全队攻击。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_VANGUARD
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 450
+
+  - id: ITEM_SKILL_BOOK_FORTIFY
+    name: 技能书·铁壁光环
+    description: 学习后永久掌握【铁壁光环】被动。战斗开始时提升全队防御。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_FORTIFY
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 450
+
+  - id: ITEM_SKILL_BOOK_ENTRY_BOOST
+    name: 技能书·登场蓄力
+    description: 学习后永久掌握【登场蓄力】被动。登场时提升自身攻击。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_ENTRY_BOOST
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 400
+
+  - id: ITEM_SKILL_BOOK_STURDY
+    name: 技能书·稳固
+    description: 学习后永久掌握【稳固】被动。受到的物理伤害减少。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_STURDY
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 400
+
+  - id: ITEM_SKILL_BOOK_RECUPERATE
+    name: 技能书·回气
+    description: 学习后永久掌握【回气】被动。每回合结束时恢复少量生命。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_RECUPERATE
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 380
+
+  - id: ITEM_SKILL_BOOK_ON_KILL_ATK
+    name: 技能书·乘胜追击
+    description: 学习后永久掌握【乘胜追击】被动。击败敌方单位时提升自身攻击。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_ON_KILL_ATK
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 420
+
+  - id: ITEM_SKILL_BOOK_DEATH_FIRE
+    name: 技能书·烬爆
+    description: 学习后永久掌握【烬爆】被动。倒下时对敌方随机目标造成火属性伤害。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_DEATH_FIRE
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 420
+    # 受限技能书：仅火属性宠物可习得（元素共鸣，避免通用技能书抹平火焰宠倒下特色）
+    skillBookRestriction:
+      elements: [FIRE]
+
+  - id: ITEM_SKILL_BOOK_THORN_AURA
+    name: 技能书·荆棘气场
+    description: 学习后永久掌握【荆棘气场】被动。受到攻击时对敌方随机目标造成木属性伤害。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_THORN_AURA
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 420
+
+  - id: ITEM_SKILL_BOOK_LAST_STAND
+    name: 技能书·殊死
+    description: 学习后永久掌握【殊死】被动。第一次受到致命伤害时保留 1 点生命。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_LAST_STAND
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 500
+    # 受限技能书：仅稀有/珍稀/传说宠物可习得（致死保护属招牌能力，限制通用获取防抹平特色）
+    skillBookRestriction:
+      rarities: [RARE, EPIC, LEGENDARY]
+
+  - id: ITEM_SKILL_BOOK_AVENGE
+    name: 技能书·复仇
+    description: 学习后永久掌握【复仇】被动。队友倒下时提升自身攻击。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: PASSIVE_BOOK_AVENGE
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 420

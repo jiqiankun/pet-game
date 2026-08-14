@@ -4,9 +4,12 @@ import com.petgame.battle.model.BattleUnit;
 import com.petgame.common.GameRandom;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.EncountersConfig;
+import com.petgame.config.model.MapsConfig;
 import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SystemRuleConfig;
+import com.petgame.developer.DevContext;
 import com.petgame.pet.domain.PetGrowthService;
+import com.petgame.pet.entity.PlayerPetEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,11 +32,13 @@ class WildEncounterServiceTest {
 
     private GameConfigRegistry registry;
     private WildEncounterService service;
+    private SystemRuleConfig systemRules;
 
     @BeforeEach
     void setUp() {
         registry = mock(GameConfigRegistry.class);
-        when(registry.getSystemRules()).thenReturn(new SystemRuleConfig());
+        systemRules = new SystemRuleConfig();
+        when(registry.getSystemRules()).thenReturn(systemRules);
 
         PetSpeciesConfig species = new PetSpeciesConfig();
         species.setId(SPECIES_ID);
@@ -73,7 +78,7 @@ class WildEncounterServiceTest {
         encounters.setEncounterGroups(List.of(group));
         when(registry.getEncountersConfig()).thenReturn(encounters);
 
-        service = new WildEncounterService(registry, new PetGrowthService(registry));
+        service = new WildEncounterService(registry, new PetGrowthService(registry), new DevContext());
     }
 
     @Test
@@ -160,5 +165,42 @@ class WildEncounterServiceTest {
         BattleUnit.WildUnitData wd = unit.getWildData();
         assertTrue(unit.getMaxHp() >= 100 + wd.getBaseHpOffset() - 50,
                 "面板 HP 应包含种族基础与浮动");
+    }
+
+    @Test
+    void generateMapEncounter_shouldApplyFiniteMapBounds() {
+        SystemRuleConfig.DifficultyProfile profile = systemRules.getGameDifficulty().getProfiles().get("NORMAL");
+        profile.setWildMinTeamSize(2);
+        profile.setWildMaxTeamSize(2);
+        profile.setEliteMinTeamSize(2);
+        profile.setEliteMaxTeamSize(2);
+        profile.setWildPlayerAdjustmentMin(-2);
+        profile.setWildPlayerAdjustmentMax(2);
+        profile.setWildMinLevelOffset(-4);
+        profile.setWildMaxLevelOffset(4);
+        profile.setEliteMinLevelOffset(-2);
+        profile.setEliteMaxLevelOffset(6);
+
+        MapsConfig.RegionConfig region = new MapsConfig.RegionConfig();
+        region.setId("MAP_TEST");
+        region.setRecommendedEnemyLevel(10);
+        region.setMinEnemyLevel(8);
+        region.setMaxEnemyLevel(12);
+        List<PlayerPetEntity> team = List.of(petAtLevel(80), petAtLevel(1), petAtLevel(1));
+
+        for (long seed = 1; seed <= 20; seed++) {
+            List<BattleUnit> units = service.generateEncounter(GROUP_ID, region, team, "NORMAL", new GameRandom(seed));
+            assertEquals(2, units.size());
+            for (BattleUnit unit : units) {
+                assertTrue(unit.getLevel() >= 8 && unit.getLevel() <= 12,
+                        "地图边界必须限制缩放等级: " + unit.getLevel());
+            }
+        }
+    }
+
+    private static PlayerPetEntity petAtLevel(int level) {
+        PlayerPetEntity pet = new PlayerPetEntity();
+        pet.setLevel(level);
+        return pet;
     }
 }

@@ -49,6 +49,7 @@ public class GameConfigRegistry {
     private BuildRecommendationConfig buildRecommendationsConfig;
     private AchievementsConfig achievementsConfig;
     private BossChallengesConfig bossChallengesConfig;
+    private VictoryInteractionConfig victoryInteractionConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -123,13 +124,14 @@ public class GameConfigRegistry {
         this.buildRecommendationsConfig = loader.loadBuildRecommendationsConfig();
         this.achievementsConfig = loader.loadAchievementsConfig();
         this.bossChallengesConfig = loader.loadBossChallengesConfig();
+        this.victoryInteractionConfig = loader.loadVictoryInteractionConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
                 skillsConfig, statusesConfig, testBattleConfig, itemsConfig,
                 petsConfig, encountersConfig, releaseGiftsConfig, mapsConfig,
                 bossesConfig, questsConfig, shopConfig, randomEventsConfig, buildRecommendationsConfig,
-                achievementsConfig, bossChallengesConfig);
+                achievementsConfig, bossChallengesConfig, victoryInteractionConfig);
 
         // 构建索引
         buildElementIndex();
@@ -145,7 +147,7 @@ public class GameConfigRegistry {
         buildAchievementIndex();
         buildBossChallengeIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss，{} 个商店商品，{} 个随机事件，{} 个推荐 Build, {} 个成就，{} 组 Boss 挑战",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss，{} 个商店商品，{} 个随机事件，{} 个推荐 Build, {} 个成就，{} 组 Boss 挑战, {} 条胜利互动",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
                 initialPetsConfig.getInitialPets().size(),
@@ -162,7 +164,8 @@ public class GameConfigRegistry {
                 randomEventsConfig.getRandomEvents() != null ? randomEventsConfig.getRandomEvents().size() : 0,
                 buildRecommendationsConfig.getRecommendations() != null ? buildRecommendationsConfig.getRecommendations().size() : 0,
                 achievementsConfig.getAchievements() != null ? achievementsConfig.getAchievements().size() : 0,
-                bossChallengesConfig.getGroups() != null ? bossChallengesConfig.getGroups().size() : 0);
+                bossChallengesConfig.getGroups() != null ? bossChallengesConfig.getGroups().size() : 0,
+                victoryInteractionConfig.getInteractions() != null ? victoryInteractionConfig.getInteractions().size() : 0);
     }
 
     // ---- 查询方法 ----
@@ -255,6 +258,11 @@ public class GameConfigRegistry {
     /** 获取 Boss 挑战目标配置（只读使用，阶段 11）。 */
     public BossChallengesConfig getBossChallengesConfig() {
         return bossChallengesConfig;
+    }
+
+    /** 获取敌方胜利互动配置（只读使用，阶段 12）。 */
+    public VictoryInteractionConfig getVictoryInteractionConfig() {
+        return victoryInteractionConfig;
     }
 
     /** 根据成就 ID 获取成就配置，不存在返回 null（阶段 11）。 */

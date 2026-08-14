@@ -74,6 +74,8 @@ class BattleServiceSettlementTest {
     @Mock
     private WildEncounterService wildEncounterService;
     @Mock
+    private com.petgame.boss.service.BossEncounterSnapshotService bossEncounterSnapshotService;
+    @Mock
     private TeamService teamService;
     @Mock
     private com.petgame.map.service.MapExplorationService mapExplorationService;
@@ -89,10 +91,13 @@ class BattleServiceSettlementTest {
     private com.petgame.boss.service.BossChallengeService bossChallengeService;
     @Mock
     private com.petgame.achievement.service.AchievementService achievementService;
+    @Mock
+    private com.petgame.battle.victory.VictoryInteractionService victoryInteractionService;
 
     private GameConfigRegistry registry;
     private PetGrowthService growthService;
     private BattleService battleService;
+    private com.petgame.developer.DevContext devContext;
 
     private static final String SPECIES_ID = "SPEC_TEST";
     private static final String ITEM_DROP = "ITEM_POTION_SMALL";
@@ -108,15 +113,18 @@ class BattleServiceSettlementTest {
                 List.of(dropItem),
                 buildRewards(100, 50, dropEntry(ITEM_DROP, 1.0, 2)));
         growthService = new PetGrowthService(registry);
+        devContext = new com.petgame.developer.DevContext();
 
         battleService = new BattleService(registry, enemyDecisionProvider,
                 new BossDecisionProvider(registry),
                 new com.petgame.battle.ai.AutoBattleDecisionProvider(registry),
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                growthService, wildEncounterService, teamService, mapExplorationService,
+                growthService, new BattleLevelResolver(growthService), wildEncounterService,
+                bossEncounterSnapshotService, teamService, mapExplorationService,
                 pokedexService, questService, statisticsService, petHistoryService,
-                bossChallengeService, achievementService);
+                bossChallengeService, achievementService, victoryInteractionService,
+                devContext);
     }
 
     // ==================== 玩家胜：HP 回写 + 奖励发放 ====================
@@ -376,9 +384,11 @@ class BattleServiceSettlementTest {
                 new com.petgame.battle.ai.AutoBattleDecisionProvider(customRegistry),
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                customGrowth, wildEncounterService, teamService, mapExplorationService,
+                customGrowth, new BattleLevelResolver(customGrowth), wildEncounterService,
+                bossEncounterSnapshotService, teamService, mapExplorationService,
                 pokedexService, questService, statisticsService, petHistoryService,
-                bossChallengeService, achievementService);
+                bossChallengeService, achievementService, victoryInteractionService,
+                devContext);
 
         BattleUnit unit1 = playerUnit("P_1", 1L, 100, 50);
         BattleContext ctx = finishedBattle("BATTLE_7", 1L, "PLAYER", unit1);

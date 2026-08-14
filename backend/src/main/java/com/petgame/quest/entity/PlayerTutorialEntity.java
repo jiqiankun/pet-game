@@ -15,4 +15,5 @@ public class PlayerTutorialEntity {
     private String stepId;
     private Boolean completed;
     private Boolean skipped;
+    private Boolean rewardGranted;
 }

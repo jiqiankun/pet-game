@@ -4,6 +4,7 @@ import com.petgame.common.GameRandom;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.RandomEventsConfig;
+import com.petgame.developer.DevContext;
 import com.petgame.map.service.RandomEventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ class RandomEventServiceTest {
         potionConfig.setName("小型恢复药");
         when(registry.getItem("ITEM_POTION_SMALL")).thenReturn(potionConfig);
 
-        service = new RandomEventService(registry);
+        service = new RandomEventService(registry, new DevContext());
     }
 
     @Test

@@ -114,3 +114,54 @@ shopItems:
     price: 350
     unlockQuestId: QUEST_MAIN_06
     category: SKILL_BOOK
+
+  # ---------- 技能书·被动（阶段 14 内容补齐：10 本，习得即永久掌握被动） ----------
+  - itemId: ITEM_SKILL_BOOK_RECUPERATE
+    price: 380
+    unlockQuestId: QUEST_MAIN_04
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_ENTRY_BOOST
+    price: 400
+    unlockQuestId: QUEST_MAIN_04
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_STURDY
+    price: 400
+    unlockQuestId: QUEST_MAIN_05
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_VANGUARD
+    price: 450
+    unlockQuestId: QUEST_MAIN_06
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_FORTIFY
+    price: 450
+    unlockQuestId: QUEST_MAIN_06
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_ON_KILL_ATK
+    price: 420
+    unlockQuestId: QUEST_MAIN_06
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_DEATH_FIRE
+    price: 420
+    unlockQuestId: QUEST_MAIN_07
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_THORN_AURA
+    price: 420
+    unlockQuestId: QUEST_MAIN_07
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_AVENGE
+    price: 420
+    unlockQuestId: QUEST_MAIN_07
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_LAST_STAND
+    price: 500
+    unlockQuestId: QUEST_MAIN_08
+    category: SKILL_BOOK

@@ -9,6 +9,7 @@ import com.petgame.battle.model.BattleSide;
 import com.petgame.battle.model.BattleUnit;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.ItemConfig;
+import com.petgame.config.model.PassiveSkillConfig;
 import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SkillConfig;
 import com.petgame.config.model.StatusEffectConfig;
@@ -190,7 +191,13 @@ public class AutoBattleDecisionProvider implements DecisionProvider {
 
         boolean killable = damage >= effectiveHp;
         if (killable) {
-            score += effectiveHp * ai.getKillBonusPercent();
+            double killBonus = effectiveHp * ai.getKillBonusPercent();
+            // 攻击触发/队伍协同类被动（乘胜追击/复仇等）：AI 更偏好压低血目标以触发击杀强化（阶段 14，语义组驱动）
+            if (passiveHasGroup(caster, "ON_KILL_ATK") || passiveHasGroup(caster, "ON_ALLY_DEFEAT_ATK")) {
+                killBonus *= 1.2;
+                reasons.append("killpassive+;");
+            }
+            score += killBonus;
             reasons.append("kill+;");
         }
         // FINISHER：目标低血时终结技能价值随 HP 下降线性上升
@@ -814,6 +821,23 @@ public class AutoBattleDecisionProvider implements DecisionProvider {
     /** 技能是否含指定类型效果。 */
     private boolean hasEffect(SkillConfig skill, String effectType) {
         return findEffect(skill, effectType) != null;
+    }
+
+    /**
+     * 单位当前生效被动（含技能书被动）是否标注了指定效果组（语义组驱动，阶段 14）。
+     * <p>
+     * AI 通过 effectGroup 感知已启用的技能书被动，避免按技能书 ID 硬编码。
+     */
+    private boolean passiveHasGroup(BattleUnit unit, String effectGroup) {
+        if (unit == null || unit.getPassives() == null || effectGroup == null) {
+            return false;
+        }
+        for (PassiveSkillConfig p : unit.getPassives()) {
+            if (effectGroup.equalsIgnoreCase(p.getEffectGroup())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private SkillConfig.SkillEffectConfig findEffect(SkillConfig skill, String effectType) {

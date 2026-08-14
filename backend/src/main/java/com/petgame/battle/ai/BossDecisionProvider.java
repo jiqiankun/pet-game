@@ -87,7 +87,9 @@ public class BossDecisionProvider implements DecisionProvider {
         if (candidates.isEmpty()) {
             return BattleAction.defend(unit.getUnitId());
         }
-        Candidate best = pickBest(ctx, candidates, ai.getTieTolerance());
+        // 难度提升只收窄接近分候选的随机范围，不改动统一战斗结算公式。
+        double tieTolerance = ai.getTieTolerance() / Math.max(1, ctx.getBossAiLevel());
+        Candidate best = pickBest(ctx, candidates, tieTolerance);
         return BattleAction.skill(unit.getUnitId(), best.skillId, best.targetId);
     }
 

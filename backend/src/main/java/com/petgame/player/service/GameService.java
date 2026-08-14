@@ -6,6 +6,8 @@ import com.petgame.config.GameProperties;
 import com.petgame.config.model.InitialPetsConfig;
 import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.PetSpeciesConfig;
+import com.petgame.config.model.SystemRuleConfig;
+import com.petgame.common.BusinessException;
 import com.petgame.config.model.SkillConfig;
 import com.petgame.inventory.entity.PlayerInventoryEntity;
 import com.petgame.inventory.mapper.PlayerInventoryMapper;
@@ -138,6 +140,7 @@ public class GameService {
         player.setGold(initialPets.getInitialGold());
         player.setExpPool(initialPets.getInitialExpPool());
         player.setCurrentMapId(initialPets.getInitialMapId());
+        player.setGameDifficulty(configRegistry.getSystemRules().getGameDifficulty().getDefaultDifficulty());
         player.setPlayTimeSeconds(0L);
         playerMapper.insert(player);
 
@@ -348,6 +351,46 @@ public class GameService {
         return data;
     }
 
+    /** 查询当前存档的全局难度及可选项。 */
+    public DifficultyView getDifficultyView() {
+        PlayerEntity player = getCurrentPlayer();
+        if (player == null) {
+            throw new BusinessException("NO_SAVE", "不存在存档，请先创建新游戏");
+        }
+        SystemRuleConfig.GameDifficultyConfig config = configRegistry.getSystemRules().getGameDifficulty();
+        DifficultyView view = new DifficultyView();
+        view.setDifficulty(normalizeDifficulty(player.getGameDifficulty(), config));
+        view.setAvailable(new ArrayList<>(config.getProfiles().keySet()));
+        return view;
+    }
+
+    /** 保存全局难度；既有 Boss 快照不在此处改写。 */
+    @Transactional
+    public DifficultyView updateDifficulty(String difficulty) {
+        PlayerEntity player = getCurrentPlayer();
+        if (player == null) {
+            throw new BusinessException("NO_SAVE", "不存在存档，请先创建新游戏");
+        }
+        SystemRuleConfig.GameDifficultyConfig config = configRegistry.getSystemRules().getGameDifficulty();
+        String normalized = difficulty == null ? "" : difficulty.trim().toUpperCase();
+        if (!config.getProfiles().containsKey(normalized)) {
+            throw new BusinessException("INVALID_GAME_DIFFICULTY", "未知全局难度: " + difficulty);
+        }
+        player.setGameDifficulty(normalized);
+        playerMapper.updateById(player);
+        DifficultyView view = new DifficultyView();
+        view.setDifficulty(normalized);
+        view.setAvailable(new ArrayList<>(config.getProfiles().keySet()));
+        return view;
+    }
+
+    private static String normalizeDifficulty(String difficulty, SystemRuleConfig.GameDifficultyConfig config) {
+        if (difficulty != null && config.getProfiles().containsKey(difficulty.toUpperCase())) {
+            return difficulty.toUpperCase();
+        }
+        return config.getDefaultDifficulty();
+    }
+
     /** 构建宠物摘要：种族信息 + 面板属性 + 装备技能。 */
     private PetSummary buildPetSummary(PlayerPetEntity pet) {
         PetSpeciesConfig species = configRegistry.getSpecies(pet.getSpeciesId());
@@ -415,5 +458,12 @@ public class GameService {
             private boolean discardable;
             private int quantity;
         }
+    }
+
+    /** 设置页全局难度视图。 */
+    @lombok.Data
+    public static class DifficultyView {
+        private String difficulty;
+        private List<String> available = new ArrayList<>();
     }
 }

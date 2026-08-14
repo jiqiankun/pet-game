@@ -23,6 +23,15 @@ public class BattleSnapshot {
     /** Boss 战斗禁止捕捉（阶段 7）。 */
     private boolean uncapturable;
 
+    /** 本场全局难度快照（阶段 13）。 */
+    private String gameDifficulty;
+
+    /** Boss 遭遇快照 ID（非 Boss 战为 null）。 */
+    private Long bossSnapshotId;
+
+    /** Boss 战玩家有效等级上限（null 表示未启用压制）。 */
+    private Integer playerLevelCap;
+
     /** 随机种子（开发者模式可用于复现）。 */
     private long seed;
 
@@ -43,4 +52,12 @@ public class BattleSnapshot {
 
     /** 本次调用新增的战斗事件序列。 */
     private List<BattleEvent> events = new ArrayList<>();
+
+    // ---- 战斗调试信息（阶段 14，仅开发者调试开启时返回）----
+
+    /** 是否开启伤害明细/随机数调试（debugDamage）。 */
+    private boolean debugDamage;
+
+    /** 本次战斗已录制的随机数序列（debugDamage 开启时返回，可查看/replay）。 */
+    private List<String> debugRandomDraws = new ArrayList<>();
 }

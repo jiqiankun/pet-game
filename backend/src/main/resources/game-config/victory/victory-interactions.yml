@@ -1,0 +1,196 @@
+# ============================================================
+# 宠物精灵游戏 - 敌方胜利互动配置（阶段 12）
+# ============================================================
+# 战败表现增强：玩家战败后，根据获胜方类型 + 战况标签，从本文件中选择一条互动返回前端播放。
+# 只做表现，不参与战斗数值计算、不改变战败结算；无匹配时回退默认旁白，前端隐藏互动区。
+#
+# 字段说明（see VictoryInteractionConfig.Interaction）：
+#   - winnerType：获胜方类型 TRAINER / WILD_PET / BOSS（由战斗类型映射）
+#   - style：风格。训练师用 victoryStyle（ARROGANT/SMUG/SARCASTIC/PLAYFUL/CALM/
+#       HOT_BLOODED/VILLAIN/GENTLE），野外宠物用 victoryBehavior
+#       （PROUD/PLAYFUL/FEROCIOUS/CALM/CURIOUS/TIMID/LAZY/MISCHIEVOUS）。
+#       style 为空 = 通用公共池（所有同 winnerType 敌人均可使用）。
+#   - targetId：指定获胜方 ID（可选，用于 Boss/精英专属）。null = 通用。
+#   - contexts：战况标签列表（空 = 适用所有战况）：
+#       NORMAL_LOSS 普通 / CLOSE_LOSS 惜败(胜方剩≤15%) / CRUSHED 碾压(胜方剩≥85%)
+#       COMEBACK_LOSS 先倒后输(玩家曾击败敌方) / REPEATED_DEFEAT 宿敌(连续战败≥2)
+#       EXCESSIVE_HEAL 过度治疗 / EXCESSIVE_SWITCH 频繁换宠 / REPEATED_SKILL 重复技能
+#   - presentationType：DIALOGUE 台词 / ACTION_NARRATION 动作旁白 / CRY 叫声
+#   - actionId：可选动作 ID（无对应资源时前端降级为纯文本）
+#   - cry：可选叫声文本
+#   - weight：权重（越大越常见）
+#   - rarity：COMMON 普通 / EASTER_EGG 彩蛋（低概率 1% 入场）
+#   - text：互动文本（台词或旁白）
+#
+# 选择策略：专属(targetId) → 公共池(style 匹配) → 仅 winnerType+context 回退；
+# 同层内按权重随机，排除最近播放的 5 条防重复；彩蛋稀有度以 1% 概率入场。
+# ============================================================
+
+configVersion: 1
+interactions:
+  # ---------------- Boss 专属（targetId）----------------
+  # 青草原守护者
+  - { id: VI_BOSS_MEADOW_1, winnerType: BOSS, style: ARROGANT, targetId: BOSS_MEADOW_GUARDIAN,
+      contexts: [ NORMAL_LOSS, CLOSE_LOSS ], presentationType: DIALOGUE,
+      text: "青草地的风记住了你的坚持。下次，让风也为你让路。" }
+  - { id: VI_BOSS_MEADOW_2, winnerType: BOSS, style: ARROGANT, targetId: BOSS_MEADOW_GUARDIAN,
+      contexts: [ CRUSHED ], presentationType: DIALOGUE,
+      text: "青草摇曳，你连一片叶子都没惊动。回去再练练吧。" }
+  - { id: VI_BOSS_MEADOW_3, winnerType: BOSS, style: GENTLE, targetId: BOSS_MEADOW_GUARDIAN,
+      contexts: [ COMEBACK_LOSS, REPEATED_DEFEAT ], presentationType: DIALOGUE,
+      text: "你很强，只差一点。青草地随时欢迎你再来。" }
+  # 翠林之王
+  - { id: VI_BOSS_FOREST_1, winnerType: BOSS, style: SMUG, targetId: BOSS_FOREST_KING,
+      contexts: [ NORMAL_LOSS, CLOSE_LOSS ], presentationType: DIALOGUE,
+      text: "翠林的每片叶子都在为我鼓掌。你听见了吗？" }
+  - { id: VI_BOSS_FOREST_2, winnerType: BOSS, style: SMUG, targetId: BOSS_FOREST_KING,
+      contexts: [ CRUSHED ], presentationType: DIALOGUE,
+      text: "森林之王岂是浪得虚名。你的脚步声，还太轻。" }
+  - { id: VI_BOSS_FOREST_3, winnerType: BOSS, style: PLAYFUL, targetId: BOSS_FOREST_KING,
+      contexts: [ COMEBACK_LOSS, REPEATED_DEFEAT ], presentationType: DIALOGUE,
+      text: "有意思，你进步了。下次让我认真一点。" }
+  # 水域守护者
+  - { id: VI_BOSS_WATERS_1, winnerType: BOSS, style: CALM, targetId: BOSS_WATERS_GUARDIAN,
+      contexts: [ NORMAL_LOSS, CLOSE_LOSS ], presentationType: DIALOGUE,
+      text: "水流不争，却能穿石。你的勇气，我已收下。" }
+  - { id: VI_BOSS_WATERS_2, winnerType: BOSS, style: CALM, targetId: BOSS_WATERS_GUARDIAN,
+      contexts: [ CRUSHED ], presentationType: DIALOGUE,
+      text: "深水无声。你连水花都没激起。" }
+  - { id: VI_BOSS_WATERS_3, winnerType: BOSS, style: GENTLE, targetId: BOSS_WATERS_GUARDIAN,
+      contexts: [ COMEBACK_LOSS, REPEATED_DEFEAT ], presentationType: DIALOGUE,
+      text: "缘起缘落皆在潮中。待潮起时，我们再会。" }
+  # 雷域守护者
+  - { id: VI_BOSS_THUNDER_1, winnerType: BOSS, style: HOT_BLOODED, targetId: BOSS_THUNDER_GUARDIAN,
+      contexts: [ NORMAL_LOSS, CLOSE_LOSS ], presentationType: DIALOGUE,
+      text: "雷声隆隆，是我在对你说：还不够快！" }
+  - { id: VI_BOSS_THUNDER_2, winnerType: BOSS, style: HOT_BLOODED, targetId: BOSS_THUNDER_GUARDIAN,
+      contexts: [ CRUSHED ], presentationType: DIALOGUE,
+      text: "一道闪电落定，胜负已分。你的速度，追不上雷。" }
+  - { id: VI_BOSS_THUNDER_3, winnerType: BOSS, style: PLAYFUL, targetId: BOSS_THUNDER_GUARDIAN,
+      contexts: [ COMEBACK_LOSS, REPEATED_DEFEAT ], presentationType: DIALOGUE,
+      text: "闪电会记住每一道尝试。下次，劈得更响！" }
+  # 遗迹守护者
+  - { id: VI_BOSS_RUIN_1, winnerType: BOSS, style: VILLAIN, targetId: BOSS_RUINS_GUARDIAN,
+      contexts: [ NORMAL_LOSS, CLOSE_LOSS ], presentationType: DIALOGUE,
+      text: "遗迹的尘埃，又厚重了一层。你不该来。" }
+  - { id: VI_BOSS_RUIN_2, winnerType: BOSS, style: VILLAIN, targetId: BOSS_RUINS_GUARDIAN,
+      contexts: [ CRUSHED ], presentationType: DIALOGUE,
+      text: "连遗迹的回声都在嘲笑你。" }
+  - { id: VI_BOSS_RUIN_3, winnerType: BOSS, style: SARCASTIC, targetId: BOSS_RUINS_GUARDIAN,
+      contexts: [ COMEBACK_LOSS, REPEATED_DEFEAT ], presentationType: DIALOGUE,
+      text: "哦？居然伤到我。有意思，那就认真玩。" }
+
+  # ---------------- Boss 公共池（style 匹配，targetId 为空）----------------
+  - { id: VI_BOSS_ARROGANT_N, winnerType: BOSS, style: ARROGANT, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 100, text: "哼，就这点本事也想挑战我？" }
+  - { id: VI_BOSS_ARROGANT_C, winnerType: BOSS, style: ARROGANT, contexts: [ CLOSE_LOSS ],
+      presentationType: DIALOGUE, weight: 80, text: "差一点？那就是还差很多。" }
+  - { id: VI_BOSS_SMUG_N, winnerType: BOSS, style: SMUG, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 100, text: "看，胜利就是这么简单。" }
+  - { id: VI_BOSS_SMUG_C, winnerType: BOSS, style: SMUG, contexts: [ CRUSHED ],
+      presentationType: DIALOGUE, weight: 80, text: "你连让我认真的资格都没有。" }
+  - { id: VI_BOSS_HOTBLOOD_N, winnerType: BOSS, style: HOT_BLOODED, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 100, text: "痛快！下次可别让我失望！" }
+  - { id: VI_BOSS_HOTBLOOD_CB, winnerType: BOSS, style: HOT_BLOODED, contexts: [ COMEBACK_LOSS ],
+      presentationType: DIALOGUE, weight: 80, text: "你居然放倒了我几个手下，有点意思！" }
+  - { id: VI_BOSS_CALM_N, winnerType: BOSS, style: CALM, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 100, text: "胜负常有，心境不常。你已值得赞许。" }
+  - { id: VI_BOSS_GENTLE_CB, winnerType: BOSS, style: GENTLE, contexts: [ REPEATED_DEFEAT ],
+      presentationType: DIALOGUE, weight: 80, text: "你从不放弃，这份执着让我欣赏。再来。" }
+
+  # ---------------- Boss 通用回退（style 为空，任意 Boss 可用）----------------
+  - { id: VI_BOSS_GENERIC_N, winnerType: BOSS, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 100, text: "胜利的咆哮，回荡在你耳畔。" }
+  - { id: VI_BOSS_GENERIC_C, winnerType: BOSS, contexts: [ CLOSE_LOSS ],
+      presentationType: DIALOGUE, weight: 80, text: "你几乎触到了胜利，可惜差最后一击。" }
+  - { id: VI_BOSS_GENERIC_CR, winnerType: BOSS, contexts: [ CRUSHED ],
+      presentationType: DIALOGUE, weight: 80, text: "在我的力量面前，你毫无还手之力。" }
+  - { id: VI_BOSS_GENERIC_RP, winnerType: BOSS, contexts: [ REPEATED_DEFEAT ],
+      presentationType: DIALOGUE, weight: 60, text: "又是你。看来你已经与我结下了宿命的缘分。" }
+
+  # ---------------- 野外宠物（WILD_PET）----------------
+  # 野外宠物公共池（style 为空，任意野外宠物可用）
+  - { id: VI_WILD_NORMAL, winnerType: WILD_PET, contexts: [ NORMAL_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: PROWL, weight: 100,
+      text: "{winnerName} 得意地绕着你走了两圈，尾巴高高翘起。" }
+  - { id: VI_WILD_CLOSE, winnerType: WILD_PET, contexts: [ CLOSE_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: SHAKE, weight: 80,
+      text: "{winnerName} 气喘吁吁，却仍对你狡黠地眨了眨眼。" }
+  - { id: VI_WILD_CRUSHED, winnerType: WILD_PET, contexts: [ CRUSHED ],
+      presentationType: ACTION_NARRATION, actionId: STRETCH, weight: 80,
+      text: "{winnerName} 悠闲地打了个哈欠，仿佛根本没用力。" }
+  - { id: VI_WILD_COMEBACK, winnerType: WILD_PET, contexts: [ COMEBACK_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: PAW, weight: 70,
+      text: "{winnerName} 拍了拍身上的尘土，向你投来骄傲的目光。" }
+  - { id: VI_WILD_HEAL, winnerType: WILD_PET, contexts: [ EXCESSIVE_HEAL ],
+      presentationType: ACTION_NARRATION, actionId: TILT, weight: 60,
+      text: "{winnerName} 歪着头看你手忙脚乱地治疗，眼神里带着一丝疑惑。" }
+  - { id: VI_WILD_SWITCH, winnerType: WILD_PET, contexts: [ EXCESSIVE_SWITCH ],
+      presentationType: ACTION_NARRATION, actionId: SHRUG, weight: 60,
+      text: "{winnerName} 看着你换来换去，忍不住发出了一声轻哼。" }
+  - { id: VI_WILD_SKILL, winnerType: WILD_PET, contexts: [ REPEATED_SKILL ],
+      presentationType: ACTION_NARRATION, actionId: TILT, weight: 60,
+      text: "{winnerName} 对你这招早已看腻，轻松地闪开了。" }
+  # 野外宠物风格专属（victoryBehavior 匹配）
+  - { id: VI_WILD_PROUD, winnerType: WILD_PET, style: PROUD, contexts: [ NORMAL_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: CHEST_OUT, weight: 80,
+      text: "{winnerName} 挺起胸膛，骄傲地宣告着自己的胜利。" }
+  - { id: VI_WILD_LAZY, winnerType: WILD_PET, style: LAZY, contexts: [ CRUSHED, NORMAL_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: YAWN, weight: 80,
+      text: "{winnerName} 打了个哈欠，仿佛这场胜利只是顺手而为。" }
+  - { id: VI_WILD_FEROCIOUS, winnerType: WILD_PET, style: FEROCIOUS, contexts: [ NORMAL_LOSS ],
+      presentationType: CRY, actionId: ROAR, cry: "吼——！", weight: 80,
+      text: "{winnerName} 发出一声震慑的低吼，宣示自己的领地。" }
+  - { id: VI_WILD_PLAYFUL, winnerType: WILD_PET, style: PLAYFUL, contexts: [ CLOSE_LOSS ],
+      presentationType: CRY, actionId: JUMP, cry: "叽叽！", weight: 80,
+      text: "{winnerName} 欢快地在原地蹦跳，今天玩得很尽兴。" }
+  - { id: VI_WILD_CURIOUS, winnerType: WILD_PET, style: CURIOUS, contexts: [ NORMAL_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: TILT, weight: 70,
+      text: "{winnerName} 凑近打量你，似乎在好奇你为什么会输。" }
+  - { id: VI_WILD_TIMID, winnerType: WILD_PET, style: TIMID, contexts: [ CLOSE_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: SHRINK, weight: 70,
+      text: "{winnerName} 小心翼翼地看着你，似乎没想到自己会赢。" }
+  - { id: VI_WILD_MISCHIEVOUS, winnerType: WILD_PET, style: MISCHIEVOUS, contexts: [ NORMAL_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: SNICKER, weight: 70,
+      text: "{winnerName} 偷偷坏笑，像是藏了一个小秘密。" }
+  - { id: VI_WILD_CALM, winnerType: WILD_PET, style: CALM, contexts: [ NORMAL_LOSS ],
+      presentationType: ACTION_NARRATION, actionId: SIT, weight: 70,
+      text: "{winnerName} 安静地坐下，眼神平和地注视着远方。" }
+  # 野外宠物彩蛋（1% 低概率入场）
+  - { id: VI_WILD_EASTER, winnerType: WILD_PET, presentationType: ACTION_NARRATION,
+      actionId: BOW, weight: 100, rarity: EASTER_EGG,
+      text: "{winnerName} 竟向你深深鞠了一躬，仿佛在致敬你的挑战。" }
+
+  # ---------------- 训练师（TRAINER）----------------
+  # 训练师公共池（style 为空）
+  - { id: VI_TRAINER_NORMAL, winnerType: TRAINER, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 100, text: "失去斗志可不行，回去好好培养伙伴再来吧。" }
+  - { id: VI_TRAINER_CLOSE, winnerType: TRAINER, contexts: [ CLOSE_LOSS ],
+      presentationType: DIALOGUE, weight: 80, text: "好险好险，差点就被你赢了。下次可没这么走运。" }
+  - { id: VI_TRAINER_CRUSHED, winnerType: TRAINER, contexts: [ CRUSHED ],
+      presentationType: DIALOGUE, weight: 80, text: "看来你和你的伙伴还差得远呢。" }
+  - { id: VI_TRAINER_COMEBACK, winnerType: TRAINER, contexts: [ COMEBACK_LOSS ],
+      presentationType: DIALOGUE, weight: 70, text: "你一度让我很紧张，但最终还是我技高一筹。" }
+  - { id: VI_TRAINER_HEAL, winnerType: TRAINER, contexts: [ EXCESSIVE_HEAL ],
+      presentationType: DIALOGUE, weight: 60, text: "光顾着治疗可赢不了比赛啊。" }
+  - { id: VI_TRAINER_SWITCH, winnerType: TRAINER, contexts: [ EXCESSIVE_SWITCH ],
+      presentationType: DIALOGUE, weight: 60, text: "换来换去，反而乱了阵脚吧？" }
+  - { id: VI_TRAINER_SKILL, winnerType: TRAINER, contexts: [ REPEATED_SKILL ],
+      presentationType: DIALOGUE, weight: 60, text: "同一招用多了，我可是会看穿的。" }
+  # 训练师风格专属（victoryStyle 匹配）
+  - { id: VI_TRAINER_ARROGANT, winnerType: TRAINER, style: ARROGANT, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 80, text: "呵，就这点水平也敢来挑战我？" }
+  - { id: VI_TRAINER_SMUG, winnerType: TRAINER, style: SMUG, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 80, text: "看，这就是实力的差距。" }
+  - { id: VI_TRAINER_SARCASTIC, winnerType: TRAINER, style: SARCASTIC, contexts: [ CLOSE_LOSS ],
+      presentationType: DIALOGUE, weight: 70, text: "哦，你真的很努力……可惜努力不等于赢。" }
+  - { id: VI_TRAINER_HOTBLOODED, winnerType: TRAINER, style: HOT_BLOODED, contexts: [ COMEBACK_LOSS ],
+      presentationType: DIALOGUE, weight: 70, text: "痛快！你是个好对手，下次我们再来一场！" }
+  - { id: VI_TRAINER_CALM, winnerType: TRAINER, style: CALM, contexts: [ NORMAL_LOSS ],
+      presentationType: DIALOGUE, weight: 80, text: "胜败乃常事，保持冷静才能看得更远。" }
+  - { id: VI_TRAINER_GENTLE, winnerType: TRAINER, style: GENTLE, contexts: [ REPEATED_DEFEAT ],
+      presentationType: DIALOGUE, weight: 70, text: "你已经很努力了，回去休息一下，下次再来。" }
+  - { id: VI_TRAINER_VILLAIN, winnerType: TRAINER, style: VILLAIN, contexts: [ CRUSHED ],
+      presentationType: DIALOGUE, weight: 70, text: "哈哈哈，弱者就该认清自己的位置。" }
+  - { id: VI_TRAINER_PLAYFUL, winnerType: TRAINER, style: PLAYFUL, contexts: [ CLOSE_LOSS ],
+      presentationType: DIALOGUE, weight: 70, text: "嘿嘿，差一点点就输啦，下次加油！" }

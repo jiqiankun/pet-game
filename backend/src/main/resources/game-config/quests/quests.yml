@@ -608,3 +608,11 @@ tutorials:
     triggerTarget: "*"
     order: 8
     skippable: true
+
+  - stepId: TUT_BOSS
+    name: Boss 挑战
+    description: 每个区域都有强大的 Boss。击败 Boss 可获得稀有奖励并推进剧情。
+    triggerType: BOSS
+    triggerTarget: "*"
+    order: 9
+    skippable: true

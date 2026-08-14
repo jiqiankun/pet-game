@@ -626,6 +626,359 @@ skills:
     cooldown: 0
     accuracy: 1.0
 
+  # ---------- 阶段 14 内容补齐：九属性共享技能池（两维度扩充） ----------
+  # 按「属性共享 × 机制共享」两层组织，供 27 宠技能映射复用，
+  # 与既有技能一起把主动技能池扩充至 85 个（需求 §149：技能约 80~100）。
+
+  # --- 火系补充 ---
+  - id: SKILL_MAGMA_CLASH
+    name: 熔岩冲撞
+    description: 火属性物理攻击，40% 概率灼烧目标。
+    element: FIRE
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 48
+    scaling: { strength: 1.15 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: BURN, chance: 0.40 }
+
+  - id: SKILL_INFERNO
+    name: 炼狱火雨
+    description: 火属性群体法术攻击，25% 概率灼烧每个目标。
+    element: FIRE
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 32
+    scaling: { spirit: 0.80 }
+    cooldown: 2
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: BURN, chance: 0.25 }
+
+  # --- 水系补充 ---
+  - id: SKILL_WATER_WHIP
+    name: 水鞭
+    description: 水属性物理攻击，40% 概率浸湿目标。
+    element: WATER
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 46
+    scaling: { strength: 1.10 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: SOAK, chance: 0.40 }
+
+  - id: SKILL_TORRENT
+    name: 洪流
+    description: 水属性群体法术攻击，30% 概率浸湿每个目标。
+    element: WATER
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 28
+    scaling: { spirit: 0.70 }
+    cooldown: 2
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: SOAK, chance: 0.30 }
+
+  # --- 木系补充 ---
+  - id: SKILL_BRANCH_STRIKE
+    name: 枝条抽打
+    description: 木属性物理攻击，30% 概率使目标中毒。
+    element: WOOD
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 44
+    scaling: { strength: 1.05 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: POISON, chance: 0.30 }
+
+  - id: SKILL_BLOOM
+    name: 绽放
+    description: 为全体友方恢复少量生命。
+    element: WOOD
+    rarity: RARE
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_ALL
+    baseValue: 20
+    scaling: { spirit: 0.50 }
+    cooldown: 3
+    accuracy: 1.0
+
+  # --- 金系补充 ---
+  - id: SKILL_IRON_EDGE
+    name: 钢刃
+    description: 金属性物理攻击，30% 概率破甲。
+    element: METAL
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 46
+    scaling: { strength: 1.10 }
+    cooldown: 1
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: ARMOR_BREAK, chance: 0.30 }
+
+  - id: SKILL_REFORGE
+    name: 熔铸
+    description: 提升自身攻击与防御各 2 回合。
+    element: METAL
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: ATK_UP, chance: 1.0 }
+      - { type: APPLY_STATUS, statusId: DEF_UP, chance: 1.0 }
+
+  # --- 土系补充 ---
+  - id: SKILL_STONE_BARRIER
+    name: 石壁
+    description: 为自身附加较厚护盾。
+    element: EARTH
+    rarity: RARE
+    damageType: NONE
+    effectType: SHIELD
+    target: SELF
+    baseValue: 55
+    scaling: { defense: 1.60 }
+    cooldown: 2
+    accuracy: 1.0
+
+  - id: SKILL_ROCK_BLAST
+    name: 岩爆
+    description: 土属性强物理攻击。
+    element: EARTH
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 55
+    scaling: { strength: 1.30 }
+    cooldown: 2
+    accuracy: 0.95
+
+  # --- 风系补充 ---
+  - id: SKILL_AIR_CUTTER
+    name: 风切
+    description: 风属性群体物理攻击。
+    element: WIND
+    rarity: RARE
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 28
+    scaling: { strength: 0.70 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_WIND_GRACE
+    name: 风行
+    description: 提升自身速度 3 回合。
+    element: WIND
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: SPD_UP, chance: 1.0 }
+
+  # --- 雷系补充 ---
+  - id: SKILL_CHAIN_LIGHTNING
+    name: 连锁闪电
+    description: 雷属性群体法术攻击，15% 概率麻痹每个目标。
+    element: THUNDER
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 30
+    scaling: { spirit: 0.75 }
+    cooldown: 2
+    accuracy: 0.90
+    effects:
+      - { type: APPLY_STATUS, statusId: PARALYSIS, chance: 0.15 }
+
+  - id: SKILL_LIGHTNING_ROD
+    name: 引雷
+    description: 提升自身攻击 2 回合。
+    element: THUNDER
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: ATK_UP, chance: 1.0 }
+
+  # --- 光系补充 ---
+  - id: SKILL_PRISM
+    name: 棱镜之光
+    description: 光属性群体法术攻击。
+    element: LIGHT
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_ALL
+    baseValue: 30
+    scaling: { spirit: 0.75 }
+    cooldown: 2
+    accuracy: 0.95
+
+  - id: SKILL_BLESSING
+    name: 祝福
+    description: 治疗己方单体并提升其攻击。
+    element: LIGHT
+    rarity: RARE
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_SINGLE
+    baseValue: 30
+    scaling: { spirit: 1.20 }
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: ATK_UP, chance: 1.0 }
+
+  # --- 暗系补充 ---
+  - id: SKILL_NIGHT_SHROUD
+    name: 暗幕
+    description: 80% 概率致盲敌方单体。
+    element: DARK
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 0.90
+    effects:
+      - { type: APPLY_STATUS, statusId: BLIND, chance: 0.80 }
+
+  - id: SKILL_SHADOW_CLONE
+    name: 影分身
+    description: 隐匿自身 2 回合，避免成为敌方单体攻击目标。
+    element: DARK
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: STEALTH, chance: 1.0 }
+
+  # --- 机制共享：增益 / 减益 / 治疗 / 驱散（跨属性复用） ---
+  - id: SKILL_GROUP_GUARD
+    name: 群体守备
+    description: 提升己方全体防御 2 回合。
+    element: NONE
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: ALLY_ALL
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: DEF_UP, chance: 1.0 }
+
+  - id: SKILL_GROUP_HEAL
+    name: 群体治愈
+    description: 恢复全体友方生命。
+    element: LIGHT
+    rarity: RARE
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_ALL
+    baseValue: 24
+    scaling: { spirit: 0.60 }
+    cooldown: 3
+    accuracy: 1.0
+
+  - id: SKILL_MARK_TARGET
+    name: 猎杀标记
+    description: 为敌方单体附加猎杀印记，使其受到物理伤害提高。
+    element: NONE
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 2
+    accuracy: 0.90
+    effects:
+      - { type: APPLY_STATUS, statusId: HUNT_MARK, chance: 0.80 }
+
+  - id: SKILL_ANTI_HEAL
+    name: 禁疗诅咒
+    description: 80% 概率禁疗敌方单体。
+    element: DARK
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 3
+    accuracy: 0.90
+    effects:
+      - { type: APPLY_STATUS, statusId: HEAL_BLOCK, chance: 0.80 }
+
+  - id: SKILL_ENERGIZE
+    name: 蓄能
+    description: 为自己附加再生，每回合恢复生命。
+    element: NONE
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: APPLY_STATUS, statusId: REGEN, chance: 1.0 }
+
+  - id: SKILL_ELIMINATE
+    name: 净化
+    description: 移除自身全部减益状态。
+    element: NONE
+    rarity: RARE
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    effects:
+      - { type: REMOVE_STATUS, categories: [DEBUFF] }
+
   # ---------- 敌方技能 ----------
 
   - id: SKILL_ENEMY_BITE
@@ -904,6 +1257,10 @@ passives:
   - id: PASSIVE_UNYIELDING
     name: 不屈
     description: 第一次受到致命伤害时保留 1 点生命。
+    sourceType: INNATE
+    effectGroup: SURVIVE_LETHAL
+    stackRule: UNIQUE
+    priority: 10
     trigger: AFTER_TAKE_DAMAGE
     effectType: SURVIVE_LETHAL
     maxTriggerPerBattle: 1
@@ -911,6 +1268,9 @@ passives:
   - id: PASSIVE_TAILWIND
     name: 顺风
     description: 登场后全队速度提升 1 回合。
+    sourceType: INNATE
+    effectGroup: ON_ENTER_SPD_ALLY
+    stackRule: HIGHEST_ONLY
     trigger: ON_ENTER
     effectType: APPLY_STATUS_ALLY_ALL
     statusId: SPD_UP
@@ -918,6 +1278,9 @@ passives:
   - id: PASSIVE_EMBER
     name: 余烬
     description: 倒下时对敌方随机目标造成火属性伤害。
+    sourceType: INNATE
+    effectGroup: ON_DEFEAT_DAMAGE
+    stackRule: HIGHEST_ONLY
     trigger: ON_DEFEAT
     effectType: DAMAGE_ENEMY_RANDOM
     element: FIRE
@@ -927,6 +1290,9 @@ passives:
   - id: PASSIVE_REGENERATE
     name: 再生
     description: 每回合结束时恢复少量生命。
+    sourceType: INNATE
+    effectGroup: TURN_END_HEAL
+    stackRule: HIGHEST_ONLY
     trigger: TURN_END
     effectType: HEAL_SELF
     value: 8
@@ -936,6 +1302,547 @@ passives:
   - id: PASSIVE_THICK_HIDE
     name: 厚皮
     description: 受到的物理伤害减少 15%。
+    sourceType: LEVEL_UP
+    effectGroup: DAMAGE_REDUCTION
+    stackRule: HIGHEST_ONLY
     trigger: BEFORE_TAKE_DAMAGE
     effectType: REDUCE_PHYSICAL_DAMAGE
     value: 0.15
+
+  # ---------- 阶段 14 内容补齐：玩家方被动池扩充（9 个） ----------
+  # 仅使用引擎已实现的效果类型（APPLY_STATUS_SELF / APPLY_STATUS_ALLY_ALL /
+  # HEAL_SELF / DAMAGE_ENEMY_RANDOM / SURVIVE_LETHAL）与已触发时机，
+  # 供 27 宠按定位（DAMAGE/TANK/SUPPORT/CONTROL）拼装 2~5 个被动。
+
+  - id: PASSIVE_RAGE
+    name: 战意
+    description: 战斗开始时提升自身攻击 2 回合。
+    sourceType: INNATE
+    effectGroup: BATTLE_START_SELF_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_IRON_BODY
+    name: 铁躯
+    description: 战斗开始时提升自身防御 2 回合。
+    sourceType: INNATE
+    effectGroup: BATTLE_START_SELF_DEF
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_SELF
+    statusId: DEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_QUICK_FEET
+    name: 迅足
+    description: 战斗开始时提升自身速度 1 回合。
+    sourceType: INNATE
+    effectGroup: BATTLE_START_SELF_SPD
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_SELF
+    statusId: SPD_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_MENTAL_FOCUS
+    name: 凝神
+    description: 战斗开始时提升自身抗性 2 回合。
+    sourceType: INNATE
+    effectGroup: BATTLE_START_SELF_RES
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_SELF
+    statusId: SPDEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_BERSERKER
+    name: 狂暴本能
+    description: 战斗开始时进入狂暴，伤害提高但防御下降。
+    sourceType: INNATE
+    effectGroup: BATTLE_START_SELF_ATK
+    stackRule: UNIQUE
+    priority: 10
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_SELF
+    statusId: BERSERK
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_RECOVER_STRONG
+    name: 复苏
+    description: 每回合结束时恢复较多生命。
+    sourceType: INNATE
+    effectGroup: TURN_END_HEAL
+    stackRule: HIGHEST_ONLY
+    priority: 10
+    trigger: TURN_END
+    effectType: HEAL_SELF
+    value: 14
+    spiritScale: 0.15
+
+  - id: PASSIVE_KILL_RECOVER
+    name: 猎获
+    description: 击败敌方单位时恢复自身生命。
+    sourceType: INNATE
+    effectGroup: ON_KILL_HEAL
+    stackRule: HIGHEST_ONLY
+    trigger: ON_KILL
+    effectType: HEAL_SELF
+    value: 10
+    spiritScale: 0.10
+
+  - id: PASSIVE_THORN_RETURN
+    name: 荆棘反刺
+    description: 受到攻击时对敌方随机目标造成木属性伤害。
+    sourceType: INNATE
+    effectGroup: THORN
+    stackRule: HIGHEST_ONLY
+    priority: 10
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: WOOD
+    value: 8
+    spiritScale: 0.15
+    oncePerTurn: true
+
+  - id: PASSIVE_TEAM_HUSTLE
+    name: 士气昂扬
+    description: 登场后全队攻击提升 2 回合。
+    sourceType: INNATE
+    effectGroup: ON_ENTER_ATK_ALLY
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: ATK_UP
+
+  # ---------- 阶段 14 被动体系整合：27 宠核心特色被动（固有 INNATE） ----------
+  # 每宠 1 个「准专属」核心机制，表达「它是谁」。仅复用引擎已实现的效果类型
+  # （APPLY_STATUS_SELF / APPLY_STATUS_ALLY_ALL / HEAL_SELF / DAMAGE_ENEMY_RANDOM）
+  # 与已支持触发时机。每个特色被动使用独立 effectGroup（SIG_*），不与通用被动
+  # 及技能书被动发生去重冲突，避免「一本通用技能书冲淡宠物特色」。
+
+  - id: PASSIVE_SIG_METAL_001
+    name: 锋锐
+    description: 击败目标后自身攻击提升 1 回合，战意愈战愈勇。
+    sourceType: INNATE
+    effectGroup: SIG_METAL_001_KILL_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: ON_KILL
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+
+  - id: PASSIVE_SIG_METAL_002
+    name: 破甲威慑
+    description: 战斗开始时全队攻击提升 2 回合，金甲震慑敌军。
+    sourceType: INNATE
+    effectGroup: SIG_METAL_002_TEAM_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: ATK_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_METAL_003
+    name: 鎏金反刃
+    description: 受到攻击时以鎏金刃反击，造成金属属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_METAL_003_COUNTER
+    stackRule: HIGHEST_ONLY
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: METAL
+    value: 9
+    spiritScale: 0.15
+    oncePerTurn: true
+
+  - id: PASSIVE_SIG_WOOD_001
+    name: 藤蔓庇护
+    description: 登场时藤蔓环绕全队，全队防御提升 2 回合。
+    sourceType: INNATE
+    effectGroup: SIG_WOOD_001_TEAM_DEF
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: DEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_WOOD_002
+    name: 青芽治愈
+    description: 每回合结束时持续治愈自身大量生命。
+    sourceType: INNATE
+    effectGroup: SIG_WOOD_002_HEAL
+    stackRule: HIGHEST_ONLY
+    trigger: TURN_END
+    effectType: HEAL_SELF
+    value: 16
+    spiritScale: 0.20
+
+  - id: PASSIVE_SIG_WOOD_003
+    name: 蚀木孢子
+    description: 倒下时释放蚀木孢子，对敌方随机目标造成木属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_WOOD_003_DEFEAT
+    stackRule: HIGHEST_ONLY
+    trigger: ON_DEFEAT
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: WOOD
+    value: 10
+    spiritScale: 0.20
+
+  - id: PASSIVE_SIG_WATER_001
+    name: 汐月涌动
+    description: 登场时潮汐涌动，全队进入再生 3 回合。
+    sourceType: INNATE
+    effectGroup: SIG_WATER_001_TEAM_REGEN
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: REGEN
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_WATER_002
+    name: 涟漪共鸣
+    description: 战斗开始时涟漪共鸣，全队抗性提升 2 回合。
+    sourceType: INNATE
+    effectGroup: SIG_WATER_002_TEAM_RES
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: SPDEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_WATER_003
+    name: 雾海潮汐
+    description: 倒下时释放雾海潮汐，对敌方随机目标造成水属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_WATER_003_DEFEAT
+    stackRule: HIGHEST_ONLY
+    trigger: ON_DEFEAT
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: WATER
+    value: 10
+    spiritScale: 0.20
+
+  - id: PASSIVE_SIG_FIRE_001
+    name: 烬牙撕咬
+    description: 受到攻击时烬牙反咬，造成火属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_FIRE_001_COUNTER
+    stackRule: HIGHEST_ONLY
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: FIRE
+    value: 9
+    spiritScale: 0.15
+    oncePerTurn: true
+
+  - id: PASSIVE_SIG_FIRE_002
+    name: 绯焰焚身
+    description: 登场时绯焰焚烧自身，进入狂暴，伤害提高但防御降低。
+    sourceType: INNATE
+    effectGroup: SIG_FIRE_002_ENTRY_BERSERK
+    stackRule: UNIQUE
+    priority: 10
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_SELF
+    statusId: BERSERK
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_FIRE_003
+    name: 赤曜疾驰
+    description: 登场时曜光加身，自身速度提升 1 回合。
+    sourceType: INNATE
+    effectGroup: SIG_FIRE_003_ENTRY_SPD
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_SELF
+    statusId: SPD_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_EARTH_001
+    name: 岩壁庇护
+    description: 登场时岩壁覆体，自身防御提升 2 回合。
+    sourceType: INNATE
+    effectGroup: SIG_EARTH_001_ENTRY_DEF
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_SELF
+    statusId: DEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_EARTH_002
+    name: 岳核护持
+    description: 战斗开始时岳核护持，全队防御提升 2 回合。
+    sourceType: INNATE
+    effectGroup: SIG_EARTH_002_TEAM_DEF
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: DEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_EARTH_003
+    name: 磐震反震
+    description: 受到攻击时以震荡反击，造成土属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_EARTH_003_COUNTER
+    stackRule: HIGHEST_ONLY
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: EARTH
+    value: 9
+    spiritScale: 0.15
+    oncePerTurn: true
+
+  - id: PASSIVE_SIG_WIND_001
+    name: 岚羽急袭
+    description: 击败目标后羽翼振翅，自身速度提升 1 回合。
+    sourceType: INNATE
+    effectGroup: SIG_WIND_001_KILL_SPD
+    stackRule: HIGHEST_ONLY
+    trigger: ON_KILL
+    effectType: APPLY_STATUS_SELF
+    statusId: SPD_UP
+
+  - id: PASSIVE_SIG_WIND_002
+    name: 逐风疾行
+    description: 战斗开始时疾风席卷，全队速度提升 1 回合。
+    sourceType: INNATE
+    effectGroup: SIG_WIND_002_TEAM_SPD
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: SPD_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_WIND_003
+    name: 空澜回旋
+    description: 队友倒下时激流回旋，自身攻击提升 1 回合。
+    sourceType: INNATE
+    effectGroup: SIG_WIND_003_ALLY_DEFEAT_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ALLY_DEFEAT
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+
+  - id: PASSIVE_SIG_THUNDER_001
+    name: 霆跃疾雷
+    description: 受到攻击时跃起放电，造成雷属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_THUNDER_001_COUNTER
+    stackRule: HIGHEST_ONLY
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: THUNDER
+    value: 9
+    spiritScale: 0.15
+    oncePerTurn: true
+
+  - id: PASSIVE_SIG_THUNDER_002
+    name: 鸣霄蓄势
+    description: 登场时鸣雷蓄势，自身攻击提升 2 回合。
+    sourceType: INNATE
+    effectGroup: SIG_THUNDER_002_ENTRY_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_THUNDER_003
+    name: 紫霄落雷
+    description: 倒下时引动紫霄落雷，对敌方随机目标造成雷属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_THUNDER_003_DEFEAT
+    stackRule: HIGHEST_ONLY
+    trigger: ON_DEFEAT
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: THUNDER
+    value: 10
+    spiritScale: 0.20
+
+  - id: PASSIVE_SIG_LIGHT_001
+    name: 曜光加护
+    description: 登场时圣光加护，全队抗性提升 2 回合。
+    sourceType: INNATE
+    effectGroup: SIG_LIGHT_001_TEAM_RES
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: SPDEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_LIGHT_002
+    name: 晨曦再生
+    description: 战斗开始时晨曦普照，全队进入再生 3 回合。
+    sourceType: INNATE
+    effectGroup: SIG_LIGHT_002_TEAM_REGEN
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: REGEN
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_SIG_LIGHT_003
+    name: 辉星陨落
+    description: 倒下时星辉爆散，对敌方随机目标造成大量光属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_LIGHT_003_DEFEAT
+    stackRule: HIGHEST_ONLY
+    trigger: ON_DEFEAT
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: LIGHT
+    value: 14
+    spiritScale: 0.25
+
+  - id: PASSIVE_SIG_DARK_001
+    name: 幽蚀回噬
+    description: 击败目标后暗影回噬，自身恢复生命。
+    sourceType: INNATE
+    effectGroup: SIG_DARK_001_KILL_REGEN
+    stackRule: HIGHEST_ONLY
+    trigger: ON_KILL
+    effectType: HEAL_SELF
+    value: 10
+    spiritScale: 0.15
+
+  - id: PASSIVE_SIG_DARK_002
+    name: 夜幕反噬
+    description: 倒下时夜幕扩散，对敌方随机目标造成暗属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_DARK_002_DEFEAT
+    stackRule: HIGHEST_ONLY
+    trigger: ON_DEFEAT
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: DARK
+    value: 10
+    spiritScale: 0.20
+
+  - id: PASSIVE_SIG_DARK_003
+    name: 冥刃反斩
+    description: 受到攻击时冥刃反斩，造成暗属性伤害。
+    sourceType: INNATE
+    effectGroup: SIG_DARK_003_COUNTER
+    stackRule: HIGHEST_ONLY
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: DARK
+    value: 9
+    spiritScale: 0.15
+    oncePerTurn: true
+
+  # ---------- 阶段 14 内容补齐：技能书被动技能（source=BOOK，10 个） ----------
+  # 仅复用引擎已实现的效果类型与触发时机；图标/VFX 复用既有 buff/heal/攻击/荆棘模板，
+  # 不新增美术资源。PASSIVE_BOOK_* 仅能通过技能书习得，不分配给任何宠物种族（INNATE）。
+
+  - id: PASSIVE_BOOK_VANGUARD
+    name: 先锋
+    description: 战斗开始时提升自身攻击 1 回合。
+    sourceType: SKILL_BOOK
+    effectGroup: BATTLE_START_SELF_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_BOOK_FORTIFY
+    name: 铁壁光环
+    description: 战斗开始时提升全队防御 1 回合。
+    sourceType: SKILL_BOOK
+    effectGroup: BATTLE_START_TEAM_DEF
+    stackRule: HIGHEST_ONLY
+    trigger: BATTLE_START
+    effectType: APPLY_STATUS_ALLY_ALL
+    statusId: DEF_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_BOOK_ENTRY_BOOST
+    name: 登场蓄力
+    description: 登场时提升自身攻击 2 回合。
+    sourceType: SKILL_BOOK
+    effectGroup: SELF_ATK_BUFF
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ENTER
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_BOOK_STURDY
+    name: 稳固
+    description: 受到的物理伤害减少 10%。
+    sourceType: SKILL_BOOK
+    effectGroup: DAMAGE_REDUCTION
+    stackRule: HIGHEST_ONLY
+    trigger: BEFORE_TAKE_DAMAGE
+    effectType: REDUCE_PHYSICAL_DAMAGE
+    value: 0.10
+
+  - id: PASSIVE_BOOK_RECUPERATE
+    name: 回气
+    description: 每回合结束时恢复少量生命。
+    sourceType: SKILL_BOOK
+    effectGroup: TURN_END_HEAL
+    stackRule: HIGHEST_ONLY
+    trigger: TURN_END
+    effectType: HEAL_SELF
+    value: 6
+
+  - id: PASSIVE_BOOK_ON_KILL_ATK
+    name: 乘胜追击
+    description: 击败敌方单位时提升自身攻击 1 回合。
+    sourceType: SKILL_BOOK
+    effectGroup: ON_KILL_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: ON_KILL
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_BOOK_DEATH_FIRE
+    name: 烬爆
+    description: 倒下时对敌方随机目标造成火属性伤害。
+    sourceType: SKILL_BOOK
+    effectGroup: ON_DEFEAT_DAMAGE
+    stackRule: HIGHEST_ONLY
+    trigger: ON_DEFEAT
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: FIRE
+    value: 8
+    spiritScale: 0.15
+
+  - id: PASSIVE_BOOK_THORN_AURA
+    name: 荆棘气场
+    description: 受到攻击时对敌方随机目标造成木属性伤害。
+    sourceType: SKILL_BOOK
+    effectGroup: THORN
+    stackRule: HIGHEST_ONLY
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: DAMAGE_ENEMY_RANDOM
+    element: WOOD
+    value: 6
+    spiritScale: 0.10
+    oncePerTurn: true
+
+  - id: PASSIVE_BOOK_LAST_STAND
+    name: 殊死
+    description: 第一次受到致命伤害时保留 1 点生命。
+    sourceType: SKILL_BOOK
+    effectGroup: SURVIVE_LETHAL
+    stackRule: UNIQUE
+    trigger: AFTER_TAKE_DAMAGE
+    effectType: SURVIVE_LETHAL
+    maxTriggerPerBattle: 1
+
+  - id: PASSIVE_BOOK_AVENGE
+    name: 复仇
+    description: 队友倒下时提升自身攻击 1 回合。
+    sourceType: SKILL_BOOK
+    effectGroup: ON_ALLY_DEFEAT_ATK
+    stackRule: HIGHEST_ONLY
+    trigger: ON_ALLY_DEFEAT
+    effectType: APPLY_STATUS_SELF
+    statusId: ATK_UP
+    maxTriggerPerBattle: 1

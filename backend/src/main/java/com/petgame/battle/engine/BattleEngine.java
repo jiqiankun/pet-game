@@ -956,11 +956,23 @@ public class BattleEngine {
     private DamageOutcome applyDamage(BattleContext ctx, BattleUnit caster, BattleUnit target, SkillConfig skill,
                                       double baseValue, boolean singleTarget, boolean leaveAtOneHp,
                                       boolean fromCounter) {
+        // 开发者战斗调试「固定暴击」：玩家方攻击必定暴击
+        boolean forceCrit = ctx.isPlayerFixedCrit() && isPlayerUnit(ctx, caster);
         DamageCalculator.DamageResult result = damageCalculator.calculate(
-                caster, target, skill, baseValue, ctx.getRandom(), false);
+                caster, target, skill, baseValue, ctx.getRandom(), false, forceCrit);
+
+        // 开发者战斗调试「一击必杀」：玩家方攻击直接击杀目标
+        int damage = result.getFinalDamage();
+        if (ctx.isPlayerOneHitKill() && isPlayerUnit(ctx, caster)) {
+            damage = Math.max(damage, target.getCurrentHp() + target.getShield());
+        }
+        // 开发者战斗调试「无敌」：玩家方单位不受伤害
+        boolean invincible = ctx.isPlayerInvincible() && isPlayerUnit(ctx, target);
+        if (invincible) {
+            damage = 0;
+        }
 
         // 援护：单体伤害部分转移给援护者
-        int damage = result.getFinalDamage();
         if (singleTarget) {
             BattleUnit guard = findGuardOf(ctx, target);
             if (guard != null) {
@@ -975,31 +987,45 @@ public class BattleEngine {
 
         ctx.emit(BattleEvent.of(BattleEventType.DAMAGE, ctx.getCurrentRound())
                 .source(caster.getUnitId()).target(target.getUnitId()).skill(skill.getId())
-                .value(result.getFinalDamage()).critical(result.isCritical())
+                .value(damage).critical(result.isCritical())
                 .elementRelation(result.getElementRelation())
                 .put("elementMultiplier", result.getElementMultiplier())
                 .put("sameElementMultiplier", result.getSameElementMultiplier())
                 .put("synergyMultiplier", result.getSynergyMultiplier())
                 .put("critMultiplier", result.getCritMultiplier())
-                .put("rawBase", result.getRawBase()));
+                .put("rawBase", result.getRawBase())
+                // 伤害链路其余环节（战斗调试信息）
+                .put("mitigated", result.getMitigated())
+                .put("buffMultiplier", result.getBuffMultiplier()));
         if (result.isCritical()) {
             ctx.emit(BattleEvent.of(BattleEventType.CRITICAL, ctx.getCurrentRound())
                     .source(caster.getUnitId()).target(target.getUnitId()).skill(skill.getId()));
             passiveManager.trigger(ctx, "ON_CRITICAL", caster);
         }
 
-        passiveManager.trigger(ctx, "BEFORE_DAMAGE", target);
-        DamageOutcome outcome = dealDamageToUnit(ctx, caster, target, damage, leaveAtOneHp, fromCounter);
-        passiveManager.trigger(ctx, "AFTER_DAMAGE", caster);
-        if (target.isAlive()) {
-            passiveManager.trigger(ctx, "AFTER_TAKE_DAMAGE", target);
+        DamageOutcome outcome;
+        if (invincible) {
+            // 无敌：不落实伤害、不触发受击被动与反击
+            outcome = new DamageOutcome();
+        } else {
+            passiveManager.trigger(ctx, "BEFORE_DAMAGE", target);
+            outcome = dealDamageToUnit(ctx, caster, target, damage, leaveAtOneHp, fromCounter);
+            passiveManager.trigger(ctx, "AFTER_DAMAGE", caster);
+            if (target.isAlive()) {
+                passiveManager.trigger(ctx, "AFTER_TAKE_DAMAGE", target);
+            }
         }
 
         // 反击（REV-008，需求 §144.2）：直接单体技能伤害后触发；群攻/DOT 不走此路径；反击不触发反击
-        if (!fromCounter && singleTarget && target.isAlive()) {
+        if (!fromCounter && singleTarget && target.isAlive() && !invincible) {
             maybeCounter(ctx, target, caster);
         }
         return outcome;
+    }
+
+    /** 判断单位是否属于玩家方（开发者战斗调试用）。 */
+    private boolean isPlayerUnit(BattleContext ctx, BattleUnit unit) {
+        return ctx.getPlayerSide() != null && ctx.getPlayerSide().findUnit(unit.getUnitId()) != null;
     }
 
     /** 反击判定与执行（REV-008）：反击伤害直接落实，不触发反击/吸血/受击被动链。 */

@@ -121,6 +121,43 @@ public final class PetGrowthTestFixtures {
         return slot;
     }
 
+    /**
+     * 构建被动技能配置（阶段 14 被动体系重构测试用）。
+     *
+     * @param id          被动 ID
+     * @param effectGroup 效果组（可为 null）
+     * @param stackRule   叠加规则
+     */
+    public static com.petgame.config.model.PassiveSkillConfig passive(String id, String effectGroup,
+                                                                       String stackRule) {
+        com.petgame.config.model.PassiveSkillConfig p =
+                new com.petgame.config.model.PassiveSkillConfig();
+        p.setId(id);
+        p.setName(id);
+        p.setEffectGroup(effectGroup);
+        p.setStackRule(stackRule);
+        return p;
+    }
+
+    /**
+     * 向测试注册中心注入被动技能索引（阶段 14 技能书被动启用测试用）。
+     *
+     * @param registry 已构建的注册中心
+     * @param passives 被动配置列表
+     */
+    public static void registerPassives(GameConfigRegistry registry,
+                                        List<com.petgame.config.model.PassiveSkillConfig> passives) {
+        try {
+            Map<String, com.petgame.config.model.PassiveSkillConfig> index = new LinkedHashMap<>();
+            for (com.petgame.config.model.PassiveSkillConfig p : passives) {
+                index.put(p.getId(), p);
+            }
+            setField(registry, "passiveIndex", index);
+        } catch (Exception e) {
+            throw new IllegalStateException("注册被动索引失败", e);
+        }
+    }
+
     private static void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);

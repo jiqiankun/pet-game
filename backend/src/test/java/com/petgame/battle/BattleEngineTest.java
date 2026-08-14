@@ -463,6 +463,74 @@ class BattleEngineTest {
         assertEquals("ENEMY", ctx.getWinner());
     }
 
+    // ---- 开发者战斗调试（阶段 14）----
+
+    @Test
+    void playerInvincible_shouldNotTakeDamageFromEnemy() {
+        GameConfigRegistry registry = buildRegistry(0);
+        DecisionProvider killer = (ctx, side) -> side.getActiveAliveUnits().stream()
+                .map(u -> BattleAction.skill(u.getUnitId(), "SKILL_BIG", "P1"))
+                .toList();
+        BattleEngine engine = engine(registry, killer);
+        BattleUnit player = active(unit("P1", "WATER", 100, 50, 50, 50, 50, 100, "SKILL_WAIT"), 0);
+        BattleUnit enemy = active(unit("E1", "FIRE", 500, 50, 50, 50, 50, 10, "SKILL_BIG"), 0);
+        BattleContext ctx = context(1001L, List.of(player), List.of(enemy));
+        ctx.setPlayerInvincible(true);
+
+        engine.playTurn(ctx, List.of(BattleAction.skill("P1", "SKILL_WAIT", null)));
+
+        assertEquals(100, player.getCurrentHp(), "无敌开启时玩家方不应受到伤害");
+        assertTrue(player.isAlive());
+    }
+
+    @Test
+    void playerOneHitKill_shouldInstantlyDefeatEnemy() {
+        GameConfigRegistry registry = buildRegistry(0);
+        BattleEngine engine = engine(registry);
+        BattleUnit player = active(unit("P1", "WATER", 200, 50, 50, 50, 50, 100, "SKILL_WEAK"), 0);
+        BattleUnit enemy = active(unit("E1", "FIRE", 500, 40, 40, 999, 999, 10, "SKILL_WAIT"), 0);
+        BattleContext ctx = context(1002L, List.of(player), List.of(enemy));
+        ctx.setPlayerOneHitKill(true);
+
+        // SKILL_WEAK 正常只能造成最低 1 点伤害，但一击必杀应直接击杀
+        TurnResult result = engine.playTurn(ctx, List.of(BattleAction.skill("P1", "SKILL_WEAK", "E1")));
+
+        assertTrue(result.isFinished(), "一击必杀应直接击杀敌方并结束战斗");
+        assertEquals("PLAYER", result.getWinner());
+        assertFalse(enemy.isAlive());
+    }
+
+    @Test
+    void playerFixedCrit_shouldAlwaysCrit() {
+        GameConfigRegistry registry = buildRegistry(0);  // 0% 暴击率
+        BattleEngine engine = engine(registry);
+        BattleUnit player = active(unit("P1", "WATER", 200, 50, 50, 50, 50, 100, "SKILL_HIT"), 0);
+        BattleUnit enemy = active(unit("E1", "FIRE", 500, 40, 40, 50, 50, 10, "SKILL_WAIT"), 0);
+        BattleContext ctx = context(1003L, List.of(player), List.of(enemy));
+        ctx.setPlayerFixedCrit(true);
+
+        TurnResult result = engine.playTurn(ctx, List.of(BattleAction.skill("P1", "SKILL_HIT", "E1")));
+
+        BattleEvent damage = findEvent(result.getEvents(), BattleEventType.DAMAGE);
+        assertNotNull(damage);
+        assertTrue(damage.getCritical(), "固定暴击开启时 0% 暴击率也应暴击");
+    }
+
+    @Test
+    void debugDamage_shouldRecordRandomDraws() {
+        GameConfigRegistry registry = buildRegistry(0.5);
+        BattleEngine engine = engine(registry);
+        BattleUnit player = active(unit("P1", "WATER", 200, 50, 50, 50, 50, 100, "SKILL_HIT"), 0);
+        BattleUnit enemy = active(unit("E1", "FIRE", 300, 40, 40, 50, 50, 10, "SKILL_WAIT"), 0);
+        BattleContext ctx = context(1004L, List.of(player), List.of(enemy));
+        ctx.setDebugDamage(true);
+        ctx.getRandom().setRecordDraws(true);
+
+        engine.playTurn(ctx, List.of(BattleAction.skill("P1", "SKILL_HIT", "E1")));
+
+        assertFalse(ctx.getRandom().getDrawLog().isEmpty(), "调试开启时应录制随机数序列");
+    }
+
     // ---- 辅助 ----
 
     private BattleEvent findEvent(List<BattleEvent> events, BattleEventType type) {

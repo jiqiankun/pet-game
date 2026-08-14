@@ -31,8 +31,10 @@ rarityExtraPointsPer10Levels:
   LEGENDARY: 6
 # 升级经验公式：升到下一级所需经验 = expBase * expGrowthFactor^(当前等级-1)
 # 需求 §17 未给具体数值，此公式配置化以便调整
+# 阶段 14 数值平衡：1.15→1.13 放缓后期指数曲线，配合各区域 expPerLevel 上调，平滑前/后期升级节奏
+# （升到 Lv50 累计约 30 万经验，Lv40→50 约 54 场，主线推进顺畅、Lv50 仍具养成深度）
 expBase: 100
-expGrowthFactor: 1.15
+expGrowthFactor: 1.13
 # 属性点转换消耗（需求 §20）
 # 生命 +5 消耗 hpPointCost(1) 点；力量/灵力/防御/抗性 +1 消耗 statPointCost(1) 点；速度 +1 消耗 speedPointCost(2) 点
 statPointCost: 1
@@ -125,6 +127,108 @@ wildRewardRarityMultiplier:
 luckyExchangeCost: 100
 # HP 百分比交换（命运天平类，需求 §147）：Boss 单次交换幅度上限（百分点）
 bossHpExchangeLimit: 0.20
+
+# ---- 全局难度（阶段 13）----
+# Boss 内容难度（NORMAL/HARD/NIGHTMARE）与此处全局难度相互独立。
+gameDifficulty:
+  defaultDifficulty: NORMAL
+  profiles:
+    NORMAL:
+      wildLevelOffset: 0
+      wildMinLevelOffset: -4
+      wildMaxLevelOffset: 3
+      eliteLevelOffset: 1
+      eliteMinLevelOffset: -2
+      eliteMaxLevelOffset: 5
+      wildPlayerAdjustmentMin: -2
+      wildPlayerAdjustmentMax: 2
+      wildMinTeamSize: 1
+      wildMaxTeamSize: 2
+      eliteMinTeamSize: 1
+      eliteMaxTeamSize: 2
+      roleSynergy: false
+      bossLevelOffset: 0
+      bossPlayerLevelUpwardLimit: 0
+      bossOptionalSlotCount: 0
+      bossHpMultiplier: 1.00
+      bossAttackMultiplier: 1.00
+      bossDefenseMultiplier: 1.00
+      bossSpeedMultiplier: 1.00
+      bossAiLevel: 1
+      effectiveLevelCapEnabled: false
+      playerLevelCapOffset: 50
+    ELITE:
+      wildLevelOffset: 1
+      wildMinLevelOffset: -2
+      wildMaxLevelOffset: 5
+      eliteLevelOffset: 3
+      eliteMinLevelOffset: 0
+      eliteMaxLevelOffset: 7
+      wildPlayerAdjustmentMin: -1
+      wildPlayerAdjustmentMax: 3
+      wildMinTeamSize: 1
+      wildMaxTeamSize: 2
+      eliteMinTeamSize: 1
+      eliteMaxTeamSize: 2
+      roleSynergy: true
+      bossLevelOffset: 1
+      bossPlayerLevelUpwardLimit: 2
+      bossOptionalSlotCount: 1
+      bossHpMultiplier: 1.04
+      bossAttackMultiplier: 1.04
+      bossDefenseMultiplier: 1.02
+      bossSpeedMultiplier: 1.02
+      bossAiLevel: 2
+      effectiveLevelCapEnabled: true
+      playerLevelCapOffset: 5
+    NIGHTMARE:
+      wildLevelOffset: 3
+      wildMinLevelOffset: 0
+      wildMaxLevelOffset: 7
+      eliteLevelOffset: 5
+      eliteMinLevelOffset: 2
+      eliteMaxLevelOffset: 9
+      wildPlayerAdjustmentMin: 0
+      wildPlayerAdjustmentMax: 4
+      wildMinTeamSize: 2
+      wildMaxTeamSize: 3
+      eliteMinTeamSize: 2
+      eliteMaxTeamSize: 3
+      roleSynergy: true
+      bossLevelOffset: 3
+      bossPlayerLevelUpwardLimit: 3
+      bossOptionalSlotCount: 1
+      bossHpMultiplier: 1.08
+      bossAttackMultiplier: 1.07
+      bossDefenseMultiplier: 1.04
+      bossSpeedMultiplier: 1.03
+      bossAiLevel: 3
+      effectiveLevelCapEnabled: true
+      playerLevelCapOffset: 3
+    HELL:
+      wildLevelOffset: 5
+      wildMinLevelOffset: 2
+      wildMaxLevelOffset: 10
+      eliteLevelOffset: 7
+      eliteMinLevelOffset: 4
+      eliteMaxLevelOffset: 12
+      wildPlayerAdjustmentMin: 1
+      wildPlayerAdjustmentMax: 5
+      wildMinTeamSize: 2
+      wildMaxTeamSize: 3
+      eliteMinTeamSize: 2
+      eliteMaxTeamSize: 3
+      roleSynergy: true
+      bossLevelOffset: 5
+      bossPlayerLevelUpwardLimit: 4
+      bossOptionalSlotCount: 2
+      bossHpMultiplier: 1.12
+      bossAttackMultiplier: 1.10
+      bossDefenseMultiplier: 1.06
+      bossSpeedMultiplier: 1.05
+      bossAiLevel: 4
+      effectiveLevelCapEnabled: true
+      playerLevelCapOffset: 1
 
 # ---- Boss 控制抗性（阶段 7，需求 §43 + 决策六）----
 # 异常成功率修正：NORMAL 无抗性、ELITE -20%、BOSS -40%

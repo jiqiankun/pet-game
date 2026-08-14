@@ -44,6 +44,12 @@ public class MapsConfig {
         private String type;
         /** 推荐等级描述（大地图展示，如 3~8）。 */
         private String recommendedLevel;
+        /** 敌方数值推荐等级（阶段 13，野外缩放基准）。 */
+        private int recommendedEnemyLevel = 1;
+        /** 敌方数值最低等级（阶段 13，野外缩放硬下界）。 */
+        private int minEnemyLevel = 1;
+        /** 敌方数值最高等级（阶段 13，野外缩放硬上界）。 */
+        private int maxEnemyLevel = 1;
         /**
          * 解锁方式：AUTO 默认解锁 / BOSS 击败区域 Boss 解锁（阶段 7）/
          * QUEST 主线任务解锁（阶段 9）。

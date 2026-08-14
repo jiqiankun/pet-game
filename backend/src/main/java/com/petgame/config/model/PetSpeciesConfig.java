@@ -27,6 +27,13 @@ public class PetSpeciesConfig {
     private String element;
 
     /**
+     * 胜利表现风格（阶段 12，可选）：PROUD/PLAYFUL/FEROCIOUS/CALM/CURIOUS/TIMID/LAZY/MISCHIEVOUS。
+     * 用于战败后野外宠物胜利互动匹配（victoryBehavior，需求 §152.6）。
+     * 未配置时该种族使用胜利互动的通用公共池（style 为空的那部分）。
+     */
+    private String victoryBehavior;
+
+    /**
      * 战斗定位（阶段 10 自动战斗评分修正用，可选）：DAMAGE/TANK/SUPPORT/CONTROL。
      * 未配置时由 AutoBattleDecisionProvider 按基础属性自动推断；
      * 定位只影响决策倾向，不构成行为限制。

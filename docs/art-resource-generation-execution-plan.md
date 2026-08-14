@@ -1,9 +1,11 @@
-# 《宠物精灵》AI 美术资源生成执行计划
+# 《宠物精灵》AI 美术资源生成执行计划（历史执行矩阵）
 
 > 版本：V1.0
 > 生成日期：2026-08-14
 > 依据：需求设计文档 V1.0（含 §142～151 补充）、UI 设计文档 V1.0、`docs/art-resource-inventory.md`、`plans/《宠物精灵》AI 美术资源批量生成提示词.md`、全部 `backend/src/main/resources/game-config/*.yml` 实际配置、`frontend/public/assets` 与前端代码现状、Git 仓库状态。
-> 定位：本文档是**美术资源批量生成的唯一执行依据**。本阶段只规划，不生成任何图片、不修改任何代码。
+> 历史定位：这是 2026-08-14 Batch 0～8 的执行矩阵和决策证据，保留用于追溯；**不可作为新增资源的当前执行依据**。当前入口为 `docs/art/README.md`，流程、规范、模板、验收和清单分别见该目录下对应文档。
+
+> 执行状态更新（2026-08-14）：已完成 Batch 0～7 的资源生成、派生与页面接入，并完成 Batch 8 静态 QA；游戏内实机截图随阶段 14 核心场景总验收执行。资源清单、接入点和 QA 结果见 `docs/art/asset-manifest.md`、`docs/art/m7-qc.md`、`docs/art/m8-qc.md`。
 
 ---
 
@@ -16,7 +18,7 @@
 3. 按视觉语义去重，区分 **Source Asset（AI 生成）** / **Derived Asset（脚本派生）** / **NO_ASSET_REQUIRED（程序实现）**；
 4. 输出可直接执行的批次计划、命名规范、QA 标准与统计结果。
 
-本文档完成后，后续批次直接按 §12（批次）+ §7（矩阵）+ §10（命名）执行，不再重新分析。
+本文件完成后曾用于执行本轮批次；后续新增资源应按 `docs/art/` 当前工作流重新登记、查重和验收，不直接复用本轮一次性批次编号。
 
 ---
 
@@ -39,7 +41,7 @@
 |---|---:|---|---|
 | 宠物 | 27（普通 12 / 稀有 9 / 珍稀 5 / 传说 1） | `pets.yml` | 一致 |
 | 属性 | 9 | `elements.yml` | 一致 |
-| 技能定义 | 66（主动 61 + 被动 5） | `skills.yml` | 一致 |
+| 技能定义 | 99（主动 85 + 被动 14） | `skills.yml` | 一致 |
 | 状态 | 24 | `statuses.yml` | 一致 |
 | 道具 | **35**（恢复 4 + 捕捉 3 + 净化 1 + 材料 14 + 技能书 **13**） | `items.yml` | inventory 记 34 / 12 书，**错误** |
 | Boss | 8（主 5 + 隐藏 2 + 精英 1，各 3 难度） | `bosses.yml` | 一致 |
@@ -82,7 +84,7 @@
 ### 4.1 原始资源需求池（未去重）
 
 > 每条记录格式：原始需求｜来源（文档/章节）｜使用场景｜对应系统/实体｜现状｜是否要求独立资源。
-> 共 62 组记录，覆盖约 **500 个**原始资源点位（27 宠物 × 多用途、66 技能 × 特效/图标等按点位计）。
+> 共 62 组记录，覆盖约 **500 个**原始资源点位（27 宠物 × 多用途、99 技能 × 特效/图标等按点位计）。
 
 **A. 宠物资源（162 点位）**
 
@@ -118,7 +120,7 @@
 
 | # | 原始需求 | 来源 | 使用场景 | 现状 | 独立资源要求 |
 |---|---|---|---|---|---|
-| C-01 | 61 主动技能攻击/功能特效（按技能数） | `skills.yml` | BattleView 技能演出 | 无 | **否**（按视觉语义归并为 31 个 VFX 模板，见 §6.3） |
+| C-01 | 85 主动技能攻击/功能特效（按技能数） | `skills.yml` | BattleView 技能演出 | 无 | **否**（按视觉语义归并为 31 个 VFX 模板，见 §6.3） |
 | C-02 | 24 状态附加/持续表现 | `statuses.yml` | BattleView 状态区 | 文字标签 | 否（图标承担；动效 CSS） |
 | C-03 | 捕捉表现（投球/成功/失败） | 需求 §46～50 | BattleView 捕捉面板 | 无 | 是（1 套） |
 | C-04 | 留生一击保护表现 | 需求 §142 | BattleView | 无 | 是（1 个） |
@@ -133,7 +135,7 @@
 | D-01 | 游戏 Logo / 标题 | UI 文档 | MainLayout/NewGame | 纯文字 | 是（SVG/AI） |
 | D-02 | 9 属性图标 | UI 文档 §1.2 | 全局 | 中文单字 | 是（9 个全局共享） |
 | D-03 | 24 状态图标（含回合/层数展示） | 需求 §119（混乱/震慑/隐匿/狂暴必须明显不同）；`statuses.yml` | BattleView/PetView | 文字 | 是（24 个，Buff/Debuff 档可模板化） |
-| D-04 | 66 技能图标 | UI 文档 §15.2（旧估 80~100）；`skills.yml` | PetView/BattleView 技能按钮 | 文字 | **否**（类型底图+属性色组合，20 底图） |
+| D-04 | 99 技能图标 | UI 文档 §15.2（旧估 80~100）；`skills.yml` | PetView/BattleView 技能按钮 | 文字 | **否**（类型底图+属性色组合，20 底图） |
 | D-05 | 35 道具图标 | UI 文档 §15.2（旧估 40~60）；`items.yml` | Inventory/Shop/掉落结算 | 文字 | **否**（7 底图 + recolor/组合变体） |
 | D-06 | 货币图标（金币） | 需求 §92 | Home/Shop/结算 | 文字/色块 | 否（1 个小图标或 SVG） |
 | D-07 | 功能小图标（关闭/继续/勾选/警告/锁/播放/停止/收藏/锁定） | inventory §10.1 emoji 清单 | 多页面 | emoji ✕▸✓○🔒▶■⚠ | 否（SVG 程序绘制） |
@@ -177,7 +179,7 @@
 |---|---|
 | 1. 同一资源多处引用只保留一个 | 宠物头像=图鉴头像=队伍头像=仓库缩略图，全部由 `pet_<id>_portrait` 裁切/缩放派生，不生成第二张 |
 | 2. 优先复用不重复生成 | 头像裁切、图标 recolor、异色滤镜、CSS 面板、SVG 小图标、Phaser tween 命中反馈，一律不交 AI |
-| 3. 技能按视觉语义去重 | 61 主动技能 → **31 个 VFX 模板**（属性×强度档 + 功能类），技能只引用模板（§8.1） |
+| 3. 技能按视觉语义去重 | 85 主动技能 → **31 个 VFX 模板**（属性×强度档 + 功能类），技能只引用模板（§8.1） |
 | 4. 状态按状态语义去重 | 24 状态各 1 图标（需求 §119 要求可区分），Buff/Debuff 4 档采用「箭头+属性符号」模板变体；状态附加动效用 CSS，不做 24 套状态 VFX |
 | 5. 地图组件化 | 6 地图 → **4 套 Tileset**（村庄/草原/森林共享草地基础）+ 通用 Props；不按地图数生成 |
 | 6. UI 组件化 | 不为任何页面生成整图；面板/按钮/边框/血条全部 CSS；仅图标/背景/Logo 走图 |
@@ -237,7 +239,7 @@
 
 - **9 属性图标**（Source，P0，128×128）：全局共享，配色锁定 UI 文档 §1.2 官方色。
 - **24 状态图标**（Source，P1，128×128）：按 `statuses.yml` 24 条逐一设计；ATK_UP/DEF_UP/SPD_UP/SPDEF_UP 用「↑+属性符号」模板族，其余专属图形（混乱/震慑/隐匿/狂暴必须显著可辨）。
-- **20 技能类型底图**（Source，P1，256×256）：physical_strike / claw_slash / projectile / explosion / falling / wave / heal / shield / buff_up / debuff_down / bind / mist / poison / drain / dispel / counter / taunt / book_common / passive_badge / capture_assist。技能图标 = 底图 + 属性色描边/角标（程序组合派生），覆盖全部 66 技能。
+- **20 技能类型底图**（Source，P1，256×256）：physical_strike / claw_slash / projectile / explosion / falling / wave / heal / shield / buff_up / debuff_down / bind / mist / poison / drain / dispel / counter / taunt / book_common / passive_badge / capture_assist。技能图标 = 底图 + 属性色描边/角标（程序组合派生），覆盖全部 99 技能。
 - **Logo**（Source，P1，SVG 或 AI 转 SVG）。
 - **面板/按钮/边框/Tab/血条/经验条/稀有度框/选中态/Loading/Toast**：NO_ASSET_REQUIRED（CSS 已实现或 SVG）。
 - **功能小图标集**（约 12 个：关闭/继续/勾选/警告/锁/播放/停止/收藏/锁定/精英/任务标记/书）：NO_ASSET_REQUIRED（内联 SVG 程序绘制）。
@@ -346,43 +348,43 @@
 
 ## 8. 资源复用关系
 
-### 8.1 VFX → 技能映射（61 主动技能全部被 31 模板覆盖）
+### 8.1 VFX → 技能映射（85 主动技能全部被 31 模板覆盖）
 
 ```text
 vfx_fire_small        ← 烈焰爪、火牙
-vfx_fire_medium       ← 烈焰爆发
-vfx_fire_large        ← 炎灵
+vfx_fire_medium       ← 烈焰爆发、熔岩冲撞
+vfx_fire_large        ← 炎灵、炼狱火雨
 vfx_fire_ultimate     ← 陨星坠（蓄力）
 vfx_thunder_small     ← 雷击、电光一闪
 vfx_thunder_medium    ← 雷霆万钧
-vfx_thunder_large     ← 雷暴
-vfx_water_small       ← 汐涌、水跃击
-vfx_water_medium      ← 潮涌
+vfx_thunder_large     ← 雷暴、连锁闪电
+vfx_water_small       ← 汐涌、水跃击、水鞭
+vfx_water_medium      ← 潮涌、洪流
 vfx_earth_small       ← 落岩
-vfx_earth_large       ← 地震
+vfx_earth_large       ← 地震、岩爆
 vfx_wind_small        ← 风刃
-vfx_wind_medium       ← 疾风骤起
+vfx_wind_medium       ← 疾风骤起、风切
 vfx_light_small       ← 光耀
-vfx_light_medium      ← 光爆
-vfx_metal_small       ← 金属爪、破甲击
+vfx_light_medium      ← 光爆、棱镜之光
+vfx_metal_small       ← 金属爪、破甲击、钢刃
 vfx_metal_medium      ← 刃暴
-vfx_dark_small        ← 暗影球、暗袭
-vfx_wood_small        ← 藤鞭、荆棘缠绕、飞叶(敌方)
-vfx_heal_small        ← 治愈之光、治愈孢子、净化之水、圣光
-vfx_heal_aoe          ← 治愈铃音
-vfx_shield            ← 岩盾、金御、Boss ADD_SHIELD 阶段
-vfx_buff_up           ← 战吼、集气、铁壁、疾风步、健美、冒想、嘲讽、援护、反击、硬化(敌方)、顺风(被动)
-vfx_debuff_down       ← 破甲击(破甲)、诅咒、沉默之雾(沉默)、雷波(麻痹)、致盲/浸湿/禁疗附加
+vfx_dark_small        ← 暗影球、暗袭、影分身（隐匿）
+vfx_wood_small        ← 藤鞭、荆棘缠绕、枝条抽打、飞叶(敌方)、荆棘反刺(被动)
+vfx_heal_small        ← 治愈之光、治愈孢子、净化之水、圣光、祝福
+vfx_heal_aoe          ← 治愈铃音、绽放、群体治愈
+vfx_shield            ← 岩盾、金御、石壁、Boss ADD_SHIELD 阶段
+vfx_buff_up           ← 战吼、集气、铁壁、疾风步、健美、冒想、嘲讽、援护、反击、硬化(敌方)、熔铸、风行、引雷、群体守备、蓄能、顺风(被动)
+vfx_debuff_down       ← 破甲击(破甲)、诅咒、沉默之雾(沉默)、雷波(麻痹)、暗幕、猎杀标记、禁疗诅咒、致盲/浸湿/禁疗附加
 vfx_control_bind      ← 缠绕、气流禁锢
 vfx_poison            ← 毒刺、剧毒
 vfx_life_drain        ← 吸血之牙
-vfx_dispel            ← 驱散之光、破盾击
+vfx_dispel            ← 驱散之光、破盾击、净化
 vfx_leave_one_hp      ← 留生一击（含震慑附加表现）
 vfx_capture           ← 捕捉行动（三种球仅色彩差异，程序 tint）
 vfx_boss_phase        ← 8 Boss 转阶段警示（护盾/Buff 复用上面模板）
 ```
 
-被动技能（不屈/顺风/余烬/再生/厚皮）不配独立 VFX：不屈/厚皮为数值修正，顺风/再生/余烬分别复用 buff_up / heal_small / fire_small。
+被动技能 14 个（不屈/顺风/余烬/再生/厚皮 + 战意/铁躯/迅足/凝神/狂暴本能/复苏/猎获/荆棘反刺/士气昂扬）不配独立 VFX：不屈/厚皮/战意/铁躯/迅足/凝神/狂暴本能/士气昂扬为数值修正或状态附加，顺风/复苏/猎获/荆棘反刺/余烬分别复用 buff_up / heal_small / heal_small / wood_small / fire_small。
 
 ### 8.2 其他复用关系
 
@@ -393,7 +395,7 @@ pet_<id>_portrait      ← 图鉴/详情/战斗/获取弹窗/头像/缩略图/�
 npc_<id>_portrait      ← 对话框立绘/对话头像/任务页
 icon_element_<id>      ← 属性标签/技能图标角标/结晶 recolor/宠物卡描边（全局 9 个）
 item_crystal_base      ← 9 属性结晶；item_boss_core_base ← 5 Boss 核心
-item_skillbook_base    ← 13 技能书；icon_skilltype_* ← 66 技能图标底图
+item_skillbook_base    ← 13 技能书；icon_skilltype_* ← 99 技能图标底图
 battle_bg_<biome>      ← 该区域战斗背景 + 区域缩略图（大地图）
 prop_npc               ← 9 NPC 地图形象（程序色变）
 ```
@@ -416,7 +418,7 @@ prop_npc               ← 9 NPC 地图形象（程序色变）
 | DER-04 道具变体 | 底图 recolor/缩放/徽章组合（属性色取自 UI 文档官方色） | 33 |
 | DER-05 区域缩略图 | battle_bg 中心裁切 256×256 | 6 |
 | DER-06 宝箱开态 | chest 源图开盖变体（或 AI 同批 2 帧，QC 决定） | 1 |
-| DER-07 技能图标组合 | 底图 + 属性色环/角标（前端合成或脚本预生成） | 66（按需） |
+| DER-07 技能图标组合 | 底图 + 属性色环/角标（前端合成或脚本预生成） | 99（按需） |
 | DER-08 特殊外观 | 异色：hue-rotate 滤镜；辉光：Phaser glow/光圈叠加 | 程序运行时，不落文件 |
 
 派生脚本建议放入 `frontend/scripts/`（与现有 `gen-placeholder-assets.mjs` 同级），在对应 Source 批次 QC 通过后执行。
@@ -550,7 +552,7 @@ QC 产物（contact sheet、预览地图、报告）放 `docs/art/`（不进入�
 |---|---|---|
 | 1 | **NPC 对话文本与 Boss 配置名称不一致**：`quests.yml` 中湖域守护者称「潮汐蟒」（配置为 潮灵蛇）、雷鸣贤者称「紫电龙」（配置为 雷翼鹰）、遗迹向导称「冥渊龙」（配置为 暗影巨像）。影响立绘生成提示词取材 | 资源一律以 `bosses.yml` 正式名称/形象为准；对话文本修正属内容问题，已上报待确认，不擅自改文案 |
 | 2 | inventory 记道具 34 / 技能书 12，实际 `items.yml` 为 **35 / 13** | 以配置为准，本文档已修正 |
-| 3 | UI 文档 §15.2 旧估算（技能图标 80~100、道具图标 40~60、状态图标约 10）与实际配置（技能 66、道具 35、状态 24）不符 | 以实际配置 + 语义去重结果为准（20 底图 / 7 底图 / 24 图标） |
+| 3 | UI 文档 §15.2 旧估算（技能图标 80~100、道具图标 40~60、状态图标约 10）与实际配置（技能 99、道具 35、状态 24）不符 | 以实际配置 + 语义去重结果为准（20 底图 / 7 底图 / 24 图标） |
 | 4 | 需求 §110 成就奖励含「称号/头像/徽章」，但 `achievements.yml`（阶段 11 未验收）奖励仅 GOLD/ITEM | 不生成成就徽章/头像资源，记入待确认（§17-5） |
 | 5 | 提示词文档要求按 body_type/palette/silhouette/combat_role 分批，但 `pets.yml` 无这些字段 | 按 description 文本 + element + rarity 人工推断分组（Batch 1 分组表在生成前输出），不改配置 |
 | 6 | inventory 记商店 19 商品，阶段 10 说明为 25 商品（统计口径差异） | 不影响美术资源（商品图标全部复用道具图标），记录备查 |
@@ -597,7 +599,7 @@ QC 产物（contact sheet、预览地图、报告）放 `docs/art/`（不进入�
 - [x] 所有占位资源均完成核对（15 个 Phaser 占位 + emoji 清单，§3/§7）
 - [x] 27 只宠物均被覆盖（PET-001~027 逐条列出）
 - [x] 地图资源已组件化去重（6 地图 → 4 Tileset + 通用 Props）
-- [x] 技能特效已按视觉语义去重（61 技能 → 31 模板，§8.1 全映射）
+- [x] 技能特效已按视觉语义去重（85 主动技能 → 31 模板，§8.1 全映射）
 - [x] 状态效果已按状态语义去重（24 状态 → 24 图标 + Buff/Debuff 模板族）
 - [x] UI 资源已组件复用（无整页 UI 图；面板/按钮 CSS；图标按族设计）
 - [x] Source / Derived 已分离（§9）
@@ -608,4 +610,4 @@ QC 产物（contact sheet、预览地图、报告）放 `docs/art/`（不进入�
 - [x] 已建立复用关系（§8）
 - [x] 已给出批量生成顺序（§12/§18）与数量统计（§15）
 - [x] 未因「可能以后有用」增加资源（进化/成就徽章/出场特效等均未入基线）
-- [x] 未开始实际生成任何图片
+- [x] 已完成 Batch 0～7 的资源生成、派生与页面接入，并完成 Batch 8 全量静态 QA

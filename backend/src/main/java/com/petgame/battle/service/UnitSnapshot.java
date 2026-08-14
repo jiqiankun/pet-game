@@ -20,6 +20,8 @@ public class UnitSnapshot {
     private String name;
     private String element;
     private int level;
+    private int actualLevel;
+    private int effectiveLevel;
 
     private int maxHp;
     private int currentHp;

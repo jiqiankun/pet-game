@@ -1,3 +1,5 @@
+> 历史任务提示词（Batch 0～8 已完成）：保留作为本轮生成输入与复盘证据，**不得直接作为后续新增资源的模板**。新增宠物、地图、VFX、UI、道具或场景请从 `docs/art/README.md` 进入，并使用 `docs/art/art-prompt-templates.md` 与 `docs/art/art-generation-workflow.md`。
+
 你现在需要为《宠物精灵》项目生成正式游戏美术资源。
 
 本项目已经配置以下 6 个美术资源 Skill：

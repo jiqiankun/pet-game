@@ -4,17 +4,21 @@ import com.petgame.battle.model.BattleUnit;
 import com.petgame.battle.model.BattleUnit.WildUnitData;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.EncountersConfig;
+import com.petgame.config.model.MapsConfig;
 import com.petgame.config.model.PassiveSkillConfig;
 import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import com.petgame.common.GameRandom;
+import com.petgame.developer.DevContext;
 import com.petgame.pet.domain.PetGrowthService;
 import com.petgame.pet.domain.PetPanelStats;
 import com.petgame.pet.entity.PlayerPetEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 野生遭遇生成服务（阶段 5）。
@@ -40,10 +44,14 @@ public class WildEncounterService {
 
     private final GameConfigRegistry registry;
     private final PetGrowthService growthService;
+    private final DevContext devContext;
 
-    public WildEncounterService(GameConfigRegistry registry, PetGrowthService growthService) {
+    public WildEncounterService(GameConfigRegistry registry,
+                                PetGrowthService growthService,
+                                DevContext devContext) {
         this.registry = registry;
         this.growthService = growthService;
+        this.devContext = devContext;
     }
 
     /**
@@ -56,11 +64,52 @@ public class WildEncounterService {
     public List<BattleUnit> generateEncounter(String groupId, GameRandom random) {
         EncountersConfig.EncounterGroup group = getEncounterGroup(groupId);
         SystemRuleConfig rules = registry.getSystemRules();
+        // 开发者工具：强制本次全部野生遭遇为精英（消费后清除）
+        boolean forceElite = devContext.consumeForceElite();
         int teamSize = random.nextInt(group.getTeamSizeMin(), group.getTeamSizeMax());
 
         List<BattleUnit> units = new ArrayList<>();
         for (int i = 0; i < teamSize; i++) {
-            units.add(generateWildUnit(group, rules, random, i));
+            EncountersConfig.SpeciesEntry entry = rollSpecies(group.getSpecies(), random);
+            int level = random.nextInt(entry.getLevelMin(), entry.getLevelMax());
+            boolean elite = forceElite || random.chance(rules.getEliteSpawnChance());
+            if (elite) {
+                level = Math.min(level + random.nextInt(
+                        rules.getEliteLevelBonusMin(), rules.getEliteLevelBonusMax()), rules.getLevelCap());
+            }
+            units.add(generateWildUnit(entry, rules, random, i, level, elite));
+        }
+        return units;
+    }
+
+    /**
+     * 正式地图遭遇入口（阶段 13）：地图、队伍和全局难度共同决定本次临时敌方。
+     * 不持久化任何野外成长状态。
+     */
+    public List<BattleUnit> generateEncounter(String groupId, MapsConfig.RegionConfig region,
+                                              List<PlayerPetEntity> teamPets, String difficulty,
+                                              GameRandom random) {
+        EncountersConfig.EncounterGroup group = getEncounterGroup(groupId);
+        SystemRuleConfig rules = registry.getSystemRules();
+        SystemRuleConfig.DifficultyProfile profile = requireProfile(difficulty);
+        // 开发者工具：强制本次野生遭遇为精英（消费后清除）
+        boolean eliteEncounter = devContext.consumeForceElite()
+                || random.chance(rules.getEliteSpawnChance());
+        int teamSize = resolveTeamSize(group, profile, eliteEncounter, rules.getStandardBattleSlots(), random);
+        int referenceLevel = teamReferenceLevel(teamPets);
+        List<BattleUnit> units = new ArrayList<>();
+        Set<String> selectedSpecies = new HashSet<>();
+        Set<String> selectedRoles = new HashSet<>();
+        for (int i = 0; i < teamSize; i++) {
+            String preferredRole = profile.isRoleSynergy() ? nextPreferredRole(selectedRoles) : null;
+            EncountersConfig.SpeciesEntry entry = rollSpecies(group.getSpecies(), random,
+                    preferredRole, selectedSpecies);
+            boolean elite = (i == 0 && eliteEncounter) || (i > 0 && random.chance(rules.getEliteSpawnChance()));
+            int level = resolveLevel(entry, region, profile, referenceLevel, elite, rules, random);
+            BattleUnit unit = generateWildUnit(entry, rules, random, i, level, elite);
+            units.add(unit);
+            selectedSpecies.add(entry.getSpeciesId());
+            selectedRoles.add(resolveRole(registry.getSpecies(entry.getSpeciesId())));
         }
         return units;
     }
@@ -80,22 +129,18 @@ public class WildEncounterService {
     }
 
     /** 生成单只野生单位（与玩家宠物共用面板公式，保证捕捉后属性一致）。 */
-    private BattleUnit generateWildUnit(EncountersConfig.EncounterGroup group,
-                                        SystemRuleConfig rules, GameRandom random, int index) {
-        EncountersConfig.SpeciesEntry entry = rollSpecies(group.getSpecies(), random);
+    private BattleUnit generateWildUnit(EncountersConfig.SpeciesEntry entry,
+                                        SystemRuleConfig rules, GameRandom random, int index,
+                                        int level, boolean isElite) {
         PetSpeciesConfig species = registry.getSpecies(entry.getSpeciesId());
         if (species == null) {
             throw new IllegalStateException("野生遭遇引用的种族配置缺失: " + entry.getSpeciesId());
         }
-        int level = random.nextInt(entry.getLevelMin(), entry.getLevelMax());
 
         // 阶段 10：精英个体判定
-        boolean isElite = random.chance(rules.getEliteSpawnChance());
         int aptitudeFloor = rules.getAptitudeMin();
         double rareSkillBonus = 0;
         if (isElite) {
-            int levelBonus = random.nextInt(rules.getEliteLevelBonusMin(), rules.getEliteLevelBonusMax());
-            level = Math.min(level + levelBonus, rules.getLevelCap());
             aptitudeFloor = Math.max(aptitudeFloor, rules.getEliteMinAptitudeFloor());
             rareSkillBonus = rules.getEliteRareSkillChanceBonus();
         }
@@ -158,6 +203,8 @@ public class WildEncounterService {
         unit.setName(species.getName());
         unit.setElement(species.getElement());
         unit.setLevel(level);
+        unit.setActualLevel(level);
+        unit.setEffectiveLevel(level);
         unit.setMaxHp(stats.getMaxHp());
         unit.setStrength(stats.getStrength());
         unit.setSpirit(stats.getSpirit());
@@ -230,6 +277,34 @@ public class WildEncounterService {
     /** 按权重抽取种族条目。 */
     private EncountersConfig.SpeciesEntry rollSpecies(
             List<EncountersConfig.SpeciesEntry> entries, GameRandom random) {
+        return rollWeighted(entries, random);
+    }
+
+    /** 高难协同时优先补角色，但不按玩家属性定制反制。 */
+    private EncountersConfig.SpeciesEntry rollSpecies(List<EncountersConfig.SpeciesEntry> entries,
+                                                       GameRandom random, String preferredRole,
+                                                       Set<String> selectedSpecies) {
+        List<EncountersConfig.SpeciesEntry> candidates = new ArrayList<>();
+        if (preferredRole != null) {
+            for (EncountersConfig.SpeciesEntry entry : entries) {
+                if (!selectedSpecies.contains(entry.getSpeciesId())
+                        && preferredRole.equals(resolveRole(registry.getSpecies(entry.getSpeciesId())))) {
+                    candidates.add(entry);
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            for (EncountersConfig.SpeciesEntry entry : entries) {
+                if (!selectedSpecies.contains(entry.getSpeciesId())) {
+                    candidates.add(entry);
+                }
+            }
+        }
+        return rollWeighted(candidates.isEmpty() ? entries : candidates, random);
+    }
+
+    private EncountersConfig.SpeciesEntry rollWeighted(
+            List<EncountersConfig.SpeciesEntry> entries, GameRandom random) {
         int totalWeight = entries.stream().mapToInt(EncountersConfig.SpeciesEntry::getWeight).sum();
         if (totalWeight <= 0) {
             throw new IllegalStateException("刷新组种族池权重总和必须大于 0");
@@ -243,5 +318,92 @@ public class WildEncounterService {
             }
         }
         return entries.get(entries.size() - 1);
+    }
+
+    private SystemRuleConfig.DifficultyProfile requireProfile(String difficulty) {
+        String key = difficulty == null ? null : difficulty.toUpperCase();
+        SystemRuleConfig.GameDifficultyConfig config = registry.getSystemRules().getGameDifficulty();
+        SystemRuleConfig.DifficultyProfile profile = config != null && key != null
+                ? config.getProfiles().get(key) : null;
+        if (profile == null) {
+            throw new com.petgame.common.BusinessException("INVALID_GAME_DIFFICULTY", "未知全局难度: " + difficulty);
+        }
+        return profile;
+    }
+
+    private int resolveTeamSize(EncountersConfig.EncounterGroup group,
+                                SystemRuleConfig.DifficultyProfile profile, boolean eliteEncounter,
+                                int battleSlots, GameRandom random) {
+        int difficultyMin = eliteEncounter ? profile.getEliteMinTeamSize() : profile.getWildMinTeamSize();
+        int difficultyMax = eliteEncounter ? profile.getEliteMaxTeamSize() : profile.getWildMaxTeamSize();
+        int min = Math.max(group.getTeamSizeMin(), difficultyMin);
+        int max = Math.min(Math.min(group.getTeamSizeMax(), difficultyMax), battleSlots);
+        if (min > max) {
+            throw new IllegalStateException("遭遇队伍数量边界无交集: " + group.getId());
+        }
+        return random.nextInt(min, max);
+    }
+
+    private int resolveLevel(EncountersConfig.SpeciesEntry entry, MapsConfig.RegionConfig region,
+                             SystemRuleConfig.DifficultyProfile profile, int referenceLevel,
+                             boolean elite, SystemRuleConfig rules, GameRandom random) {
+        int recommended = region.getRecommendedEnemyLevel();
+        int randomOffset = random.nextInt(entry.getLevelMin(), entry.getLevelMax()) - recommended;
+        int dynamicOffset = clamp(referenceLevel - recommended,
+                profile.getWildPlayerAdjustmentMin(), profile.getWildPlayerAdjustmentMax());
+        int baseOffset = elite ? profile.getEliteLevelOffset() : profile.getWildLevelOffset();
+        int minOffset = elite ? profile.getEliteMinLevelOffset() : profile.getWildMinLevelOffset();
+        int maxOffset = elite ? profile.getEliteMaxLevelOffset() : profile.getWildMaxLevelOffset();
+        int eliteBonus = elite ? random.nextInt(rules.getEliteLevelBonusMin(), rules.getEliteLevelBonusMax()) : 0;
+        int min = Math.max(region.getMinEnemyLevel(), recommended + minOffset);
+        int max = Math.min(Math.min(region.getMaxEnemyLevel(), recommended + maxOffset), rules.getLevelCap());
+        if (min > max) {
+            throw new IllegalStateException("遭遇等级边界无交集: " + region.getId());
+        }
+        return clamp(recommended + baseOffset + dynamicOffset + randomOffset + eliteBonus, min, max);
+    }
+
+    private static int teamReferenceLevel(List<PlayerPetEntity> teamPets) {
+        if (teamPets == null || teamPets.isEmpty()) {
+            return 1;
+        }
+        return teamPets.stream()
+                .map(PlayerPetEntity::getLevel)
+                .filter(level -> level != null && level > 0)
+                .sorted(java.util.Comparator.reverseOrder())
+                .limit(3)
+                .mapToInt(Integer::intValue)
+                .average()
+                .stream()
+                .mapToInt(value -> (int) Math.round(value))
+                .findFirst()
+                .orElse(1);
+    }
+
+    private String nextPreferredRole(Set<String> roles) {
+        if (!roles.contains("SUPPORT")) return "SUPPORT";
+        if (!roles.contains("CONTROL")) return "CONTROL";
+        if (!roles.contains("TANK")) return "TANK";
+        return "DAMAGE";
+    }
+
+    /** 沿用既有 role 配置；未标注的种族以面板倾向作最小推断。 */
+    private String resolveRole(PetSpeciesConfig species) {
+        if (species == null) return "DAMAGE";
+        if (species.getRole() != null && !species.getRole().isBlank()) {
+            return species.getRole().toUpperCase();
+        }
+        boolean hasHeal = species.getSkills().stream().anyMatch(slot -> {
+            var skill = registry.getSkill(slot.getSkillId());
+            return skill != null && "HEAL".equalsIgnoreCase(skill.getEffectType());
+        });
+        if (hasHeal) return "SUPPORT";
+        double bulk = species.getBaseHp() + species.getBaseDefense() + species.getBaseResistance();
+        double offense = species.getBaseStrength() + species.getBaseSpirit();
+        return bulk > offense * 1.7 ? "TANK" : "DAMAGE";
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 }

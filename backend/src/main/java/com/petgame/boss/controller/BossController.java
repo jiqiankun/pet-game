@@ -2,6 +2,7 @@ package com.petgame.boss.controller;
 
 import com.petgame.boss.service.BossService;
 import com.petgame.boss.service.BossService.*;
+import com.petgame.boss.service.BossEncounterSnapshotService;
 import com.petgame.common.ApiResponse;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.service.GameService;
@@ -38,6 +39,23 @@ public class BossController {
     public ApiResponse<BossInfoDTO> getBoss(@PathVariable String bossId) {
         PlayerEntity player = gameService.getCurrentPlayer();
         return ApiResponse.success(bossService.getBossInfo(player.getSaveId(), bossId));
+    }
+
+    /** 已生成的遭遇快照；首次挑战前 data 为 null。 */
+    @GetMapping("/{bossId}/encounter-snapshot")
+    public ApiResponse<BossEncounterSnapshotService.SnapshotView> getEncounterSnapshot(
+            @PathVariable String bossId, @RequestParam String difficulty) {
+        PlayerEntity player = gameService.getCurrentPlayer();
+        return ApiResponse.success(bossService.getEncounterSnapshot(player.getSaveId(), bossId, difficulty));
+    }
+
+    /** 仅当前全局难度与快照难度不一致时允许重置。 */
+    @PostMapping("/{bossId}/encounter-snapshot/reset")
+    public ApiResponse<BossEncounterSnapshotService.SnapshotView> resetEncounterSnapshot(
+            @PathVariable String bossId, @RequestBody SnapshotRequest request) {
+        PlayerEntity player = gameService.getCurrentPlayer();
+        return ApiResponse.success(bossService.resetEncounterSnapshot(
+                player.getSaveId(), bossId, request.getDifficulty()));
     }
 
     /** 开始 Boss 战斗。 */
@@ -83,5 +101,10 @@ public class BossController {
     @Data
     public static class ExchangeRequest {
         private String dropItemId;
+    }
+
+    @Data
+    public static class SnapshotRequest {
+        private String difficulty;
     }
 }

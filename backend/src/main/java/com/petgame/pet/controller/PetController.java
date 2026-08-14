@@ -141,6 +141,24 @@ public class PetController {
         return ApiResponse.success(petService.unequipBookSkill(petId, request.getBookSlot()));
     }
 
+    /**
+     * 启用被动技能书被动（槽位 7~8，阶段 14「已学习 ≠ 当前生效」）。
+     */
+    @PostMapping("/{petId}/equip-book-passive")
+    public ApiResponse<PetDetail> equipBookPassive(@PathVariable Long petId,
+                                                   @RequestBody EquipBookSkillRequest request) {
+        return ApiResponse.success(petService.equipBookPassive(petId, request.getSkillId(), request.getBookSlot()));
+    }
+
+    /**
+     * 卸下被动技能书被动（槽位 7~8），立即失效。
+     */
+    @PostMapping("/{petId}/unequip-book-passive")
+    public ApiResponse<PetDetail> unequipBookPassive(@PathVariable Long petId,
+                                                     @RequestBody UnequipBookSkillRequest request) {
+        return ApiResponse.success(petService.unequipBookPassive(petId, request.getBookSlot()));
+    }
+
     // ==================== 推荐 Build 接口（阶段 10） ====================
 
     /**

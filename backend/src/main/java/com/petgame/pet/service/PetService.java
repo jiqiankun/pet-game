@@ -5,6 +5,7 @@ import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.PetSpeciesConfig;
+import com.petgame.config.model.PassiveSkillConfig;
 import com.petgame.config.model.SkillConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import com.petgame.inventory.entity.PlayerInventoryEntity;
@@ -448,6 +449,10 @@ public class PetService {
     private static final int BOOK_SKILL_EQUIP_SLOTS = 2;
     /** 技能书装备槽起始编号。 */
     private static final int BOOK_SLOT_START = 5;
+    /** 被动技能书启用槽起始编号（阶段 14：槽 7~8，避开主动 1~4 与主动技能书 5~6）。 */
+    private static final int BOOK_PASSIVE_SLOT_START = 7;
+    /** 被动技能书启用槽数。 */
+    private static final int BOOK_PASSIVE_EQUIP_SLOTS = 2;
 
     /**
      * 使用技能书学习技能（需求 §23 技能书部分）。
@@ -477,9 +482,16 @@ public class PetService {
         if (skillId == null || skillId.isBlank()) {
             throw new BusinessException("INVALID_SKILL_BOOK", "该道具没有关联技能: " + itemId);
         }
+        // 技能书可关联主动技能（SkillConfig）或被动技能（PassiveSkillConfig）。
+        // 被动技能不占装备槽、无学习上限，仅用于永久掌握并自动生效。
         SkillConfig skill = registry.getSkill(skillId);
+        boolean passiveBook = false;
         if (skill == null) {
-            throw new BusinessException("SKILL_NOT_FOUND", "技能配置不存在: " + skillId);
+            PassiveSkillConfig passive = registry.getPassive(skillId);
+            if (passive == null) {
+                throw new BusinessException("SKILL_NOT_FOUND", "技能配置不存在: " + skillId);
+            }
+            passiveBook = true;
         }
 
         // 2. 校验背包有该道具
@@ -505,8 +517,8 @@ public class PetService {
             throw new BusinessException("SKILL_ALREADY_LEARNED", "宠物已学习该技能: " + skillId);
         }
 
-        // 5. 校验学习上限（仅主动技能计入上限）
-        if ("ACTIVE".equals(skill.getSkillType())) {
+        // 5. 校验学习上限（仅主动技能计入上限；被动技能无上限）
+        if (!passiveBook && "ACTIVE".equals(skill.getSkillType())) {
             long bookActiveCount = playerPetSkillMapper.selectCount(
                     new LambdaQueryWrapper<PlayerPetSkillEntity>()
                             .eq(PlayerPetSkillEntity::getPetId, pet.getId())
@@ -631,6 +643,80 @@ public class PetService {
         return getPetDetail(petId);
     }
 
+    /**
+     * 启用被动技能书被动（槽位 7~8，阶段 14 被动体系重构）。
+     * <p>
+     * 「已学习 ≠ 当前生效」：仅启用槽中的技能书被动参与战斗；固有被动始终自动生效不受影响。
+     */
+    @Transactional
+    public PetDetail equipBookPassive(Long petId, String skillId, int bookSlot) {
+        if (skillId == null || skillId.isBlank()) {
+            throw new BusinessException("INVALID_SKILL", "技能 ID 不能为空");
+        }
+        if (bookSlot < BOOK_PASSIVE_SLOT_START
+                || bookSlot >= BOOK_PASSIVE_SLOT_START + BOOK_PASSIVE_EQUIP_SLOTS) {
+            throw new BusinessException("INVALID_SLOT",
+                    "被动技能书槽位必须在 " + BOOK_PASSIVE_SLOT_START + "~"
+                            + (BOOK_PASSIVE_SLOT_START + BOOK_PASSIVE_EQUIP_SLOTS - 1) + " 范围内");
+        }
+        PlayerPetEntity pet = requirePet(petId);
+
+        PlayerPetSkillEntity learned = playerPetSkillMapper.selectOne(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSkillId, skillId)
+                        .eq(PlayerPetSkillEntity::getSourceType, "SKILL_BOOK"));
+        if (learned == null) {
+            throw new BusinessException("SKILL_NOT_BOOK", "宠物未通过技能书学习该技能: " + skillId);
+        }
+        // 仅允许启用被动技能书被动
+        if (registry.getPassive(skillId) == null) {
+            throw new BusinessException("NOT_PASSIVE", "该技能书不是被动技能: " + skillId);
+        }
+        // 若目标槽位已有技能先卸下
+        PlayerPetSkillEntity occupant = playerPetSkillMapper.selectOne(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSlot, bookSlot));
+        if (occupant != null && !occupant.getId().equals(learned.getId())) {
+            occupant.setSlot(null);
+            playerPetSkillMapper.updateById(occupant);
+        }
+
+        learned.setSlot(bookSlot);
+        playerPetSkillMapper.updateById(learned);
+
+        log.info("被动技能书启用：petId={}, skillId={}, bookSlot={}", petId, skillId, bookSlot);
+        return getPetDetail(petId);
+    }
+
+    /**
+     * 卸下被动技能书被动（槽位 7~8），立即失效。
+     */
+    @Transactional
+    public PetDetail unequipBookPassive(Long petId, int bookSlot) {
+        if (bookSlot < BOOK_PASSIVE_SLOT_START
+                || bookSlot >= BOOK_PASSIVE_SLOT_START + BOOK_PASSIVE_EQUIP_SLOTS) {
+            throw new BusinessException("INVALID_SLOT",
+                    "被动技能书槽位必须在 " + BOOK_PASSIVE_SLOT_START + "~"
+                            + (BOOK_PASSIVE_SLOT_START + BOOK_PASSIVE_EQUIP_SLOTS - 1) + " 范围内");
+        }
+        PlayerPetEntity pet = requirePet(petId);
+
+        PlayerPetSkillEntity equipped = playerPetSkillMapper.selectOne(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSlot, bookSlot));
+        if (equipped == null) {
+            throw new BusinessException("SLOT_EMPTY", "被动技能书槽位 " + bookSlot + " 未启用技能");
+        }
+        equipped.setSlot(null);
+        playerPetSkillMapper.updateById(equipped);
+
+        log.info("被动技能书卸下：petId={}, bookSlot={}", petId, bookSlot);
+        return getPetDetail(petId);
+    }
+
     /** 检查技能书学习限制。 */
     private void checkBookRestriction(PetSpeciesConfig species,
                                        ItemConfig.SkillBookRestriction restriction,
@@ -666,7 +752,24 @@ public class PetService {
         int bookActiveCount = 0;
         for (PlayerPetSkillEntity rec : bookSkills) {
             SkillConfig skill = registry.getSkill(rec.getSkillId());
-            if (skill == null) continue;
+            if (skill == null) {
+                // 被动技能书：技能 ID 对应被动配置，展示到被动列表（已学习 ≠ 当前生效，需启用槽 7~8）
+                com.petgame.config.model.PassiveSkillConfig passive = registry.getPassive(rec.getSkillId());
+                if (passive != null) {
+                    PetDetail.PassiveSkillView pv = new PetDetail.PassiveSkillView();
+                    pv.setPassiveId(passive.getId());
+                    pv.setName(passive.getName());
+                    pv.setUnlockLevel(1);
+                    pv.setUnlocked(true);
+                    pv.setSource("BOOK");
+                    pv.setSignature(false);
+                    // 启用槽位（7~8）：已启用则非 null，未启用为 null（阶段 14「已学习 ≠ 当前生效」）
+                    pv.setSlot(rec.getSlot() != null && rec.getSlot() >= BOOK_PASSIVE_SLOT_START
+                            ? rec.getSlot() : null);
+                    detail.getPassives().add(pv);
+                }
+                continue;
+            }
             PetDetail.LearnedSkillView view = new PetDetail.LearnedSkillView();
             view.setSkillId(skill.getId());
             view.setName(skill.getName());

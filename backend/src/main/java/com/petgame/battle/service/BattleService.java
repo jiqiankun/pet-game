@@ -8,12 +8,14 @@ import com.petgame.battle.engine.BattleContext;
 import com.petgame.battle.engine.BattleEngine;
 import com.petgame.battle.engine.TurnResult;
 import com.petgame.battle.event.BattleEvent;
+import com.petgame.battle.passive.PassiveEffectResolver;
 import com.petgame.battle.model.BattleAction;
 import com.petgame.battle.model.BattleSide;
 import com.petgame.battle.model.BattleUnit;
 import com.petgame.battle.model.BattleUnit.WildUnitData;
 import com.petgame.battle.model.StatusInstance;
 import com.petgame.capture.WildEncounterService;
+import com.petgame.boss.service.BossEncounterSnapshotService;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.BossesConfig;
@@ -81,6 +83,11 @@ public class BattleService {
 
     private static final Logger log = LoggerFactory.getLogger(BattleService.class);
 
+    /** 被动技能书启用槽起始编号（阶段 14：槽 7~8）。主动技能书槽位 5~6，主动技能槽 1~4。 */
+    private static final int BOOK_PASSIVE_SLOT_START = 7;
+    /** 被动技能书启用槽数。 */
+    private static final int BOOK_PASSIVE_EQUIP_SLOTS = 2;
+
     private final GameConfigRegistry registry;
     private final BattleEngine engine;
     /** Boss 战专用引擎实例（同一 BattleEngine 类，敌方决策为 BossDecisionProvider，阶段 7）。 */
@@ -92,7 +99,9 @@ public class BattleService {
     private final PlayerTeamMemberMapper playerTeamMemberMapper;
     private final PlayerInventoryMapper playerInventoryMapper;
     private final PetGrowthService growthService;
+    private final BattleLevelResolver battleLevelResolver;
     private final WildEncounterService wildEncounterService;
+    private final BossEncounterSnapshotService bossEncounterSnapshotService;
     private final TeamService teamService;
     private final com.petgame.map.service.MapExplorationService mapExplorationService;
     private final PokedexService pokedexService;
@@ -103,6 +112,12 @@ public class BattleService {
     private final com.petgame.achievement.service.AchievementService achievementService;
     /** 玩家侧自动战斗决策器（阶段 10；手动战斗时不使用）。 */
     private final com.petgame.battle.ai.AutoBattleDecisionProvider autoDecisionProvider;
+
+    /** 敌方胜利互动（阶段 12，需求 §152）：战败表现增强，不参与数值与结算。 */
+    private final com.petgame.battle.victory.VictoryInteractionService victoryInteractionService;
+
+    /** 开发者工具上下文（阶段 14 战斗调试：无敌/一击必杀/固定暴击/固定随机种子/调试信息）。 */
+    private final com.petgame.developer.DevContext devContext;
 
     /** 战斗上下文内存池：battleId → BattleContext。不落库。 */
     private final Map<String, BattleContext> battles = new ConcurrentHashMap<>();
@@ -121,7 +136,9 @@ public class BattleService {
                          PlayerTeamMemberMapper playerTeamMemberMapper,
                          PlayerInventoryMapper playerInventoryMapper,
                          PetGrowthService growthService,
+                         BattleLevelResolver battleLevelResolver,
                          WildEncounterService wildEncounterService,
+                         BossEncounterSnapshotService bossEncounterSnapshotService,
                          TeamService teamService,
                          com.petgame.map.service.MapExplorationService mapExplorationService,
                          PokedexService pokedexService,
@@ -129,7 +146,9 @@ public class BattleService {
                          com.petgame.statistics.service.StatisticsService statisticsService,
                          com.petgame.pet.service.PetHistoryService petHistoryService,
                          com.petgame.boss.service.BossChallengeService bossChallengeService,
-                         com.petgame.achievement.service.AchievementService achievementService) {
+                         com.petgame.achievement.service.AchievementService achievementService,
+                         com.petgame.battle.victory.VictoryInteractionService victoryInteractionService,
+                         com.petgame.developer.DevContext devContext) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.bossEngine = new BattleEngine(registry, bossDecisionProvider);
@@ -141,7 +160,9 @@ public class BattleService {
         this.playerTeamMemberMapper = playerTeamMemberMapper;
         this.playerInventoryMapper = playerInventoryMapper;
         this.growthService = growthService;
+        this.battleLevelResolver = battleLevelResolver;
         this.wildEncounterService = wildEncounterService;
+        this.bossEncounterSnapshotService = bossEncounterSnapshotService;
         this.teamService = teamService;
         this.mapExplorationService = mapExplorationService;
         this.pokedexService = pokedexService;
@@ -150,6 +171,8 @@ public class BattleService {
         this.petHistoryService = petHistoryService;
         this.bossChallengeService = bossChallengeService;
         this.achievementService = achievementService;
+        this.victoryInteractionService = victoryInteractionService;
+        this.devContext = devContext;
     }
 
     /**
@@ -169,7 +192,7 @@ public class BattleService {
         }
         requireFightablePet(teamPets);
 
-        long battleSeed = seed != null ? seed : System.nanoTime();
+        long battleSeed = resolveBattleSeed(seed);
         String battleId = UUID.randomUUID().toString();
         BattleContext ctx = new BattleContext(battleId, battleSeed);
 
@@ -178,6 +201,9 @@ public class BattleService {
 
         // 阶段 10：自动战斗资源快照（恢复/复苏道具 + 玩家偏好默认关闭的自动设置）
         snapshotBattleResources(ctx, player);
+
+        // 阶段 14 开发者战斗调试：快照调试标志、开启随机序列录制
+        applyDevDebug(ctx);
 
         engine.startBattle(ctx);
         battles.put(battleId, ctx);
@@ -197,6 +223,15 @@ public class BattleService {
      * 战斗过程零数据库写入，结算时统一扣除）。
      */
     public BattleSnapshot startWildBattle(String groupId, Long seed) {
+        return startWildBattleInternal(groupId, seed, false);
+    }
+
+    /** 开发者简化入口保留旧刷新组生成方式，不参与地图缩放。 */
+    public BattleSnapshot startDeveloperWildBattle(String groupId, Long seed) {
+        return startWildBattleInternal(groupId, seed, true);
+    }
+
+    private BattleSnapshot startWildBattleInternal(String groupId, Long seed, boolean developerEntry) {
         PlayerEntity player = requirePlayer();
         List<PlayerPetEntity> teamPets = loadActiveTeamPets(player.getSaveId());
         if (teamPets.isEmpty()) {
@@ -204,16 +239,27 @@ public class BattleService {
         }
         requireFightablePet(teamPets);
 
-        long battleSeed = seed != null ? seed : System.nanoTime();
+        long battleSeed = resolveBattleSeed(seed);
         String battleId = UUID.randomUUID().toString();
         BattleContext ctx = new BattleContext(battleId, battleSeed);
         ctx.setBattleType("WILD");
         ctx.setEncounterGroupId(groupId);
+        ctx.setGameDifficulty(gameDifficultyOf(player));
         ctx.setPlayerSide(buildPlayerSide(teamPets));
 
         // 野生敌方：与测试敌人同一引擎入口（野生单位携带捕捉落库数据）
         BattleSide enemySide = new BattleSide("ENEMY");
-        List<BattleUnit> wildUnits = wildEncounterService.generateEncounter(groupId, ctx.getRandom());
+        List<BattleUnit> wildUnits;
+        if (developerEntry) {
+            wildUnits = wildEncounterService.generateEncounter(groupId, ctx.getRandom());
+        } else {
+            com.petgame.config.model.MapsConfig.RegionConfig region = registry.getRegion(player.getCurrentMapId());
+            if (region == null) {
+                throw new BusinessException("MAP_CONFIG_MISSING", "当前区域配置缺失: " + player.getCurrentMapId());
+            }
+            wildUnits = wildEncounterService.generateEncounter(groupId, region, teamPets,
+                    ctx.getGameDifficulty(), ctx.getRandom());
+        }
         enemySide.getUnits().addAll(wildUnits);
         ctx.setEnemySide(enemySide);
 
@@ -239,6 +285,9 @@ public class BattleService {
 
         // 阶段 10：自动战斗资源快照（恢复/复苏道具 + 玩家偏好默认关闭的自动设置）
         snapshotBattleResources(ctx, player);
+
+        // 阶段 14 开发者战斗调试：快照调试标志、开启随机序列录制
+        applyDevDebug(ctx);
 
         engine.startBattle(ctx);
         battles.put(battleId, ctx);
@@ -497,7 +546,17 @@ public class BattleService {
                 continue;
             }
             int beforeHp = pet.getCurrentHp() != null ? pet.getCurrentHp() : 0;
-            int afterHp = Math.max(0, Math.min(unit.getCurrentHp(), unit.getMaxHp()));
+            boolean levelCompressed = unit.getEffectiveLevel() > 0
+                    && unit.getActualLevel() > unit.getEffectiveLevel();
+            PetSpeciesConfig species = registry.getSpecies(pet.getSpeciesId());
+            int persistedMaxHp = levelCompressed && species != null
+                    ? growthService.computePanelStats(pet, species).getMaxHp()
+                    : unit.getMaxHp();
+            int battleHp = Math.max(0, Math.min(unit.getCurrentHp(), unit.getMaxHp()));
+            int afterHp = levelCompressed
+                    ? (int) Math.round((double) battleHp * persistedMaxHp / Math.max(1, unit.getMaxHp()))
+                    : Math.min(battleHp, persistedMaxHp);
+            afterHp = Math.max(0, Math.min(afterHp, persistedMaxHp));
             pet.setCurrentHp(afterHp);
             pet.setBattleCount(nz(pet.getBattleCount()) + 1);
             if (playerWon) {
@@ -510,8 +569,8 @@ public class BattleService {
             wb.setName(unit.getName());
             wb.setBeforeHp(beforeHp);
             wb.setAfterHp(afterHp);
-            wb.setMaxHp(unit.getMaxHp());
-            wb.setAlive(unit.isAlive());
+            wb.setMaxHp(persistedMaxHp);
+            wb.setAlive(afterHp > 0);
             hpWritebacks.add(wb);
         }
         settlement.setHpWritebacks(hpWritebacks);
@@ -523,6 +582,10 @@ public class BattleService {
             } else {
                 settleTestRewards(ctx, player, settlement);
             }
+        }
+
+        if (playerWon && "BOSS".equals(ctx.getBattleType())) {
+            bossEncounterSnapshotService.markDefeated(ctx.getBossSnapshotId());
         }
 
         // 2.3 阶段 8：图鉴研究值 — 战斗参与/获胜
@@ -617,6 +680,14 @@ public class BattleService {
         // 2.11 成就检查（所有战斗类型）
         if (achievementService != null) {
             achievementService.checkAchievements(saveId);
+        }
+
+        // 阶段 12：敌方胜利互动选择 + Boss 挑战记录（战败时）
+        if (!playerWon && !ctx.isFled() && victoryInteractionService != null) {
+            // 先记录 Boss 挑战与连续战败（用于互动的 REPEATED_DEFEAT 标签）
+            victoryInteractionService.recordBossChallenge(saveId, ctx, playerWon);
+            // 再选择互动（不阻断主流程，异常返回 null）
+            settlement.setVictoryInteraction(victoryInteractionService.select(ctx, saveId));
         }
 
         return settlement;
@@ -930,6 +1001,11 @@ public class BattleService {
     }
 
     private BattleSide buildPlayerSide(List<PlayerPetEntity> pets) {
+        return buildPlayerSide(pets, null);
+    }
+
+    /** 构建玩家方；Boss 战可传入有效等级上限，仅影响战斗临时单位。 */
+    private BattleSide buildPlayerSide(List<PlayerPetEntity> pets, Integer playerLevelCap) {
         SystemRuleConfig rules = registry.getSystemRules();
         int activeSlots = Math.min(rules.getStandardBattleSlots(), pets.size());
 
@@ -944,7 +1020,7 @@ public class BattleService {
                 throw new BusinessException("SPECIES_CONFIG_MISSING",
                         "宠物种族配置缺失: " + pet.getSpeciesId());
             }
-            side.getUnits().add(buildPlayerUnit(pet, species, index < activeSlots ? index : -1));
+            side.getUnits().add(buildPlayerUnit(pet, species, index < activeSlots ? index : -1, playerLevelCap));
             index++;
         }
         return side;
@@ -962,7 +1038,7 @@ public class BattleService {
      * 战斗 Buff/Debuff 由引擎状态体系在运行时叠加，不进面板。
      */
     private BattleUnit buildPlayerUnit(PlayerPetEntity pet, PetSpeciesConfig species,
-                                       int position) {
+                                       int position, Integer playerLevelCap) {
         BattleUnit unit = new BattleUnit();
         unit.setUnitId("P_" + pet.getId());
         unit.setPetDbId(pet.getId());
@@ -970,10 +1046,14 @@ public class BattleService {
         unit.setName(pet.getNickname() != null && !pet.getNickname().isBlank()
                 ? pet.getNickname() : species.getName());
         unit.setElement(species.getElement());
-        unit.setLevel(pet.getLevel());
+        BattleLevelResolver.ResolvedPet resolved = battleLevelResolver.resolve(pet, species, playerLevelCap);
+        // 战斗通用 level 保持为有效等级，防止后续等级型技能误读真实等级。
+        unit.setLevel(resolved.getEffectiveLevel());
+        unit.setActualLevel(resolved.getActualLevel());
+        unit.setEffectiveLevel(resolved.getEffectiveLevel());
 
-        // 统一面板公式：与 PetService 详情页、加点预览完全一致
-        PetPanelStats stats = growthService.computePanelStats(pet, species);
+        // 统一面板公式：与 PetService 详情页、加点预览完全一致；Boss 压制仅替换临时等级/自由点投影。
+        PetPanelStats stats = resolved.getStats();
         unit.setMaxHp(stats.getMaxHp());
         unit.setStrength(stats.getStrength());
         unit.setSpirit(stats.getSpirit());
@@ -983,8 +1063,14 @@ public class BattleService {
 
         // HP 跨战斗保留：取存档当前 HP，倒下宠物保持 0HP 参战（需求 §45，需恢复道具/营地恢复），
         // 超出上限或负数的异常值封顶/归零
-        int currentHp = pet.getCurrentHp() != null ? pet.getCurrentHp() : unit.getMaxHp();
-        unit.setCurrentHp(Math.max(0, Math.min(currentHp, unit.getMaxHp())));
+        PetPanelStats actualStats = growthService.computePanelStats(pet, species);
+        int actualMaxHp = Math.max(1, actualStats.getMaxHp());
+        int currentHp = pet.getCurrentHp() != null ? pet.getCurrentHp() : actualMaxHp;
+        int clampedActualHp = Math.max(0, Math.min(currentHp, actualMaxHp));
+        int effectiveHp = resolved.getEffectiveLevel() == resolved.getActualLevel()
+                ? clampedActualHp
+                : (int) Math.round((double) clampedActualHp * unit.getMaxHp() / actualMaxHp);
+        unit.setCurrentHp(Math.max(0, Math.min(effectiveHp, unit.getMaxHp())));
 
         unit.setActive(position >= 0);
         unit.setPosition(position);
@@ -1010,6 +1096,24 @@ public class BattleService {
                 unit.getPassives().add(passive);
             }
         }
+        // 技能书习得的被动技能（source_type=SKILL_BOOK，且为被动配置）仅在启用槽（7~8）中生效。
+        // 已学习但未启用的被动技能书不参与战斗（「已学习 ≠ 当前生效」，阶段 14 被动体系重构）。
+        List<PlayerPetSkillEntity> bookSkills = playerPetSkillMapper.selectList(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSourceType, "SKILL_BOOK")
+                        .isNotNull(PlayerPetSkillEntity::getSlot)
+                        .ge(PlayerPetSkillEntity::getSlot, BOOK_PASSIVE_SLOT_START)
+                        .le(PlayerPetSkillEntity::getSlot, BOOK_PASSIVE_SLOT_START + BOOK_PASSIVE_EQUIP_SLOTS - 1));
+        for (PlayerPetSkillEntity bs : bookSkills) {
+            PassiveSkillConfig passive = registry.getPassive(bs.getSkillId());
+            if (passive != null && unit.getPassives().stream()
+                    .noneMatch(p -> p.getId().equals(passive.getId()))) {
+                unit.getPassives().add(passive);
+            }
+        }
+        // 效果组归一化 / 去重：同名只保留一个、UNIQUE/HIGHEST_ONLY 同组取最高，防数值膨胀
+        unit.setPassives(PassiveEffectResolver.normalize(unit.getPassives()));
         return unit;
     }
 
@@ -1026,6 +1130,8 @@ public class BattleService {
             unit.setName(enemy.getName());
             unit.setElement(enemy.getElement());
             unit.setLevel(enemy.getLevel());
+            unit.setActualLevel(enemy.getLevel());
+            unit.setEffectiveLevel(enemy.getLevel());
             unit.setMaxHp(enemy.getMaxHp());
             unit.setStrength(enemy.getStrength());
             unit.setSpirit(enemy.getSpirit());
@@ -1042,6 +1148,7 @@ public class BattleService {
                     unit.getPassives().add(passive);
                 }
             }
+            unit.setPassives(PassiveEffectResolver.normalize(unit.getPassives()));
             side.getUnits().add(unit);
             index++;
         }
@@ -1055,6 +1162,9 @@ public class BattleService {
         snapshot.setBattleId(ctx.getBattleId());
         snapshot.setBattleType(ctx.getBattleType());
         snapshot.setUncapturable(ctx.isUncapturable());
+        snapshot.setGameDifficulty(ctx.getGameDifficulty());
+        snapshot.setBossSnapshotId(ctx.getBossSnapshotId());
+        snapshot.setPlayerLevelCap(ctx.getPlayerLevelCap());
         snapshot.setSeed(ctx.getRandomSeed());
         snapshot.setCurrentRound(ctx.getCurrentRound());
         snapshot.setFinished(ctx.isFinished());
@@ -1063,6 +1173,11 @@ public class BattleService {
         snapshot.setPlayerUnits(ctx.getPlayerSide().getUnits().stream().map(this::toUnitSnapshot).toList());
         snapshot.setEnemyUnits(ctx.getEnemySide().getUnits().stream().map(this::toUnitSnapshot).toList());
         snapshot.setEvents(events);
+        // 战斗调试信息（仅 debugDamage 开启时返回随机数序列）
+        snapshot.setDebugDamage(ctx.isDebugDamage());
+        if (ctx.isDebugDamage()) {
+            snapshot.setDebugRandomDraws(new ArrayList<>(ctx.getRandom().getDrawLog()));
+        }
         return snapshot;
     }
 
@@ -1072,6 +1187,8 @@ public class BattleService {
         snapshot.setName(unit.getName());
         snapshot.setElement(unit.getElement());
         snapshot.setLevel(unit.getLevel());
+        snapshot.setActualLevel(unit.getActualLevel() > 0 ? unit.getActualLevel() : unit.getLevel());
+        snapshot.setEffectiveLevel(unit.getEffectiveLevel() > 0 ? unit.getEffectiveLevel() : unit.getLevel());
         snapshot.setMaxHp(unit.getMaxHp());
         snapshot.setCurrentHp(unit.getCurrentHp());
         snapshot.setShield(unit.getShield());
@@ -1155,6 +1272,9 @@ public class BattleService {
         /** 战败流程结果（阶段 6，需求 §44；玩家战败且未逃跑时非空）。 */
         private com.petgame.map.service.MapExplorationService.DefeatView defeat;
 
+        /** 敌方胜利互动（阶段 12，需求 §152；玩家战败且未逃跑时非空，前端播放）。 */
+        private com.petgame.battle.victory.VictoryInteractionView victoryInteraction;
+
         /** 单个掉落结果。 */
         @lombok.Data
         public static class DropResult {
@@ -1223,27 +1343,39 @@ public class BattleService {
             throw new BusinessException("NO_ALIVE_PET", "队伍中没有存活的宠物");
         }
 
+        PlayerEntity player = playerMapper.selectOne(
+                new LambdaQueryWrapper<PlayerEntity>()
+                        .eq(PlayerEntity::getSaveId, saveId));
+        if (player == null) {
+            throw new BusinessException("NO_SAVE", "不存在存档，请先创建新游戏");
+        }
+        String gameDifficulty = gameDifficultyOf(player);
+        long randomSeed = resolveBattleSeed(seed);
+        BossEncounterSnapshotService.EncounterData encounter = bossEncounterSnapshotService.getOrCreate(
+                saveId, boss, diffConfig, difficulty, gameDifficulty, teamPets, randomSeed);
+
         String battleId = UUID.randomUUID().toString();
-        long randomSeed = seed != null ? seed : System.nanoTime();
         BattleContext ctx = new BattleContext(battleId, randomSeed);
         ctx.setBattleType("BOSS");
         ctx.setBossId(bossId);
         ctx.setBossDifficulty(difficulty);
+        ctx.setGameDifficulty(gameDifficulty);
+        ctx.setBossSnapshotId(encounter.getSnapshotId());
+        ctx.setBossAiLevel(encounter.getBossAiLevel());
+        ctx.setPlayerLevelCap(encounter.getPlayerLevelCap());
         ctx.setUncapturable(true);
 
-        // 构建玩家方
-        ctx.setPlayerSide(buildPlayerSide(teamPets));
+        // 高难 Boss 只影响本场临时面板；真实宠物等级、自由点与技能解锁均不改写。
+        ctx.setPlayerSide(buildPlayerSide(teamPets, encounter.getPlayerLevelCap()));
 
-        // 构建 Boss 敌方
-        ctx.setEnemySide(buildBossSide(boss, diffConfig, difficulty));
+        // Boss 首次遭遇阵容来自持久化快照，失败重试、重启和自动挑战均复用。
+        ctx.setEnemySide(buildBossSide(encounter));
 
         // 阶段 10：自动战斗资源快照（自动挑战时玩家方 AI 可能使用道具）
-        PlayerEntity player = playerMapper.selectOne(
-                new LambdaQueryWrapper<PlayerEntity>()
-                        .eq(PlayerEntity::getSaveId, saveId));
-        if (player != null) {
-            snapshotBattleResources(ctx, player);
-        }
+        snapshotBattleResources(ctx, player);
+
+        // 阶段 14 开发者战斗调试：快照调试标志、开启随机序列录制
+        applyDevDebug(ctx);
 
         battles.put(battleId, ctx);
         return battleId;
@@ -1258,6 +1390,32 @@ public class BattleService {
             ctx.getAvailableRecoveryItems().put(inv.getItemId(), inv.getQuantity());
         }
         ctx.setAutoSettings(buildAutoSettings(player, false));
+    }
+
+    /**
+     * 解析战斗随机种子（阶段 14 开发者「固定随机种子」）：
+     * 显式传入的 seed 优先；否则消费 DevContext 中设置的一次性固定种子；否则随机。
+     */
+    private long resolveBattleSeed(Long seed) {
+        if (seed != null) {
+            return seed;
+        }
+        Long fixed = devContext.consumeFixedBattleSeed();
+        return fixed != null ? fixed : System.nanoTime();
+    }
+
+    /**
+     * 快照开发者战斗调试标志到战斗上下文（阶段 14）：
+     * 无敌 / 一击必杀 / 固定暴击 / 伤害明细调试信息；调试信息开启时录制随机序列。
+     */
+    private void applyDevDebug(BattleContext ctx) {
+        ctx.setPlayerInvincible(devContext.isPlayerInvincible());
+        ctx.setPlayerOneHitKill(devContext.isPlayerOneHitKill());
+        ctx.setPlayerFixedCrit(devContext.isPlayerFixedCrit());
+        ctx.setDebugDamage(devContext.isDebugDamage());
+        if (ctx.isDebugDamage()) {
+            ctx.getRandom().setRecordDraws(true);
+        }
     }
 
     /** 从玩家偏好构建战斗级自动设置（策略/开关/阈值）。 */
@@ -1349,6 +1507,11 @@ public class BattleService {
         return battles.get(battleId);
     }
 
+    /** 供 Boss 遭遇重置读取当前激活队伍；不修改队伍与宠物状态。 */
+    public List<PlayerPetEntity> getActiveTeamPetsForSnapshot(String saveId) {
+        return loadActiveTeamPets(saveId);
+    }
+
     /** 全队 HP 回满（Boss 重复战恢复，需求 §88）。 */
     @Transactional
     public void healTeamFully(String saveId) {
@@ -1381,56 +1544,51 @@ public class BattleService {
         addInventoryItem(saveId, itemId, quantity);
     }
 
-    /** 构建 Boss 敌方阵容。 */
-    private BattleSide buildBossSide(BossesConfig.BossConfig boss,
-                                     BossesConfig.DifficultyConfig diffConfig,
-                                     String difficulty) {
+    /** 从遭遇快照构建 Boss 敌方阵容。 */
+    private BattleSide buildBossSide(BossEncounterSnapshotService.EncounterData encounter) {
         BattleSide side = new BattleSide("ENEMY");
-        BattleUnit unit = new BattleUnit();
-        unit.setUnitId("BOSS_" + boss.getId() + "_" + difficulty);
-        unit.setName(boss.getName() + " (" + difficulty + ")");
-        unit.setElement(boss.getElement());
-        unit.setLevel(boss.getRecommendedLevel());
-
-        BossesConfig.StatsConfig stats = diffConfig.getStats();
-        unit.setMaxHp(stats.getMaxHp());
-        unit.setStrength(stats.getStrength());
-        unit.setSpirit(stats.getSpirit());
-        unit.setDefense(stats.getDefense());
-        unit.setResistance(stats.getResistance());
-        unit.setSpeed(stats.getSpeed());
-        unit.setCurrentHp(stats.getMaxHp());
-        unit.setActive(true);
-        unit.setPosition(0);
-
-        // 技能
-        unit.getSkillIds().addAll(diffConfig.getSkills());
-
-        // 被动
-        for (String passiveId : diffConfig.getPassives()) {
-            PassiveSkillConfig passive = registry.getPassive(passiveId);
-            if (passive != null) {
-                unit.getPassives().add(passive);
+        for (BossEncounterSnapshotService.UnitData data : encounter.getUnits()) {
+            BattleUnit unit = new BattleUnit();
+            unit.setUnitId(data.getUnitId());
+            unit.setSpeciesId(data.getSpeciesId());
+            unit.setName(data.getName());
+            unit.setElement(data.getElement());
+            unit.setLevel(data.getLevel());
+            unit.setActualLevel(data.getLevel());
+            unit.setEffectiveLevel(data.getLevel());
+            unit.setMaxHp(data.getMaxHp());
+            unit.setStrength(data.getStrength());
+            unit.setSpirit(data.getSpirit());
+            unit.setDefense(data.getDefense());
+            unit.setResistance(data.getResistance());
+            unit.setSpeed(data.getSpeed());
+            unit.setCurrentHp(data.getMaxHp());
+            unit.setActive(true);
+            unit.setPosition(data.getPosition());
+            unit.setControlResistance(data.getControlResistance());
+            unit.getSkillIds().addAll(data.getSkillIds());
+            for (String passiveId : data.getPassiveIds()) {
+                PassiveSkillConfig passive = registry.getPassive(passiveId);
+                if (passive != null) {
+                    unit.getPassives().add(passive);
+                }
             }
-        }
-
-        // Boss 控制抗性
-        Map<String, Double> controlResistance = registry.getSystemRules().getControlResistance();
-        if (controlResistance != null && controlResistance.containsKey("BOSS")) {
-            unit.setControlResistance(controlResistance.get("BOSS"));
-        } else {
-            unit.setControlResistance(0.6);
-        }
-
-        // 阶段触发器
-        if (diffConfig.getPhases() != null) {
-            unit.getPhaseTriggers().addAll(diffConfig.getPhases());
-            for (int i = 0; i < diffConfig.getPhases().size(); i++) {
+            unit.setPassives(PassiveEffectResolver.normalize(unit.getPassives()));
+            unit.getPhaseTriggers().addAll(data.getPhases());
+            for (int i = 0; i < data.getPhases().size(); i++) {
                 unit.getPhaseActivated().add(false);
             }
+            side.getUnits().add(unit);
         }
-
-        side.getUnits().add(unit);
         return side;
+    }
+
+    private String gameDifficultyOf(PlayerEntity player) {
+        SystemRuleConfig.GameDifficultyConfig config = registry.getSystemRules().getGameDifficulty();
+        String stored = player.getGameDifficulty();
+        if (stored != null && config.getProfiles().containsKey(stored.toUpperCase())) {
+            return stored.toUpperCase();
+        }
+        return config.getDefaultDifficulty();
     }
 }

@@ -144,9 +144,10 @@ public class GameConfigValidator {
         }
         if (maps != null) {
             validateMaps(maps, encounters, items, initialPets, errors);
+            validateDifficultyMapBounds(system, maps, errors);
         }
         if (bosses != null) {
-            validateBosses(bosses, elements, skills, items, maps, errors);
+            validateBosses(bosses, elements, skills, items, maps, pets, errors);
         }
         if (quests != null) {
             validateQuests(quests, items, pets, skills, maps, errors);
@@ -186,7 +187,8 @@ public class GameConfigValidator {
                          ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses,
                          QuestsConfig quests, ShopConfig shop, RandomEventsConfig randomEvents,
                          BuildRecommendationConfig buildRecommendations,
-                         AchievementsConfig achievements, BossChallengesConfig bossChallenges) {
+                         AchievementsConfig achievements, BossChallengesConfig bossChallenges,
+                         VictoryInteractionConfig victoryInteractions) {
         List<String> errors = new ArrayList<>();
 
         validateSystemRules(system, errors);
@@ -211,9 +213,10 @@ public class GameConfigValidator {
         }
         if (maps != null) {
             validateMaps(maps, encounters, items, initialPets, errors);
+            validateDifficultyMapBounds(system, maps, errors);
         }
         if (bosses != null) {
-            validateBosses(bosses, elements, skills, items, maps, errors);
+            validateBosses(bosses, elements, skills, items, maps, pets, errors);
         }
         if (quests != null) {
             validateQuests(quests, items, pets, skills, maps, errors);
@@ -238,6 +241,9 @@ public class GameConfigValidator {
         }
         if (bossChallenges != null) {
             validateBossChallenges(bossChallenges, bosses, items, achievements, errors);
+        }
+        if (victoryInteractions != null) {
+            validateVictoryInteractions(victoryInteractions, bosses, pets, errors);
         }
 
         if (!errors.isEmpty()) {
@@ -401,6 +407,48 @@ public class GameConfigValidator {
 
         // 阶段 10：自动战斗决策参数
         validateAutoBattle(system.getAutoBattle(), errors);
+
+        // 阶段 13：全局难度参数
+        validateGameDifficulty(system.getGameDifficulty(), errors);
+    }
+
+    /** 校验全局难度：四档完整、偏移范围与倍率/队伍数合法。 */
+    private void validateGameDifficulty(SystemRuleConfig.GameDifficultyConfig config, List<String> errors) {
+        if (config == null || config.getProfiles() == null) {
+            errors.add("gameDifficulty 配置不能为空");
+            return;
+        }
+        Set<String> required = Set.of("NORMAL", "ELITE", "NIGHTMARE", "HELL");
+        if (!required.equals(config.getProfiles().keySet())) {
+            errors.add("gameDifficulty.profiles 必须且只能包含 NORMAL/ELITE/NIGHTMARE/HELL");
+        }
+        if (config.getDefaultDifficulty() == null
+                || !config.getProfiles().containsKey(config.getDefaultDifficulty().toUpperCase())) {
+            errors.add("gameDifficulty.defaultDifficulty 必须引用已配置难度");
+        }
+        for (Map.Entry<String, SystemRuleConfig.DifficultyProfile> entry : config.getProfiles().entrySet()) {
+            SystemRuleConfig.DifficultyProfile profile = entry.getValue();
+            String prefix = "gameDifficulty." + entry.getKey();
+            if (profile == null) {
+                errors.add(prefix + " 不可为空");
+                continue;
+            }
+            if (profile.getWildMinLevelOffset() > profile.getWildMaxLevelOffset()
+                    || profile.getEliteMinLevelOffset() > profile.getEliteMaxLevelOffset()
+                    || profile.getWildPlayerAdjustmentMin() > profile.getWildPlayerAdjustmentMax()) {
+                errors.add(prefix + " 等级偏移下限不能大于上限");
+            }
+            if (profile.getWildMinTeamSize() < 1 || profile.getWildMinTeamSize() > profile.getWildMaxTeamSize()
+                    || profile.getEliteMinTeamSize() < 1 || profile.getEliteMinTeamSize() > profile.getEliteMaxTeamSize()) {
+                errors.add(prefix + " 队伍数量范围非法");
+            }
+            if (profile.getBossPlayerLevelUpwardLimit() < 0 || profile.getBossOptionalSlotCount() < 0
+                    || profile.getBossAiLevel() < 1 || profile.getPlayerLevelCapOffset() < 0
+                    || profile.getBossHpMultiplier() <= 0 || profile.getBossAttackMultiplier() <= 0
+                    || profile.getBossDefenseMultiplier() <= 0 || profile.getBossSpeedMultiplier() <= 0) {
+                errors.add(prefix + " Boss 参数非法");
+            }
+        }
     }
 
     /** 校验自动战斗决策配置（阶段 10）：策略枚举、阈值范围、权重表非负。 */
@@ -694,6 +742,11 @@ public class GameConfigValidator {
             "ON_ENTER", "ON_EXIT", "ON_DEFEAT", "ON_KILL", "ON_ALLY_DEFEAT", "TURN_END", "BATTLE_END");
     private static final Set<String> VALID_PASSIVE_EFFECTS = Set.of("SURVIVE_LETHAL", "APPLY_STATUS_ALLY_ALL",
             "APPLY_STATUS_SELF", "DAMAGE_ENEMY_RANDOM", "HEAL_SELF", "REDUCE_PHYSICAL_DAMAGE");
+    // 阶段 14 补充：被动来源与叠加规则枚举
+    private static final Set<String> VALID_PASSIVE_SOURCE_TYPES =
+            Set.of("INNATE", "LEVEL_UP", "EVOLUTION", "SKILL_BOOK");
+    private static final Set<String> VALID_STACK_RULES =
+            Set.of("UNIQUE", "HIGHEST_ONLY", "ADDITIVE", "LIMITED");
     // 阶段 4：道具配置枚举
     private static final Set<String> VALID_ITEM_CATEGORIES =
             Set.of("CAPTURE", "RECOVERY", "MATERIAL", "SKILL_BOOK", "KEY_ITEM");
@@ -895,6 +948,17 @@ public class GameConfigValidator {
             }
             if (passive.getMaxTriggerPerBattle() < 0) {
                 errors.add("passive " + passive.getId() + " maxTriggerPerBattle 必须 >= 0");
+            }
+            if (passive.getSourceType() != null && !passive.getSourceType().isBlank()
+                    && !VALID_PASSIVE_SOURCE_TYPES.contains(passive.getSourceType())) {
+                errors.add("passive " + passive.getId() + " sourceType 非法: " + passive.getSourceType());
+            }
+            if (passive.getStackRule() != null && !passive.getStackRule().isBlank()
+                    && !VALID_STACK_RULES.contains(passive.getStackRule())) {
+                errors.add("passive " + passive.getId() + " stackRule 非法: " + passive.getStackRule());
+            }
+            if (passive.getMaxStack() < 0) {
+                errors.add("passive " + passive.getId() + " maxStack 必须 >= 0");
             }
         }
     }
@@ -1250,6 +1314,12 @@ public class GameConfigValidator {
             if (region.getMapFile() == null || region.getMapFile().isBlank()) {
                 errors.add("region " + region.getId() + " 缺少 mapFile（Tiled 地图资源名）");
             }
+            if (!region.getEncounterGroups().isEmpty()
+                    && (region.getRecommendedEnemyLevel() < 1 || region.getMinEnemyLevel() < 1
+                    || region.getMinEnemyLevel() > region.getRecommendedEnemyLevel()
+                    || region.getRecommendedEnemyLevel() > region.getMaxEnemyLevel())) {
+                errors.add("region " + region.getId() + " 敌方等级边界必须满足 min <= recommended <= max 且均 >= 1");
+            }
 
             // 刷新组引用
             for (String groupId : region.getEncounterGroups()) {
@@ -1330,6 +1400,30 @@ public class GameConfigValidator {
         }
     }
 
+    /** 地图与难度等级区间必须有交集，避免开战后才发现无法生成。 */
+    private void validateDifficultyMapBounds(SystemRuleConfig system, MapsConfig maps, List<String> errors) {
+        if (system.getGameDifficulty() == null || system.getGameDifficulty().getProfiles() == null) {
+            return;
+        }
+        for (MapsConfig.RegionConfig region : maps.getRegions()) {
+            if (region.isPlanned() || region.getEncounterGroups().isEmpty()) {
+                continue;
+            }
+            for (Map.Entry<String, SystemRuleConfig.DifficultyProfile> entry
+                    : system.getGameDifficulty().getProfiles().entrySet()) {
+                SystemRuleConfig.DifficultyProfile profile = entry.getValue();
+                if (profile == null) continue;
+                int min = Math.max(region.getMinEnemyLevel(),
+                        region.getRecommendedEnemyLevel() + profile.getWildMinLevelOffset());
+                int max = Math.min(Math.min(region.getMaxEnemyLevel(), system.getLevelCap()),
+                        region.getRecommendedEnemyLevel() + profile.getWildMaxLevelOffset());
+                if (min > max) {
+                    errors.add("region " + region.getId() + " 与全局难度 " + entry.getKey() + " 的普通野外等级区间无交集");
+                }
+            }
+        }
+    }
+
     /** 校验地图对象奖励条目：道具引用存在、数量区间合法、金币区间合法。 */
     private void validateMapRewards(String regionId, String objectId,
                                     List<MapsConfig.RewardEntry> rewards,
@@ -1357,7 +1451,7 @@ public class GameConfigValidator {
      */
     private void validateBosses(BossesConfig bosses, GameElementsConfig elements,
                                 SkillsConfig skills, ItemsConfig items,
-                                MapsConfig maps, List<String> errors) {
+                                MapsConfig maps, PetsConfig pets, List<String> errors) {
         if (bosses.getBosses() == null || bosses.getBosses().isEmpty()) {
             return; // Boss 配置可选
         }
@@ -1372,6 +1466,9 @@ public class GameConfigValidator {
                 .map(ItemConfig::getId).collect(java.util.stream.Collectors.toSet());
         Set<String> regionIds = maps != null
                 ? maps.getRegions().stream().map(MapsConfig.RegionConfig::getId).collect(java.util.stream.Collectors.toSet())
+                : Set.of();
+        Set<String> speciesIds = pets != null && pets.getSpecies() != null
+                ? pets.getSpecies().stream().map(PetSpeciesConfig::getId).collect(java.util.stream.Collectors.toSet())
                 : Set.of();
 
         Set<String> bossIds = new HashSet<>();
@@ -1388,6 +1485,16 @@ public class GameConfigValidator {
             }
             if (boss.getMapId() != null && !regionIds.contains(boss.getMapId())) {
                 errors.add("Boss " + boss.getId() + " 引用不存在的区域: " + boss.getMapId());
+            }
+            if (boss.getMinTeamSize() < 1 || boss.getMinTeamSize() > boss.getMaxTeamSize()) {
+                errors.add("Boss " + boss.getId() + " 队伍数量范围非法");
+            }
+            if (boss.getOptionalSpeciesIds() != null) {
+                for (String speciesId : boss.getOptionalSpeciesIds()) {
+                    if (!speciesIds.contains(speciesId)) {
+                        errors.add("Boss " + boss.getId() + " 可选支援引用不存在的种族: " + speciesId);
+                    }
+                }
             }
 
             if (boss.getDifficulties() != null) {
@@ -1895,6 +2002,61 @@ public class GameConfigValidator {
             }
             if (r.getQuantity() < 1) {
                 errors.add(ownerId + " 奖励数量必须 ≥ 1: " + r.getQuantity());
+            }
+        }
+    }
+
+    /** 校验敌方胜利互动：ID 唯一性、获胜方类型/战况/表现方式/稀有度合法、targetId 引用存在、权重 ≥ 1。 */
+    private void validateVictoryInteractions(VictoryInteractionConfig config, BossesConfig bosses,
+                                             PetsConfig pets, List<String> errors) {
+        if (config.getInteractions() == null) return;
+        Set<String> winnerTypes = Set.of("TRAINER", "WILD_PET", "BOSS");
+        Set<String> contexts = Set.of("NORMAL_LOSS", "CLOSE_LOSS", "CRUSHED", "COMEBACK_LOSS",
+                "REPEATED_DEFEAT", "EXCESSIVE_HEAL", "EXCESSIVE_SWITCH", "REPEATED_SKILL");
+        Set<String> presentationTypes = Set.of("DIALOGUE", "ACTION_NARRATION", "CRY");
+        Set<String> rarities = Set.of("COMMON", "EASTER_EGG");
+        Set<String> bossIds = bosses != null && bosses.getBosses() != null
+                ? bosses.getBosses().stream().map(BossesConfig.BossConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> speciesIds = pets != null && pets.getSpecies() != null
+                ? pets.getSpecies().stream().map(PetSpeciesConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> ids = new HashSet<>();
+        for (VictoryInteractionConfig.Interaction it : config.getInteractions()) {
+            if (it.getId() == null || it.getId().isBlank()) {
+                errors.add("胜利互动存在空 ID");
+                continue;
+            }
+            if (!ids.add(it.getId())) {
+                errors.add("胜利互动 ID 重复: " + it.getId());
+            }
+            if (it.getWinnerType() == null || !winnerTypes.contains(it.getWinnerType())) {
+                errors.add("胜利互动 " + it.getId() + " 获胜方类型非法: " + it.getWinnerType());
+            }
+            // targetId 仅对 BOSS / WILD_PET 生效，且需引用存在
+            if (it.getTargetId() != null && !it.getTargetId().isBlank()) {
+                if ("BOSS".equals(it.getWinnerType()) && !bossIds.contains(it.getTargetId())) {
+                    errors.add("胜利互动 " + it.getId() + " targetId 引用不存在的 Boss: " + it.getTargetId());
+                }
+                if ("WILD_PET".equals(it.getWinnerType()) && !speciesIds.contains(it.getTargetId())) {
+                    errors.add("胜利互动 " + it.getId() + " targetId 引用不存在的宠物种族: " + it.getTargetId());
+                }
+            }
+            if (it.getContexts() != null) {
+                for (String c : it.getContexts()) {
+                    if (!contexts.contains(c)) {
+                        errors.add("胜利互动 " + it.getId() + " 战况标签非法: " + c);
+                    }
+                }
+            }
+            if (it.getPresentationType() == null || !presentationTypes.contains(it.getPresentationType())) {
+                errors.add("胜利互动 " + it.getId() + " 表现方式非法: " + it.getPresentationType());
+            }
+            if (it.getWeight() < 1) {
+                errors.add("胜利互动 " + it.getId() + " 权重必须 ≥ 1: " + it.getWeight());
+            }
+            if (it.getRarity() != null && !rarities.contains(it.getRarity())) {
+                errors.add("胜利互动 " + it.getId() + " 稀有度非法: " + it.getRarity());
             }
         }
     }

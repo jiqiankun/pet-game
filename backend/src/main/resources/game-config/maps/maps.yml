@@ -24,6 +24,9 @@ regions:
     name: 晨曦村
     type: BASE
     recommendedLevel: "1"
+    recommendedEnemyLevel: 1
+    minEnemyLevel: 1
+    maxEnemyLevel: 1
     unlockType: AUTO
     planned: false
     mapFile: start_village
@@ -47,6 +50,9 @@ regions:
     name: 青草原
     type: AREA
     recommendedLevel: "3~8"
+    recommendedEnemyLevel: 5
+    minEnemyLevel: 2
+    maxEnemyLevel: 10
     unlockType: AUTO
     planned: false
     mapFile: meadow
@@ -98,6 +104,9 @@ regions:
     name: 翠树林
     type: AREA
     recommendedLevel: "8~15"
+    recommendedEnemyLevel: 12
+    minEnemyLevel: 7
+    maxEnemyLevel: 18
     unlockType: AUTO
     planned: false
     mapFile: forest
@@ -149,6 +158,9 @@ regions:
     name: 静水湖域
     type: AREA
     recommendedLevel: "15~25"
+    recommendedEnemyLevel: 20
+    minEnemyLevel: 14
+    maxEnemyLevel: 28
     unlockType: QUEST
     planned: false
     mapFile: waters
@@ -196,6 +208,9 @@ regions:
     name: 雷鸣高地
     type: AREA
     recommendedLevel: "15~25"
+    recommendedEnemyLevel: 20
+    minEnemyLevel: 14
+    maxEnemyLevel: 28
     unlockType: QUEST
     planned: false
     mapFile: thunder
@@ -243,6 +258,9 @@ regions:
     name: 远古遗迹
     type: AREA
     recommendedLevel: "30~50"
+    recommendedEnemyLevel: 35
+    minEnemyLevel: 28
+    maxEnemyLevel: 50
     unlockType: QUEST
     planned: false
     mapFile: ruins

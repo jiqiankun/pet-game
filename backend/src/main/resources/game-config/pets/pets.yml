@@ -29,8 +29,14 @@ species:
       - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_ARMOR_CRUSH, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_HEADBUTT, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_IRON_EDGE, unlockLevel: 25 }
     rareSkills:
       - SKILL_BLADE_STORM
+    passives:
+      - { passiveId: PASSIVE_SIG_METAL_001, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RAGE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 1 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 25 }
 
   - id: PET_METAL_002
     name: 玄铠
@@ -49,12 +55,18 @@ species:
       - { skillId: SKILL_ARMOR_CRUSH, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_GOLDEN_GUARD, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_BLADE_STORM, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_REFORGE, unlockLevel: 25 }
+      - { skillId: SKILL_IRON_EDGE, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_METAL_002, unlockLevel: 1 }
       - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
+      - { passiveId: PASSIVE_IRON_BODY, unlockLevel: 1 }
+      - { passiveId: PASSIVE_THORN_RETURN, unlockLevel: 25 }
 
   - id: PET_METAL_003
     name: 鎏刃灵
     element: METAL
+    role: TANK
     description: 流金刃翼环绕的悬浮元素生命，擅长防御反击。
     rarity: EPIC
     captureRate: 0.25
@@ -69,14 +81,20 @@ species:
       - { skillId: SKILL_GOLDEN_GUARD, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_ARMOR_CRUSH, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_BLADE_STORM, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_REFORGE, unlockLevel: 25 }
+      - { skillId: SKILL_GROUP_GUARD, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_METAL_003, unlockLevel: 1 }
       - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
+      - { passiveId: PASSIVE_IRON_BODY, unlockLevel: 1 }
+      - { passiveId: PASSIVE_THORN_RETURN, unlockLevel: 25 }
 
   # ========== 木（WOOD）==========
 
   - id: PET_WOOD_001
     name: 藤梦鹿
     element: WOOD
+    role: CONTROL
     description: 藤蔓鹿角、青绿色自然灵兽，擅长缠绕控制。
     rarity: RARE
     captureRate: 0.40
@@ -91,14 +109,20 @@ species:
       - { skillId: SKILL_ENTANGLE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_POISON_STING, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_BATTLE_CRY, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_BRANCH_STRIKE, unlockLevel: 25 }
+      - { skillId: SKILL_GROUP_GUARD, unlockLevel: 35 }
     rareSkills:
       - SKILL_HEAL_SPORE
     passives:
+      - { passiveId: PASSIVE_SIG_WOOD_001, unlockLevel: 1 }
       - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_THORN_RETURN, unlockLevel: 25 }
 
   - id: PET_WOOD_002
     name: 青芽灵
     element: WOOD
+    role: SUPPORT
     description: 嫩芽与柔光形成的小型生命精灵，擅长治疗辅助。
     rarity: COMMON
     captureRate: 0.55
@@ -113,10 +137,15 @@ species:
       - { skillId: SKILL_HEAL_SPORE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_HEAL_LIGHT, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_BATTLE_CRY, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_BLOOM, unlockLevel: 25 }
+      - { skillId: SKILL_GROUP_HEAL, unlockLevel: 35 }
     rareSkills:
       - SKILL_POISON_STING
     passives:
+      - { passiveId: PASSIVE_SIG_WOOD_002, unlockLevel: 1 }
       - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RECOVER_STRONG, unlockLevel: 25 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 35 }
 
   - id: PET_WOOD_003
     name: 森蚀灵
@@ -135,6 +164,13 @@ species:
       - { skillId: SKILL_THORN_BIND, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_VINE_WHIP, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_ENTANGLE, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_BRANCH_STRIKE, unlockLevel: 25 }
+      - { skillId: SKILL_MARK_TARGET, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_WOOD_003, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RAGE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_THORN_RETURN, unlockLevel: 1 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 25 }
 
   # ========== 水（WATER）==========
 
@@ -155,14 +191,20 @@ species:
       - { skillId: SKILL_HEAL_LIGHT, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_TACKLE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_ROCK_SHIELD, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_PURIFY, unlockLevel: 25 }
+      - { skillId: SKILL_WATER_WHIP, unlockLevel: 35 }
     rareSkills:
-      - SKILL_PURIFY
+      - SKILL_TORRENT
     passives:
+      - { passiveId: PASSIVE_SIG_WATER_001, unlockLevel: 1 }
       - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RECOVER_STRONG, unlockLevel: 25 }
 
   - id: PET_WATER_002
     name: 涟歌灵
     element: WATER
+    role: SUPPORT
     description: 水滴与涟漪凝聚的漂浮精灵，擅长灵力输出。
     rarity: COMMON
     captureRate: 0.55
@@ -177,8 +219,15 @@ species:
       - { skillId: SKILL_AQUA_JET, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_TIDAL_WAVE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_PURIFY, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_TORRENT, unlockLevel: 25 }
+      - { skillId: SKILL_GROUP_GUARD, unlockLevel: 35 }
     rareSkills:
       - SKILL_HEAL_LIGHT
+    passives:
+      - { passiveId: PASSIVE_SIG_WATER_002, unlockLevel: 1 }
+      - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_TEAM_HUSTLE, unlockLevel: 25 }
 
   - id: PET_WATER_003
     name: 雾澜兽
@@ -197,8 +246,13 @@ species:
       - { skillId: SKILL_AQUA_JET, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_TIDAL_WAVE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_PURIFY, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_WATER_WHIP, unlockLevel: 25 }
+      - { skillId: SKILL_TORRENT, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_WATER_003, unlockLevel: 1 }
       - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 25 }
 
   # ========== 火（FIRE）==========
 
@@ -219,10 +273,15 @@ species:
       - { skillId: SKILL_TACKLE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_FLAME_BURST, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_MAGMA_CLASH, unlockLevel: 25 }
+      - { skillId: SKILL_EMBER_BITE, unlockLevel: 35 }
     rareSkills:
       - SKILL_BLAZING_SPIRIT
     passives:
+      - { passiveId: PASSIVE_SIG_FIRE_001, unlockLevel: 1 }
       - { passiveId: PASSIVE_EMBER, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RAGE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 25 }
 
   - id: PET_FIRE_002
     name: 绯焰灵
@@ -241,8 +300,13 @@ species:
       - { skillId: SKILL_FLAME_BURST, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_BLAZING_SPIRIT, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_INFERNO, unlockLevel: 25 }
+      - { skillId: SKILL_MAGMA_CLASH, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_FIRE_002, unlockLevel: 1 }
       - { passiveId: PASSIVE_EMBER, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RAGE, unlockLevel: 25 }
 
   - id: PET_FIRE_003
     name: 赤曜兽
@@ -261,14 +325,20 @@ species:
       - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_BLAZING_SPIRIT, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_MAGMA_CLASH, unlockLevel: 25 }
+      - { skillId: SKILL_INFERNO, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_FIRE_003, unlockLevel: 1 }
       - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
+      - { passiveId: PASSIVE_EMBER, unlockLevel: 1 }
+      - { passiveId: PASSIVE_BERSERKER, unlockLevel: 25 }
 
   # ========== 土（EARTH）==========
 
   - id: PET_EARTH_001
     name: 岩魁
     element: EARTH
+    role: TANK
     description: 岩块和土晶组成的厚重巨灵，擅长坦克嘲讽。
     rarity: COMMON
     captureRate: 0.55
@@ -283,14 +353,20 @@ species:
       - { skillId: SKILL_TAUNT, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_ROCK_SHIELD, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_EARTHQUAKE, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_STONE_BARRIER, unlockLevel: 25 }
+      - { skillId: SKILL_ROCK_BLAST, unlockLevel: 35 }
     rareSkills:
       - SKILL_GUARD_ALLY
     passives:
+      - { passiveId: PASSIVE_SIG_EARTH_001, unlockLevel: 1 }
       - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
+      - { passiveId: PASSIVE_IRON_BODY, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RECOVER_STRONG, unlockLevel: 25 }
 
   - id: PET_EARTH_002
     name: 岳灵
     element: EARTH
+    role: SUPPORT
     description: 山岳核心与悬浮岩片构成的灵兽，擅长护盾辅助。
     rarity: RARE
     captureRate: 0.40
@@ -305,6 +381,13 @@ species:
       - { skillId: SKILL_ROCK_SHIELD, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_GUARD_ALLY, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_EARTHQUAKE, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_STONE_BARRIER, unlockLevel: 25 }
+      - { skillId: SKILL_GROUP_GUARD, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_EARTH_002, unlockLevel: 1 }
+      - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
+      - { passiveId: PASSIVE_IRON_BODY, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 25 }
 
   - id: PET_EARTH_003
     name: 磐震兽
@@ -323,8 +406,13 @@ species:
       - { skillId: SKILL_ROCK_SHIELD, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_HEADBUTT, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_EARTHQUAKE, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_ROCK_BLAST, unlockLevel: 25 }
+      - { skillId: SKILL_STONE_BARRIER, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_EARTH_003, unlockLevel: 1 }
       - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
+      - { passiveId: PASSIVE_IRON_BODY, unlockLevel: 1 }
+      - { passiveId: PASSIVE_THORN_RETURN, unlockLevel: 25 }
 
   # ========== 风（WIND）==========
 
@@ -345,14 +433,20 @@ species:
       - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_GUST_TRAP, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_AIR_CUTTER, unlockLevel: 25 }
+      - { skillId: SKILL_WIND_GRACE, unlockLevel: 35 }
     rareSkills:
       - SKILL_BATTLE_CRY
     passives:
+      - { passiveId: PASSIVE_SIG_WIND_001, unlockLevel: 1 }
       - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RAGE, unlockLevel: 25 }
 
   - id: PET_WIND_002
     name: 逐风灵
     element: WIND
+    role: CONTROL
     description: 环形气流围绕的小型风精灵，擅长行动控制。
     rarity: RARE
     captureRate: 0.40
@@ -367,8 +461,13 @@ species:
       - { skillId: SKILL_WIND_BLADE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_QUICK_ATTACK, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_AIR_CUTTER, unlockLevel: 25 }
+      - { skillId: SKILL_WIND_GRACE, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_WIND_002, unlockLevel: 1 }
       - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 25 }
 
   - id: PET_WIND_003
     name: 空澜兽
@@ -387,8 +486,13 @@ species:
       - { skillId: SKILL_GUARD_ALLY, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_GALE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_GUST_TRAP, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_AIR_CUTTER, unlockLevel: 25 }
+      - { skillId: SKILL_WIND_GRACE, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_WIND_003, unlockLevel: 1 }
       - { passiveId: PASSIVE_TAILWIND, unlockLevel: 1 }
+      - { passiveId: PASSIVE_TEAM_HUSTLE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 25 }
 
   # ========== 雷（THUNDER）==========
 
@@ -409,6 +513,13 @@ species:
       - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_THUNDER_STRIKE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_THUNDER_STORM, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_THUNDERBOLT, unlockLevel: 25 }
+      - { skillId: SKILL_LIGHTNING_ROD, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_THUNDER_001, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RAGE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 25 }
 
   - id: PET_THUNDER_002
     name: 鸣霄灵
@@ -427,6 +538,13 @@ species:
       - { skillId: SKILL_THUNDER_STRIKE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_VOLT_TACKLE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_THUNDER_STORM, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_CHAIN_LIGHTNING, unlockLevel: 25 }
+      - { skillId: SKILL_THUNDERBOLT, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_THUNDER_002, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_TEAM_HUSTLE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 25 }
 
   - id: PET_THUNDER_003
     name: 紫霄灵
@@ -445,6 +563,13 @@ species:
       - { skillId: SKILL_THUNDER_WAVE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_THUNDER_STORM, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_VOLT_TACKLE, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_CHAIN_LIGHTNING, unlockLevel: 25 }
+      - { skillId: SKILL_THUNDERBOLT, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_THUNDER_003, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_BERSERKER, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 25 }
 
   # ========== 光（LIGHT）==========
 
@@ -465,12 +590,18 @@ species:
       - { skillId: SKILL_LIGHT_RADIANCE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_BATTLE_CRY, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_LIGHT_BURST, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_BLESSING, unlockLevel: 25 }
+      - { skillId: SKILL_PRISM, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_LIGHT_001, unlockLevel: 1 }
       - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_TEAM_HUSTLE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 25 }
 
   - id: PET_LIGHT_002
     name: 曦鹿
     element: LIGHT
+    role: SUPPORT
     description: 晨曦色晶角与柔光形成的灵鹿，擅长治疗净化。
     rarity: RARE
     captureRate: 0.40
@@ -485,8 +616,13 @@ species:
       - { skillId: SKILL_HEAL_LIGHT, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_LIGHT_RADIANCE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_LIGHT_BURST, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_BLESSING, unlockLevel: 25 }
+      - { skillId: SKILL_GROUP_HEAL, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_LIGHT_002, unlockLevel: 1 }
       - { passiveId: PASSIVE_REGENERATE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RECOVER_STRONG, unlockLevel: 1 }
+      - { passiveId: PASSIVE_TEAM_HUSTLE, unlockLevel: 25 }
 
   - id: PET_LIGHT_003
     name: 辉星兽
@@ -505,8 +641,13 @@ species:
       - { skillId: SKILL_HOLY_LIGHT, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_LIGHT_BURST, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_METEOR_FALL, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_PRISM, unlockLevel: 25 }
+      - { skillId: SKILL_BLESSING, unlockLevel: 35 }
     passives:
+      - { passiveId: PASSIVE_SIG_LIGHT_003, unlockLevel: 1 }
       - { passiveId: PASSIVE_UNYIELDING, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_BERSERKER, unlockLevel: 25 }
 
   # ========== 暗（DARK）==========
 
@@ -527,10 +668,18 @@ species:
       - { skillId: SKILL_SHADOW_BALL, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_SILENT_FOG, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_SHADOW_STRIKE, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_NIGHT_SHROUD, unlockLevel: 25 }
+      - { skillId: SKILL_ANTI_HEAL, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_DARK_001, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 1 }
+      - { passiveId: PASSIVE_THORN_RETURN, unlockLevel: 25 }
 
   - id: PET_DARK_002
     name: 夜缚兽
     element: DARK
+    role: CONTROL
     description: 深色锁链状能量环绕的暗灵兽，擅长削弱控制。
     rarity: RARE
     captureRate: 0.40
@@ -545,6 +694,13 @@ species:
       - { skillId: SKILL_SHADOW_STRIKE, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_CURSE, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_SHADOW_BALL, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_NIGHT_SHROUD, unlockLevel: 25 }
+      - { skillId: SKILL_SHADOW_CLONE, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_DARK_002, unlockLevel: 1 }
+      - { passiveId: PASSIVE_MENTAL_FOCUS, unlockLevel: 1 }
+      - { passiveId: PASSIVE_THORN_RETURN, unlockLevel: 1 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 25 }
 
   - id: PET_DARK_003
     name: 冥刃灵
@@ -563,3 +719,10 @@ species:
       - { skillId: SKILL_QUICK_ATTACK, slot: 2, unlockLevel: 1 }
       - { skillId: SKILL_SHADOW_BALL, slot: 3, unlockLevel: 5 }
       - { skillId: SKILL_CURSE, slot: 4, unlockLevel: 15 }
+      - { skillId: SKILL_NIGHT_SHROUD, unlockLevel: 25 }
+      - { skillId: SKILL_SHADOW_CLONE, unlockLevel: 35 }
+    passives:
+      - { passiveId: PASSIVE_SIG_DARK_003, unlockLevel: 1 }
+      - { passiveId: PASSIVE_RAGE, unlockLevel: 1 }
+      - { passiveId: PASSIVE_KILL_RECOVER, unlockLevel: 1 }
+      - { passiveId: PASSIVE_QUICK_FEET, unlockLevel: 1 }

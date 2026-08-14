@@ -101,6 +101,13 @@ public class QuestController {
         return ApiResponse.success(null);
     }
 
+    /** 重置教学提示（阶段 14）。 */
+    @PostMapping("/tutorial/reset")
+    public ApiResponse<Void> resetTutorial() {
+        tutorialService.resetTutorial();
+        return ApiResponse.success(null);
+    }
+
     // ==================== 地图变更 ====================
 
     /** 永久地图变更列表。 */

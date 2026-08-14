@@ -679,6 +679,45 @@ class AutoBattleDecisionProviderTest {
         assertEquals("SKILL_LEAVE_ALIVE", action.getSkillId());
     }
 
+    // ==================== 被动效果组识别（阶段 14） ====================
+
+    @Test
+    void killPassive_onKillAtkGroup_recognizedAndKillActionTaken() {
+        // 玩家携带 ON_KILL_ATK 组被动（乘胜追击类）：AI 应识别生效被动语义，
+        // 面对可击杀目标仍产出攻击行动（被动语义不破坏/不误判攻击决策）。
+        BattleUnit killer = unit("P_1", 100, 20, "SKILL_HIT");
+        PassiveSkillConfig killPassive = passive("PASSIVE_BOOK_ON_KILL_ATK", "ON_KILL_ATK");
+        killer.getPassives().add(killPassive);
+        // 唯一目标残血可击杀
+        BattleUnit e1 = unit("E_1", 100, 20, "SKILL_HIT");
+        e1.setCurrentHp(5);
+        BattleContext ctx = ctx(1L, List.of(active(killer)), List.of(active(e1)), "BALANCED");
+
+        // 被动已装配到单位（语义组被识别）
+        assertTrue(killer.getPassives().stream()
+                        .anyMatch(p -> "ON_KILL_ATK".equals(p.getEffectGroup())),
+                "ON_KILL_ATK 被动应装配到战斗单位");
+
+        BattleAction action = decide(ctx);
+
+        assertEquals("SKILL", action.getType(), "携带击杀被动时仍应产出攻击行动");
+        assertEquals("E_1", action.getTargetId());
+    }
+
+    @Test
+    void killPassive_unknownGroup_ignored() {
+        // 无关效果组被动不影响击杀决策（不因任意被动误判）
+        BattleUnit killer = unit("P_1", 100, 20, "SKILL_HIT", "SKILL_TINY");
+        killer.getPassives().add(passive("PASSIVE_BOOK_FORTIFY", "DEFENSE_BONUS"));
+        BattleUnit e1 = unit("E_1", 100, 20, "SKILL_HIT");
+        e1.setCurrentHp(5);
+        BattleUnit e2 = unit("E_2", 100, 20, "SKILL_HIT");
+        BattleContext ctx = ctx(1L, List.of(active(killer)), List.of(active(e1), active(e2)), "BALANCED");
+
+        BattleAction action = decide(ctx);
+        assertNotNull(action.getType(), "无关被动下仍应产出合法行动");
+    }
+
     // ==================== 定位 ====================
 
     @Test
@@ -921,6 +960,15 @@ class AutoBattleDecisionProviderTest {
         effect.setStatusId(statusId);
         effect.setChance(chance);
         return effect;
+    }
+
+    private static PassiveSkillConfig passive(String id, String effectGroup) {
+        PassiveSkillConfig p = new PassiveSkillConfig();
+        p.setId(id);
+        p.setName(id);
+        p.setEffectGroup(effectGroup);
+        p.setStackRule("HIGHEST_ONLY");
+        return p;
     }
 
     private static StatusEffectConfig status(String id, String category, boolean captureStun) {

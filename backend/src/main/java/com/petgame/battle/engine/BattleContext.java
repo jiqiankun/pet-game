@@ -47,6 +47,18 @@ public class BattleContext {
     /** Boss 难度（NORMAL/HARD/NIGHTMARE，阶段 7）。 */
     private String bossDifficulty;
 
+    /** 全局游戏难度快照（阶段 13）。 */
+    private String gameDifficulty;
+
+    /** Boss 遭遇快照 ID（阶段 13，非 Boss 战为 null）。 */
+    private Long bossSnapshotId;
+
+    /** Boss AI 稳健等级（阶段 13，来自遭遇快照）。 */
+    private int bossAiLevel = 1;
+
+    /** 本场 Boss 战的玩家有效等级上限；null 表示不压制。 */
+    private Integer playerLevelCap;
+
     /** true 时禁止 CAPTURE 行动（Boss 不可捕捉，阶段 7）。 */
     private boolean uncapturable;
 
@@ -85,6 +97,20 @@ public class BattleContext {
 
     /** 本场战斗全部事件序列。 */
     private List<BattleEvent> events = new ArrayList<>();
+
+    // ---- 开发者战斗调试标志（阶段 14，开战时由 DevContext 快照）----
+
+    /** 玩家方无敌：本场玩家方单位不受伤害。 */
+    private boolean playerInvincible;
+
+    /** 玩家方一击必杀：本场玩家方攻击直接击杀目标。 */
+    private boolean playerOneHitKill;
+
+    /** 玩家方固定暴击：本场玩家方攻击必定暴击。 */
+    private boolean playerFixedCrit;
+
+    /** 记录伤害明细与随机数序列（战斗调试信息）。 */
+    private boolean debugDamage;
 
     // ---- 新机制运行时数据（REV-006/REV-009）----
 

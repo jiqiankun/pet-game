@@ -22,6 +22,7 @@ import com.petgame.config.model.SkillsConfig;
 import com.petgame.config.model.StatusesConfig;
 import com.petgame.config.model.SystemRuleConfig;
 import com.petgame.config.model.TestBattleConfig;
+import com.petgame.config.model.VictoryInteractionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -62,6 +63,7 @@ public class GameConfigLoader {
     private static final String BUILD_RECOMMENDATIONS_YML = "builds/build-recommendations.yml";
     private static final String ACHIEVEMENTS_YML = "achievements/achievements.yml";
     private static final String BOSS_CHALLENGES_YML = "bosses/boss-challenges.yml";
+    private static final String VICTORY_INTERACTIONS_YML = "victory/victory-interactions.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -365,6 +367,23 @@ public class GameConfigLoader {
         BossChallengesConfig external = loadExternalYaml(BOSS_CHALLENGES_YML, BossChallengesConfig.class);
         if (external != null) {
             log.info("已加载外部 bosses/boss-challenges.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载敌方胜利互动配置（阶段 12）。
+     */
+    public VictoryInteractionConfig loadVictoryInteractionConfig() {
+        VictoryInteractionConfig config = loadInternalYaml(VICTORY_INTERACTIONS_YML, VictoryInteractionConfig.class);
+        if (config == null) {
+            config = new VictoryInteractionConfig();
+            log.warn("内部 victory/victory-interactions.yml 未找到，使用空胜利互动配置");
+        }
+        VictoryInteractionConfig external = loadExternalYaml(VICTORY_INTERACTIONS_YML, VictoryInteractionConfig.class);
+        if (external != null) {
+            log.info("已加载外部 victory/victory-interactions.yml 覆盖内部配置");
             config = external;
         }
         return config;

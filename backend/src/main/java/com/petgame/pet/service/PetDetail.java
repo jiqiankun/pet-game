@@ -125,5 +125,7 @@ public class PetDetail {
         private String source = "INNATE";
         /** 是否特色/专属被动。 */
         private boolean signature;
+        /** 启用槽位（阶段 14：技能书被动已启用时为 7~8，未启用为 null；固有被动恒为 null）。 */
+        private Integer slot;
     }
 }

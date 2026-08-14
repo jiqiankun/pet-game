@@ -223,6 +223,7 @@ battle/
 ├── event/        # BattleEvent、BattleEventType
 ├── passive/      # PassiveManager（被动触发时机/效果配置驱动）
 ├── ai/           # DecisionProvider 接口与敌方决策实现
+├── victory/      # 敌方胜利互动（阶段 12）：BattleDefeatContext、VictoryInteractionService、VictoryInteractionView
 ├── service/      # BattleService（战斗内存池）与快照 DTO
 └── controller/   # BattleController
 ```
@@ -688,3 +689,40 @@ config/model/SystemRuleConfig.PokedexRuleConfig  # 图鉴配置内部类（嵌�
   - `player_ambush_triggered`（save_id + ambush_id）一次性埋伏记录
   - `player_random_event_used`（save_id + event_id + session_id）会话事件去重
 - 迁移文件 `V8__phase10_tables.sql`，**禁止手工改表**。
+
+---
+
+## 22. 动态难度与 Boss 遭遇快照约定（阶段 13）
+
+- 全局难度仅由 `system.yml.gameDifficulty` 的 `NORMAL/ELITE/NIGHTMARE/HELL` 档位驱动；业务代码不得散落按难度 ID 的分支。
+- 地图正式野外遭遇必须调用 `WildEncounterService.generateEncounter(groupId, region, teamPets, difficulty, random)`：最终等级同时受地图边界、难度边界和游戏等级上限约束；队伍数量同时受刷新组、难度和标准上场位约束。
+- `BattleService` 是野外和 Boss 的唯一战斗装配入口；难度只决定临时 `BattleUnit`，不得改变宠物存档等级、经验、技能学习记录或自由点。
+- Boss 首次入场前由 `BossEncounterSnapshotService` 写入 `player_boss_encounter_snapshot`；唯一键为 `save_id + boss_id + boss_difficulty`。后续手动重试、自动挑战和服务重启后的挑战都只读取该快照。
+- 切换全局难度不改写既有快照；仅当当前全局难度与快照难度不同时，才允许显式重置，且同难度不得重掷。
+- `BattleLevelResolver` 必须复用 `PetGrowthService.freePointsEarned()` 与 `computePanelStatsAtLevel()`，以稳定最大余数法投影超出有效等级预算的自由点；战斗通用 `BattleUnit.level` 保存有效等级，`actualLevel` 仅作展示与结算回写参考。
+- V11 迁移新增 `player.game_difficulty` 与 Boss 快照表；所有存档结构变更仍只能经 Flyway 迁移完成。
+
+## 23. 存档备份与开发者工具约定（阶段 14）
+
+### 23.1 存档备份（`save` 模块）
+
+- 存档文件为自定义 `.pet-save.zip`，内部含 `manifest.json`（gameVersion / saveVersion / exportedAt / playerName）与 `save.json`（全量玩家逻辑数据），**不导出数据库物理文件、不落配置内容**，玩家数据只保存引用（species_id / skill_id 等）。
+- 版本职责分离：gameVersion 发布版本、saveVersion 存档结构版本、configVersion 配置结构版本；导入时仅校验 saveVersion（高于当前拒绝，等于 / 低于可导入）。
+- 导入流程固定为：校验文件 → 检查 saveVersion → **导入前自动备份当前存档** → 事务内导入 → 失败回滚；**导入前必须先自动备份**。
+- 快照以 `save_id` 为键读取 / 写入；仅 `player_pet`、`player_team` 两张自增主键被他人引用的表在导入时做 id 重映射（petId / teamId / petId 引用一并重映射），其余表无需重映射。
+- 自动备份触发点：导入前（`import-before`）、重置游戏前（`reset-before`）、开发者高风险操作前（`dev-before`）；**不做定时后台备份**。
+- 备份目录由 `game.backup-dir` 配置（默认 `./data/backups`）。
+
+### 23.2 开发者工具（`developer` 模块）
+
+- 开发者模式由 `game.developer-mode` 开关控制（默认关闭），`DevController(/api/dev/*)` 统一校验，未开启一律拒绝（`DEV_MODE_DISABLED`）。
+- 数据操作类工具（资源 / 宠物 / 地图 / Boss）由 `DevService` 实现；**高风险数据修改前必须调用 `SaveBackupService.createBackup("dev-before")` 自动备份**（备份失败不阻断开发者操作，仅记录日志）。
+- 全部开发者操作写入 `dev_operation_log`（action 形如 `dev.grantGold`，detail 为可读文本）。
+- 跨请求一次性标志（强制精英 / 强制随机事件）放入 `DevContext`（内存原子布尔），被 `WildEncounterService` / `RandomEventService` 消费后清除，写入端与消费端均不得在多处重复实现。
+- 战斗调试类（无敌 / 一击必杀 / 固定暴击 / 固定随机种子 / 伤害明细）与随机数调试本次未实现，留待阶段 14 后续子批次，禁止提前以临时实现补位。
+- V12 迁移新增 `dev_operation_log` 表。
+
+## 24. 前端存档备份与开发者工具约定（阶段 14）
+
+- 存档备份页 `/save-backup`：导出走浏览器直接下载（`/api/save/export` 返回二进制流，不走 JSON 拦截器）；导入走 `multipart/form-data` 上传。
+- 开发者工具页 `/dev-tools`：仅当 `gameStore.developerMode` 为真时在导航显示；未开启时页面提示需在服务端开启后重启。

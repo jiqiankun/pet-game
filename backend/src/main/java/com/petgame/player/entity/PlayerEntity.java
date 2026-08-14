@@ -25,6 +25,8 @@ public class PlayerEntity {
     private Long playTimeSeconds;
     /** 第一阶段通关标记（阶段 9，V7 迁移）。 */
     private Boolean storyCompleted;
+    /** 全局游戏难度：NORMAL/ELITE/NIGHTMARE/HELL（阶段 13）。 */
+    private String gameDifficulty;
     // ---- 自动战斗偏好（阶段 10，V9 迁移；自动开关本身按战斗存在 BattleContext）----
     /** 自动战斗策略：BALANCED/AGGRESSIVE/DEFENSIVE/CAPTURE（默认 BALANCED）。 */
     private String autoStrategy;
