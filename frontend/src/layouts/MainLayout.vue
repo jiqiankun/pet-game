@@ -9,7 +9,7 @@ import TutorialOverlay from '../views/Quest/components/TutorialOverlay.vue'
     <header class="app-header">
       <div class="header-brand">
         <h1 class="header-title">宠物精灵</h1>
-        <span class="header-badge">Phase 9</span>
+        <span class="header-badge">Phase 10</span>
       </div>
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>
@@ -22,6 +22,7 @@ import TutorialOverlay from '../views/Quest/components/TutorialOverlay.vue'
         <RouterLink to="/pokedex">图鉴</RouterLink>
         <RouterLink to="/boss">Boss</RouterLink>
         <RouterLink to="/inventory">背包</RouterLink>
+        <RouterLink to="/shop">商店</RouterLink>
         <RouterLink to="/quest">任务</RouterLink>
         <RouterLink to="/achievement">成就</RouterLink>
         <RouterLink to="/statistics">统计</RouterLink>

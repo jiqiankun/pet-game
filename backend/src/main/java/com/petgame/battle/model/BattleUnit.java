@@ -181,7 +181,9 @@ public class BattleUnit {
         private int baseSpeedOffset;
         /** 额外技能 ID（低概率携带的稀有技能）。 */
         private List<String> extraSkillIds = new ArrayList<>();
-        /** 特殊外观标记（null = 无）。 */
+        /** 特殊外观标记（null = 无，阶段 10 多变体：APPEARANCE_SHINY/APPEARANCE_GLOW 等）。 */
         private String specialAppearance;
+        /** 是否精英个体（阶段 10，需求 §57）。 */
+        private boolean elite = false;
     }
 }

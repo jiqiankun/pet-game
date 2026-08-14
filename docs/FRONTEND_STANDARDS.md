@@ -300,3 +300,30 @@ frontend/
 ### 18.5 首页主线摘要
 
 - **HomeView** 新增「当前主线」卡片：任务名称 + 描述 + 当前目标进度条 + 「查看全部」链接跳转 `/quest`。
+
+---
+
+## 19. 商店/技能书/推荐Build/战斗加速约定（阶段 10 起）
+
+### 19.1 商店页（Shop）
+
+- **类型定义**：`types/shop.ts`（`ShopItemView`、`ShopView`、`BuyResult`）。
+- **Store**：`stores/shop.ts`（`useShopStore`），方法 `loadShop()` / `buyItem(itemId, quantity)`，购买成功后同步本地金币。
+- **ShopView**（`/shop`）：金币栏 + 商品卡片网格（名称/分类/描述/价格/数量加减/购买按钮）；未解锁商品置灰并显示解锁提示；购买成功/失败提示条。
+
+### 19.2 宠物页技能书与推荐 Build
+
+- `types/pet.ts` 的 `PetDetail` 新增 `bookSkillSlots`（书槽 5~6）/ `learnedBookSkills` / `bookSkillLearnCount`（/10）。
+- PetView 技能标签新增「技能书主动技能」区：书槽装备/卸下、学习输入（道具 ID，满 10 时需选遗忘目标）、已学列表（装备到书槽/遗忘）。
+- PetView 新增「推荐方案」标签页：`GET /api/pets/{petId}/build-recommendations` 懒加载（切入标签时才请求），展示加点优先级 + 推荐技能，纯展示不可操作。
+
+### 19.3 探索页随机事件与精英标识
+
+- ExploreView 进入区域（onMounted / 出口移动后）调用 `GET /api/maps/events/roll`，返回事件时弹出事件对话框（描述 + 选项按钮），选择后 `POST /api/maps/events/resolve` 展示结果；TRIGGER_BATTLE 结果自动跳转战斗页。
+- 遭遇对话框支持精英标识（`WildTouchPayload.elite` 可选字段，金色提示条）。
+
+### 19.4 战斗加速（BattleView）
+
+- 战斗头部新增速度控制：1x / 2x / 3x 按钮 + 「自动」开关；自动模式按速度档位（1500/600/200ms）自动提交回合（未选行动宠物自动防御）。
+- 战斗结束/离开页面时自动停止自动播放（`onBeforeUnmount` 清理定时器）。
+- `UnitSnapshot` 新增 `elite` 字段，敌方卡片展示「✨精英」徽章。

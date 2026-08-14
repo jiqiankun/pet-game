@@ -44,6 +44,9 @@ public class GameConfigRegistry {
     private MapsConfig mapsConfig;
     private BossesConfig bossesConfig;
     private QuestsConfig questsConfig;
+    private ShopConfig shopConfig;
+    private RandomEventsConfig randomEventsConfig;
+    private BuildRecommendationConfig buildRecommendationsConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -107,12 +110,15 @@ public class GameConfigRegistry {
         this.mapsConfig = loader.loadMapsConfig();
         this.bossesConfig = loader.loadBossesConfig();
         this.questsConfig = loader.loadQuestsConfig();
+        this.shopConfig = loader.loadShopConfig();
+        this.randomEventsConfig = loader.loadRandomEventsConfig();
+        this.buildRecommendationsConfig = loader.loadBuildRecommendationsConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
                 skillsConfig, statusesConfig, testBattleConfig, itemsConfig,
                 petsConfig, encountersConfig, releaseGiftsConfig, mapsConfig,
-                bossesConfig, questsConfig);
+                bossesConfig, questsConfig, shopConfig, randomEventsConfig, buildRecommendationsConfig);
 
         // 构建索引
         buildElementIndex();
@@ -126,7 +132,7 @@ public class GameConfigRegistry {
         buildBossIndex();
         buildQuestIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss，{} 个商店商品，{} 个随机事件，{} 个推荐 Build",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
                 initialPetsConfig.getInitialPets().size(),
@@ -138,7 +144,10 @@ public class GameConfigRegistry {
                 encountersConfig.getEncounterGroups().size(),
                 mapsConfig.getRegions().size(),
                 bossesConfig.getBosses().size(),
-                questsConfig.getQuests().size());
+                questsConfig.getQuests().size(),
+                shopConfig.getShopItems().size(),
+                randomEventsConfig.getRandomEvents() != null ? randomEventsConfig.getRandomEvents().size() : 0,
+                buildRecommendationsConfig.getRecommendations() != null ? buildRecommendationsConfig.getRecommendations().size() : 0);
     }
 
     // ---- 查询方法 ----
@@ -206,6 +215,21 @@ public class GameConfigRegistry {
     /** 获取任务配置（只读使用，阶段 9）。 */
     public QuestsConfig getQuestsConfig() {
         return questsConfig;
+    }
+
+    /** 获取商店配置（只读使用，阶段 10）。 */
+    public ShopConfig getShopConfig() {
+        return shopConfig;
+    }
+
+    /** 获取随机事件配置（只读使用，阶段 10）。 */
+    public RandomEventsConfig getRandomEventsConfig() {
+        return randomEventsConfig;
+    }
+
+    /** 获取推荐 Build 配置（只读使用，阶段 10）。 */
+    public BuildRecommendationConfig getBuildRecommendationsConfig() {
+        return buildRecommendationsConfig;
     }
 
     /** 根据任务 ID 获取任务配置，不存在返回 null（阶段 9）。 */

@@ -506,6 +506,21 @@ skills:
     cooldown: 2
     accuracy: 0.90
 
+  - id: SKILL_THUNDERBOLT
+    name: 雷霆万钧
+    description: 雷属性强力单体法术攻击，小概率麻痹目标。
+    element: THUNDER
+    rarity: RARE
+    damageType: MAGICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 55
+    scaling: { spirit: 1.20 }
+    cooldown: 2
+    accuracy: 0.95
+    effects:
+      - { type: APPLY_STATUS, statusId: PARALYSIS, chance: 0.20 }
+
   - id: SKILL_HOLY_LIGHT
     name: 圣光
     description: 治疗己方单体。
@@ -665,6 +680,223 @@ skills:
     accuracy: 1.0
     effects:
       - { type: APPLY_STATUS, statusId: DEF_UP, chance: 1.0 }
+
+  # ---------- 技能书技能（阶段 10：source=BOOK） ----------
+
+  - id: SKILL_BOOK_LEAVE_ALIVE
+    name: 留生一击
+    description: 致死时将可捕捉目标 HP 保留为 1 并附加震慑。Boss 正常受伤但不附加震慑。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 25
+    scaling: { strength: 0.6 }
+    cooldown: 3
+    accuracy: 1.0
+    tags: [CAPTURE_ASSIST, FINISHER]
+    effects:
+      - { type: LEAVE_AT_ONE_HP, chance: 1.0 }
+      - { type: APPLY_STATUS, statusId: CAPTURE_STUN, chance: 1.0, capturableOnly: true, onProtect: true }
+      - { type: REMOVE_STATUS, chance: 1.0, dotOnly: true, onProtect: true }
+
+  - id: SKILL_BOOK_LIFE_DRAIN
+    name: 吸血之牙
+    description: 暗属性物理攻击，造成伤害并恢复自身 HP。
+    source: BOOK
+    element: DARK
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 40
+    scaling: { strength: 1.0 }
+    cooldown: 2
+    accuracy: 0.95
+    tags: [DAMAGE, LIFE_STEAL]
+    effects:
+      - { type: LIFE_STEAL, percent: 0.30, chance: 1.0 }
+
+  - id: SKILL_BOOK_SHIELD_BREAK
+    name: 破盾击
+    description: 金物理攻击，移除目标护盾并造成伤害。
+    source: BOOK
+    element: METAL
+    rarity: NORMAL
+    damageType: PHYSICAL
+    effectType: DAMAGE
+    target: ENEMY_SINGLE
+    baseValue: 45
+    scaling: { strength: 1.1 }
+    cooldown: 2
+    accuracy: 0.95
+    tags: [DAMAGE, SHIELD_BREAK]
+    effects:
+      - { type: DISPEL, categories: [BUFF], chance: 1.0 }
+
+  - id: SKILL_BOOK_DISPEL
+    name: 驱散之光
+    description: 光属性法术，移除目标身上的增益效果。
+    source: BOOK
+    element: LIGHT
+    rarity: NORMAL
+    damageType: MAGICAL
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 20
+    scaling: { spirit: 0.5 }
+    cooldown: 2
+    accuracy: 0.95
+    tags: [DISPEL]
+    effects:
+      - { type: DISPEL, categories: [BUFF], chance: 1.0 }
+
+  - id: SKILL_BOOK_IRON_DEFENSE
+    name: 铁壁
+    description: 大幅提升自身防御（3 回合）。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    tags: [SURVIVAL]
+    effects:
+      - { type: APPLY_STATUS, statusId: DEF_UP, chance: 1.0 }
+
+  - id: SKILL_BOOK_AGILITY
+    name: 疾风步
+    description: 大幅提升自身速度（3 回合）。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    tags: [SURVIVAL, ACTION_ORDER]
+    effects:
+      - { type: APPLY_STATUS, statusId: SPD_UP, chance: 1.0 }
+
+  - id: SKILL_BOOK_FOCUS_ENERGY
+    name: 集气
+    description: 集中精神，提升自身伤害输出（2 回合）。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 4
+    accuracy: 1.0
+    tags: [DAMAGE]
+    effects:
+      - { type: APPLY_STATUS, statusId: ATK_UP, chance: 1.0 }
+
+  - id: SKILL_BOOK_TOXIC
+    name: 剧毒
+    description: 使目标陷入剧毒状态，每回合损失递增 HP。
+    source: BOOK
+    element: DARK
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: ENEMY_SINGLE
+    baseValue: 0
+    cooldown: 3
+    accuracy: 0.90
+    tags: [CONTROL]
+    effects:
+      - { type: APPLY_STATUS, statusId: POISON, chance: 1.0 }
+
+  - id: SKILL_BOOK_TAUNT
+    name: 嘲讽
+    description: 迫使敌方优先攻击自己（2 回合）。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 4
+    accuracy: 1.0
+    tags: [SURVIVAL]
+    effects:
+      - { type: APPLY_STATUS, statusId: TAUNT, chance: 1.0 }
+
+  - id: SKILL_BOOK_HEAL_BELL
+    name: 治愈铃音
+    description: 恢复全体友方少量 HP。
+    source: BOOK
+    element: LIGHT
+    rarity: NORMAL
+    damageType: NONE
+    effectType: HEAL
+    target: ALLY_ALL
+    baseValue: 30
+    scaling: { spirit: 0.40 }
+    cooldown: 3
+    accuracy: 1.0
+    tags: [HEAL]
+
+  - id: SKILL_BOOK_COUNTER
+    name: 反击
+    description: 进入反击姿态，受到物理攻击时反弹 30% 伤害（2 回合）。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 4
+    accuracy: 1.0
+    tags: [SURVIVAL]
+    effects:
+      - { type: APPLY_STATUS, statusId: COUNTER, chance: 1.0 }
+
+  - id: SKILL_BOOK_BULK_UP
+    name: 健美
+    description: 提升自身力量与防御。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    tags: [SURVIVAL]
+    effects:
+      - { type: APPLY_STATUS, statusId: ATK_UP, chance: 1.0 }
+      - { type: APPLY_STATUS, statusId: DEF_UP, chance: 1.0 }
+
+  - id: SKILL_BOOK_CALM_MIND
+    name: 冒想
+    description: 提升自身伤害输出与抗性。
+    source: BOOK
+    element: NONE
+    rarity: NORMAL
+    damageType: NONE
+    effectType: NONE
+    target: SELF
+    baseValue: 0
+    cooldown: 3
+    accuracy: 1.0
+    tags: [SURVIVAL]
+    effects:
+      - { type: APPLY_STATUS, statusId: ATK_UP, chance: 1.0 }
+      - { type: APPLY_STATUS, statusId: SPDEF_UP, chance: 1.0 }
 
 # ---------- 被动技能 ----------
 

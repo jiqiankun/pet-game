@@ -14,10 +14,12 @@ import com.petgame.map.entity.PlayerRegionUnlockEntity;
 import com.petgame.map.mapper.PlayerCampActivationMapper;
 import com.petgame.map.mapper.PlayerChestLootMapper;
 import com.petgame.map.mapper.PlayerGatherUsedMapper;
+import com.petgame.quest.mapper.PlayerMapChangeMapper;
 import com.petgame.map.mapper.PlayerMapSessionMapper;
 import com.petgame.map.mapper.PlayerRegionUnlockMapper;
 import com.petgame.map.service.MapExplorationService;
 import com.petgame.pet.domain.PetGrowthService;
+import com.petgame.quest.service.QuestService;
 import com.petgame.pet.entity.PlayerPetEntity;
 import com.petgame.pet.mapper.PlayerPetMapper;
 import com.petgame.player.entity.PlayerEntity;
@@ -74,6 +76,10 @@ class MapExplorationServiceTest {
     private PlayerMapSessionMapper mapSessionMapper;
     @Mock
     private PlayerGatherUsedMapper gatherUsedMapper;
+    @Mock
+    private QuestService questService;
+    @Mock
+    private PlayerMapChangeMapper playerMapChangeMapper;
 
     private GameConfigRegistry registry;
     private MapExplorationService mapService;
@@ -92,7 +98,7 @@ class MapExplorationServiceTest {
         mapService = new MapExplorationService(registry, growthService,
                 playerMapper, playerPetMapper, playerTeamMapper, playerTeamMemberMapper,
                 playerInventoryMapper, regionUnlockMapper, campActivationMapper,
-                chestLootMapper, mapSessionMapper, gatherUsedMapper);
+                chestLootMapper, mapSessionMapper, gatherUsedMapper, questService, playerMapChangeMapper);
 
         player = new PlayerEntity();
         player.setId(1L);
@@ -119,8 +125,8 @@ class MapExplorationServiceTest {
         MapExplorationService.WorldMapView view = mapService.getWorldMap();
 
         assertEquals("MAP_START_VILLAGE", view.getCurrentMapId());
-        // 已实装区域 = 据点 + 初始区域 + 森林区域（结构预留不展示）
-        assertEquals(3, view.getRegions().size());
+        // 已实装区域 = 6 个（阶段 9 全部开放：3 AUTO + 3 QUEST）
+        assertEquals(6, view.getRegions().size());
         assertTrue(view.getRegions().stream().allMatch(
                 MapExplorationService.WorldMapView.RegionView::isUnlocked));
         // AUTO 解锁懒写入（3 个 AUTO 区域）
@@ -168,7 +174,7 @@ class MapExplorationServiceTest {
     void enterRegion_plannedRegion_throwsNotFound() {
         unlockAllAutoRegions();
         BusinessException e = assertThrows(BusinessException.class,
-                () -> mapService.enterRegion("MAP_AREA_RUINS", null));
+                () -> mapService.enterRegion("MAP_AREA_NOT_EXISTS", null));
         assertEquals("REGION_NOT_FOUND", e.getErrorCode());
     }
 

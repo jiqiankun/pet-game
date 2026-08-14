@@ -46,6 +46,7 @@ public class BossService {
     private final GameConfigRegistry registry;
     private final BossDecisionProvider bossDecisionProvider;
     private final WildEnemyDecisionProvider wildEnemyDecisionProvider;
+    private final com.petgame.battle.ai.AutoBattleDecisionProvider autoBattleDecisionProvider;
     private final BattleService battleService;
     private final PlayerMapper playerMapper;
     private final PlayerInventoryMapper playerInventoryMapper;
@@ -58,6 +59,7 @@ public class BossService {
     public BossService(GameConfigRegistry registry,
                        BossDecisionProvider bossDecisionProvider,
                        WildEnemyDecisionProvider wildEnemyDecisionProvider,
+                       com.petgame.battle.ai.AutoBattleDecisionProvider autoBattleDecisionProvider,
                        BattleService battleService,
                        PlayerMapper playerMapper,
                        PlayerInventoryMapper playerInventoryMapper,
@@ -69,6 +71,7 @@ public class BossService {
         this.registry = registry;
         this.bossDecisionProvider = bossDecisionProvider;
         this.wildEnemyDecisionProvider = wildEnemyDecisionProvider;
+        this.autoBattleDecisionProvider = autoBattleDecisionProvider;
         this.battleService = battleService;
         this.playerMapper = playerMapper;
         this.playerInventoryMapper = playerInventoryMapper;
@@ -183,9 +186,9 @@ public class BossService {
             String battleId = battleService.createBossBattle(saveId, boss, diffConfig, bossId, difficulty, null);
             BattleContext ctx = battleService.getBattleContext(battleId);
 
-            // 创建独立引擎跑完整战斗（敌方 = BossDecisionProvider，玩家方 = 自动 AI）
+            // 创建独立引擎跑完整战斗（敌方 = BossDecisionProvider，玩家方 = 自动战斗 AI，阶段 10）
             BattleEngine autoEngine = new BattleEngine(registry, bossDecisionProvider);
-            autoEngine.runFullBattle(ctx, wildEnemyDecisionProvider);
+            autoEngine.runFullBattle(ctx, autoBattleDecisionProvider);
 
             // 结算
             boolean playerWon = "PLAYER".equals(ctx.getWinner());

@@ -1,16 +1,126 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useBattleStore, isActiveAlive } from '../../stores/battle'
 import { useGameStore } from '../../stores/game'
 import { useMapStore } from '../../stores/map'
 import { apiGet } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
-import type { BattleAction, UnitSnapshot } from '../../types/battle'
+import type { AutoStrategy, BattleAction, UnitSnapshot } from '../../types/battle'
 import type { InventoryItemView } from '../../types/pet'
 
 const battleStore = useBattleStore()
 const gameStore = useGameStore()
 const mapStore = useMapStore()
+
+// 战斗速度控制（阶段 10：1x / 2x / 3x）
+const battleSpeed = ref<1 | 2 | 3>(1)
+const autoPlay = ref(false)
+let autoPlayTimer: ReturnType<typeof setInterval> | null = null
+
+/** 速度对应的自动回合间隔（毫秒） */
+const speedInterval = computed(() => {
+  const map = { 1: 1500, 2: 600, 3: 200 }
+  return map[battleSpeed.value]
+})
+
+function setSpeed(s: 1 | 2 | 3) {
+  battleSpeed.value = s
+  if (autoPlay.value) restartAutoPlay()
+}
+
+function toggleAutoPlay() {
+  autoPlay.value = !autoPlay.value
+  if (autoPlay.value) {
+    restartAutoPlay()
+  } else {
+    stopAutoPlay()
+  }
+}
+
+function restartAutoPlay() {
+  stopAutoPlay()
+  autoPlayTimer = setInterval(async () => {
+    if (snapshot.value?.finished || battleStore.loading) {
+      stopAutoPlay()
+      autoPlay.value = false
+      return
+    }
+    // 自动提交回合（未选行动的宠物自动防御）
+    await battleStore.submitActions()
+  }, speedInterval.value)
+}
+
+function stopAutoPlay() {
+  if (autoPlayTimer) {
+    clearInterval(autoPlayTimer)
+    autoPlayTimer = null
+  }
+}
+
+// ==================== 自动战斗策略（阶段 10） ====================
+
+/** 策略选项（后端四套预设）。 */
+const strategyOptions: Array<{ value: AutoStrategy; label: string; desc: string }> = [
+  { value: 'BALANCED', label: '均衡', desc: '攻击/治疗/控制平衡，默认推荐' },
+  { value: 'AGGRESSIVE', label: '进攻', desc: '尽快结束战斗，强化斩杀与克制打击' },
+  { value: 'DEFENSIVE', label: '稳健', desc: '降低死亡风险，提前恢复与换宠' },
+  { value: 'CAPTURE', label: '捕捉', desc: '安全削血压至 1HP，避免误杀后捕捉' },
+]
+
+const autoPanelOpen = ref(false)
+const autoStrategy = ref<AutoStrategy>('BALANCED')
+const autoSwitch = ref(true)
+const autoSwitchHpThreshold = ref(25)
+const autoUseRecoveryItem = ref(false)
+const autoRecoveryHpThreshold = ref(35)
+const autoRevive = ref(false)
+const captureTargetId = ref<string | null>(null)
+
+/** 开启/关闭自动战斗（策略与开关同步持久化到玩家存档）。 */
+async function toggleAutoBattle() {
+  if (!snapshot.value) return
+  try {
+    await battleStore.configureAuto(snapshot.value.battleId, {
+      enabled: !battleStore.autoEnabled,
+      strategy: autoStrategy.value,
+      autoSwitch: autoSwitch.value,
+      autoSwitchHpThreshold: autoSwitchHpThreshold.value,
+      autoUseRecoveryItem: autoUseRecoveryItem.value,
+      autoRecoveryHpThreshold: autoRecoveryHpThreshold.value,
+      autoRevive: autoRevive.value,
+      captureTargetId: captureTargetId.value,
+    })
+    // 开启自动时联动启动自动播放（按速度档位自动提交回合）
+    if (battleStore.autoEnabled && !autoPlay.value && !snapshot.value.finished) {
+      autoPlay.value = true
+      restartAutoPlay()
+    }
+    if (!battleStore.autoEnabled) {
+      captureTargetId.value = null
+    }
+  } catch {
+    // 错误已写入 store.error
+  }
+}
+
+/** 仅保存策略/开关偏好（保持当前开关状态）。 */
+async function saveAutoPreference() {
+  if (!snapshot.value) return
+  try {
+    await battleStore.configureAuto(snapshot.value.battleId, {
+      enabled: battleStore.autoEnabled,
+      strategy: autoStrategy.value,
+      autoSwitch: autoSwitch.value,
+      autoSwitchHpThreshold: autoSwitchHpThreshold.value,
+      autoUseRecoveryItem: autoUseRecoveryItem.value,
+      autoRecoveryHpThreshold: autoRecoveryHpThreshold.value,
+      autoRevive: autoRevive.value,
+      captureTargetId: captureTargetId.value,
+    })
+  } catch {
+    // 错误已写入 store.error
+  }
+}
 
 // 固定种子输入（开发者模式复现用，可留空）
 const seedInput = ref('')
@@ -44,6 +154,28 @@ const needDestChoice = computed(() => {
 
 onMounted(() => {
   battleStore.loadSkillConfig()
+  battleStore.loadAutoPreference()
+})
+
+// 新战斗开始/偏好加载完成时，同步面板表单默认值
+watch(
+  () => [snapshot.value?.battleId, battleStore.autoPreference],
+  () => {
+    const pref = battleStore.autoPreference
+    if (pref) {
+      autoStrategy.value = pref.strategy
+      autoSwitch.value = pref.autoSwitch
+      autoSwitchHpThreshold.value = pref.autoSwitchHpThreshold
+      autoUseRecoveryItem.value = pref.autoUseRecoveryItem
+      autoRecoveryHpThreshold.value = pref.autoRecoveryHpThreshold
+      autoRevive.value = pref.autoRevive
+    }
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  stopAutoPlay()
 })
 
 /** 加载背包中的捕捉球（野生战斗用）。 */
@@ -76,10 +208,14 @@ watch(
   },
 )
 
-/** 战斗结束时自动结算；需去向选择时等待玩家确认（阶段 5）。 */
+/** 战斗结束时自动停止自动播放 */
 watch(
   () => snapshot.value?.finished,
   (finished) => {
+    if (finished) {
+      stopAutoPlay()
+      autoPlay.value = false
+    }
     if (finished && !settlement.value) {
       captureMode.value = null
       if (needDestChoice.value) {
@@ -265,9 +401,98 @@ async function handleLeave() {
         <span v-if="snapshot.finished" class="result-badge" :class="snapshot.fled ? 'flee' : snapshot.winner === 'PLAYER' ? 'win' : 'lose'">
           {{ snapshot.fled ? '已逃跑' : snapshot.winner === 'PLAYER' ? '胜利' : '失败' }}
         </span>
+        <!-- 战斗速度控制（阶段 10） -->
+        <div class="speed-control">
+          <span class="speed-label">速度</span>
+          <button
+            v-for="s in ([1, 2, 3] as const)"
+            :key="s"
+            class="speed-btn"
+            :class="{ active: battleSpeed === s }"
+            @click="setSpeed(s)"
+          >{{ s }}x</button>
+          <button
+            v-if="!snapshot.finished"
+            class="auto-btn"
+            :class="{ active: autoPlay }"
+            @click="toggleAutoPlay"
+          >{{ autoPlay ? '自动中' : '自动' }}</button>
+        </div>
         <button v-if="snapshot.finished && !needDestChoice" class="btn-secondary small" :disabled="battleStore.loading" @click="handleLeave">
           {{ settlement ? '返回' : '结算中...' }}
         </button>
+      </div>
+
+      <!-- 自动战斗策略面板（阶段 10） -->
+      <div v-if="!snapshot.finished" class="auto-battle-panel">
+        <div class="auto-battle-bar">
+          <button
+            class="auto-battle-toggle"
+            :class="{ active: battleStore.autoEnabled }"
+            :disabled="battleStore.loading"
+            @click="toggleAutoBattle"
+          >
+            {{ battleStore.autoEnabled ? '■ 停止自动战斗' : '▶ 自动战斗' }}
+          </button>
+          <span v-if="battleStore.autoEnabled" class="auto-strategy-tag">
+            {{ strategyOptions.find(s => s.value === autoStrategy)?.label }}策略
+          </span>
+          <button class="btn-link" @click="autoPanelOpen = !autoPanelOpen">
+            {{ autoPanelOpen ? '收起设置' : '策略设置' }}
+          </button>
+        </div>
+        <div v-if="autoPanelOpen" class="auto-battle-settings">
+          <div class="setting-row">
+            <span class="setting-label">策略预设</span>
+            <div class="strategy-options">
+              <label
+                v-for="opt in strategyOptions"
+                :key="opt.value"
+                class="strategy-option"
+                :class="{ active: autoStrategy === opt.value }"
+              >
+                <input v-model="autoStrategy" type="radio" name="autoStrategy" :value="opt.value" />
+                <span class="strategy-name">{{ opt.label }}</span>
+                <span class="strategy-desc">{{ opt.desc }}</span>
+              </label>
+            </div>
+          </div>
+          <div v-if="autoStrategy === 'CAPTURE'" class="setting-row">
+            <span class="setting-label">捕捉目标</span>
+            <select v-model="captureTargetId" class="setting-select">
+              <option :value="null">自动选择（最低 HP 可捕捉敌人）</option>
+              <option
+                v-for="enemy in snapshot.enemyUnits.filter(u => u.alive && !u.captured)"
+                :key="enemy.unitId"
+                :value="enemy.unitId"
+              >{{ enemy.name }} Lv.{{ enemy.level }}</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label class="setting-check">
+              <input v-model="autoSwitch" type="checkbox" />
+              自动换宠（HP 低于
+              <input v-model.number="autoSwitchHpThreshold" type="number" min="5" max="80" class="threshold-input" />% 时考虑）
+            </label>
+          </div>
+          <div class="setting-row">
+            <label class="setting-check">
+              <input v-model="autoUseRecoveryItem" type="checkbox" />
+              自动使用恢复道具（默认关闭；HP 低于
+              <input v-model.number="autoRecoveryHpThreshold" type="number" min="5" max="80" class="threshold-input" />% 时使用）
+            </label>
+          </div>
+          <div class="setting-row">
+            <label class="setting-check">
+              <input v-model="autoRevive" type="checkbox" />
+              自动复苏倒下宠物（默认关闭）
+            </label>
+          </div>
+          <div class="setting-actions">
+            <button class="btn-secondary small" :disabled="battleStore.loading" @click="saveAutoPreference">保存设置</button>
+            <span class="setting-hint">消耗型道具默认关闭，不会静默消耗资源</span>
+          </div>
+        </div>
       </div>
 
       <!-- 捕捉去向选择（需求 §48：队伍未满 6 只可直接入队） -->
@@ -377,6 +602,7 @@ async function handleLeave() {
             <div class="unit-name">
               {{ unit.name }} <span class="unit-element">{{ unit.element }}</span>
               <span class="unit-level">Lv.{{ unit.level }}</span>
+              <span v-if="unit.elite" class="elite-badge">✨精英</span>
             </div>
             <div class="hp-bar">
               <div class="hp-fill" :style="{ width: hpPercent(unit) + '%' }"></div>
@@ -497,7 +723,10 @@ async function handleLeave() {
       </div>
 
       <!-- 回合提交 -->
-      <div v-if="!snapshot.finished" class="turn-actions">
+      <div v-if="!snapshot.finished && battleStore.autoEnabled" class="turn-actions">
+        <span class="auto-running-hint">自动战斗中：行动由 AI 决策（{{ strategyOptions.find(s => s.value === autoStrategy)?.label }}），点击上方按钮可停止</span>
+      </div>
+      <div v-else-if="!snapshot.finished" class="turn-actions">
         <button class="btn-primary" :disabled="battleStore.loading" @click="battleStore.submitActions()">
           {{ battleStore.loading ? '结算中...' : '结束回合' }}
         </button>
@@ -572,6 +801,204 @@ async function handleLeave() {
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 14px;
+}
+
+/* 战斗速度控制（阶段 10） */
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.speed-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-right: 2px;
+}
+
+.speed-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.speed-btn.active {
+  background-color: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.auto-btn {
+  padding: 2px 10px;
+  border: 1px solid var(--color-secondary, #6c757d);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 4px;
+  transition: all 0.15s;
+}
+
+.auto-btn.active {
+  background-color: var(--color-success, #38a169);
+  color: #fff;
+  border-color: var(--color-success, #38a169);
+}
+
+/* 精英个体标识（阶段 10） */
+.elite-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f6d365, #fda085);
+  color: #7a4a00;
+  font-weight: 700;
+  border: 1px solid #e6a817;
+}
+
+/* 自动战斗策略面板（阶段 10） */
+.auto-battle-panel {
+  background-color: var(--bg-card);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.auto-battle-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auto-battle-toggle {
+  padding: 6px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.auto-battle-toggle.active {
+  background-color: var(--color-danger, #e53e3e);
+}
+
+.auto-battle-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auto-strategy-tag {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background-color: rgba(56, 161, 105, 0.12);
+  color: var(--color-success, #38a169);
+  font-weight: 600;
+}
+
+.auto-battle-settings {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-row {
+  font-size: 13px;
+}
+
+.setting-label {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.strategy-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.strategy-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.strategy-option.active {
+  border-color: var(--color-primary);
+  background-color: rgba(74, 144, 217, 0.06);
+}
+
+.strategy-option input {
+  display: none;
+}
+
+.strategy-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.strategy-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.setting-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.threshold-input {
+  width: 52px;
+  padding: 2px 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.setting-select {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-width: 320px;
+}
+
+.setting-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setting-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.auto-running-hint {
+  font-size: 13px;
+  color: var(--color-success, #38a169);
+  font-weight: 600;
 }
 
 .order-bar {

@@ -102,10 +102,12 @@ class GameConfigMapValidateTest {
 
     @Test
     void exitTargetPlannedRegion_shouldFail() {
+        // 当前配置已全部实装，构造一个结构预留区域作为出口目标
+        addPlannedRegion("MAP_AREA_FAKE_PLANNED");
         maps.getRegions().stream()
                 .filter(r -> "MAP_AREA_MEADOW".equals(r.getId()))
                 .findFirst().orElseThrow()
-                .getExits().get(0).setTargetMapId("MAP_AREA_RUINS");
+                .getExits().get(0).setTargetMapId("MAP_AREA_FAKE_PLANNED");
 
         assertThrows(IllegalStateException.class, () -> validateAll(maps));
     }
@@ -132,8 +134,22 @@ class GameConfigMapValidateTest {
 
     @Test
     void initialMapIdPlannedRegion_shouldFail() {
-        initialPets.setInitialMapId("MAP_AREA_RUINS");
+        // 当前配置已全部实装，构造一个结构预留区域作为初始地图
+        addPlannedRegion("MAP_AREA_FAKE_PLANNED");
+        initialPets.setInitialMapId("MAP_AREA_FAKE_PLANNED");
 
         assertThrows(IllegalStateException.class, () -> validateAll(maps));
+    }
+
+    /** 构造一个结构预留区域（planned=true）用于负面用例。 */
+    private void addPlannedRegion(String regionId) {
+        MapsConfig.RegionConfig planned = new MapsConfig.RegionConfig();
+        planned.setId(regionId);
+        planned.setName("测试预留区域");
+        planned.setPlanned(true);
+        planned.setUnlockType("BOSS");
+        List<MapsConfig.RegionConfig> regions = new ArrayList<>(maps.getRegions());
+        regions.add(planned);
+        maps.setRegions(regions);
     }
 }

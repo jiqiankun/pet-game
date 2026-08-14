@@ -24,6 +24,8 @@ import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.team.mapper.PlayerTeamMapper;
 import com.petgame.team.mapper.PlayerTeamMemberMapper;
 import com.petgame.team.service.TeamService;
+import com.petgame.pokedex.service.PokedexService;
+import com.petgame.quest.service.QuestService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -75,6 +77,10 @@ class BattleServiceSettlementTest {
     private TeamService teamService;
     @Mock
     private com.petgame.map.service.MapExplorationService mapExplorationService;
+    @Mock
+    private PokedexService pokedexService;
+    @Mock
+    private QuestService questService;
 
     private GameConfigRegistry registry;
     private PetGrowthService growthService;
@@ -97,9 +103,11 @@ class BattleServiceSettlementTest {
 
         battleService = new BattleService(registry, enemyDecisionProvider,
                 new BossDecisionProvider(registry),
+                new com.petgame.battle.ai.AutoBattleDecisionProvider(registry),
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                growthService, wildEncounterService, teamService, mapExplorationService);
+                growthService, wildEncounterService, teamService, mapExplorationService,
+                pokedexService, questService);
     }
 
     // ==================== 玩家胜：HP 回写 + 奖励发放 ====================
@@ -356,9 +364,11 @@ class BattleServiceSettlementTest {
         PetGrowthService customGrowth = new PetGrowthService(customRegistry);
         BattleService customService = new BattleService(customRegistry, enemyDecisionProvider,
                 new BossDecisionProvider(customRegistry),
+                new com.petgame.battle.ai.AutoBattleDecisionProvider(customRegistry),
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
-                customGrowth, wildEncounterService, teamService, mapExplorationService);
+                customGrowth, wildEncounterService, teamService, mapExplorationService,
+                pokedexService, questService);
 
         BattleUnit unit1 = playerUnit("P_1", 1L, 100, 50);
         BattleContext ctx = finishedBattle("BATTLE_7", 1L, "PLAYER", unit1);

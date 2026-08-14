@@ -129,7 +129,7 @@ class PokedexServiceTest {
         pokedexService.recordDiscovery(SAVE_ID, SPECIES_ID);
 
         // 不应执行任何 insert 或 update
-        verify(pokedexMapper, never()).insert(any());
+        verify(pokedexMapper, never()).insert(any(PokedexEntity.class));
         verify(pokedexMapper, never()).update(any(), any(LambdaQueryWrapper.class));
     }
 

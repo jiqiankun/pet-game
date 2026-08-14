@@ -50,6 +50,7 @@ import java.time.LocalDateTime;
 import com.petgame.pokedex.service.PokedexService;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,8 @@ public class BattleService {
     private final com.petgame.map.service.MapExplorationService mapExplorationService;
     private final PokedexService pokedexService;
     private final QuestService questService;
+    /** 玩家侧自动战斗决策器（阶段 10；手动战斗时不使用）。 */
+    private final com.petgame.battle.ai.AutoBattleDecisionProvider autoDecisionProvider;
 
     /** 战斗上下文内存池：battleId → BattleContext。不落库。 */
     private final Map<String, BattleContext> battles = new ConcurrentHashMap<>();
@@ -105,6 +108,7 @@ public class BattleService {
     public BattleService(GameConfigRegistry registry,
                          WildEnemyDecisionProvider enemyDecisionProvider,
                          BossDecisionProvider bossDecisionProvider,
+                         com.petgame.battle.ai.AutoBattleDecisionProvider autoDecisionProvider,
                          PlayerMapper playerMapper,
                          PlayerPetMapper playerPetMapper,
                          PlayerPetSkillMapper playerPetSkillMapper,
@@ -120,6 +124,7 @@ public class BattleService {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.bossEngine = new BattleEngine(registry, bossDecisionProvider);
+        this.autoDecisionProvider = autoDecisionProvider;
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
@@ -157,6 +162,9 @@ public class BattleService {
 
         ctx.setPlayerSide(buildPlayerSide(teamPets));
         ctx.setEnemySide(buildEnemySide());
+
+        // 阶段 10：自动战斗资源快照（恢复/复苏道具 + 玩家偏好默认关闭的自动设置）
+        snapshotBattleResources(ctx, player);
 
         engine.startBattle(ctx);
         battles.put(battleId, ctx);
@@ -215,6 +223,9 @@ public class BattleService {
         for (PlayerInventoryEntity inv : loadCaptureBalls(player.getSaveId())) {
             ctx.getAvailableCaptureBalls().put(inv.getItemId(), inv.getQuantity());
         }
+
+        // 阶段 10：自动战斗资源快照（恢复/复苏道具 + 玩家偏好默认关闭的自动设置）
+        snapshotBattleResources(ctx, player);
 
         engine.startBattle(ctx);
         battles.put(battleId, ctx);
@@ -387,10 +398,17 @@ public class BattleService {
      * <p>
      * BOSS 战斗路由到 bossEngine（敌方决策 = BossDecisionProvider），
      * TEST/WILD 仍用默认引擎（WildEnemyDecisionProvider）。
+     * <p>
+     * 阶段 10：自动战斗开启时（ctx.autoSettings.enabled）玩家方行动由
+     * AutoBattleDecisionProvider 统一生成，忽略前端提交内容；关闭时手动链路完全不变。
      */
     public BattleSnapshot submitActions(String battleId, List<BattleAction> actions) {
         BattleContext ctx = requireBattle(battleId);
-        TurnResult result = engineFor(ctx).playTurn(ctx, actions);
+        List<BattleAction> playerActions = actions;
+        if (ctx.getAutoSettings() != null && ctx.getAutoSettings().isEnabled()) {
+            playerActions = autoDecisionProvider.decide(ctx, ctx.getPlayerSide());
+        }
+        TurnResult result = engineFor(ctx).playTurn(ctx, playerActions);
         return toSnapshot(ctx, result.getEvents());
     }
 
@@ -511,6 +529,9 @@ public class BattleService {
             settleCaptures(ctx, player, settlement, joinTeam);
             consumeCaptureBalls(ctx, player);
         }
+
+        // 2.55 阶段 10：自动战斗恢复/复苏道具扣除（所有战斗类型，仅自动开关开启时才有消耗）
+        consumeRecoveryItems(ctx, player);
 
         // 2.6 阶段 9：任务系统事件钩子（REQUIRES_NEW 传播，失败不阻断主流程）
         if (playerWon && questService != null) {
@@ -768,6 +789,31 @@ public class BattleService {
         }
     }
 
+    /** 阶段 10：自动战斗恢复/复苏道具扣除（同捕捉球模式，结算统一扣库；无消耗时零操作）。 */
+    private void consumeRecoveryItems(BattleContext ctx, PlayerEntity player) {
+        for (Map.Entry<String, Integer> entry : ctx.getConsumedRecoveryItems().entrySet()) {
+            PlayerInventoryEntity inv = playerInventoryMapper.selectOne(
+                    new LambdaQueryWrapper<PlayerInventoryEntity>()
+                            .eq(PlayerInventoryEntity::getSaveId, player.getSaveId())
+                            .eq(PlayerInventoryEntity::getItemId, entry.getKey()));
+            if (inv == null || inv.getQuantity() < entry.getValue()) {
+                // 快照后背包被外部消耗等异常情况：不阻断结算，按可用量扣除
+                log.warn("自动战斗道具库存不足，按可用量扣除: item={}", entry.getKey());
+                if (inv == null || inv.getQuantity() <= 0) {
+                    continue;
+                }
+            }
+            int toRemove = Math.min(inv.getQuantity(), entry.getValue());
+            int remaining = inv.getQuantity() - toRemove;
+            if (remaining <= 0) {
+                playerInventoryMapper.deleteById(inv.getId());
+            } else {
+                inv.setQuantity(remaining);
+                playerInventoryMapper.updateById(inv);
+            }
+        }
+    }
+
     /** 增加玩家背包道具数量（已存在则累加，不存在则新增）。 */
     private void addInventoryItem(String saveId, String itemId, int quantity) {
         PlayerInventoryEntity existing = playerInventoryMapper.selectOne(
@@ -976,6 +1022,7 @@ public class BattleService {
         snapshot.setPosition(unit.getPosition());
         snapshot.setDefending(unit.isDefending());
         snapshot.setCaptured(unit.isCaptured());
+        snapshot.setElite(unit.getWildData() != null && unit.getWildData().isElite());
         snapshot.setCharging(unit.getChargingSkillId() != null);
         snapshot.setChargingSkillId(unit.getChargingSkillId());
         snapshot.setChargeRemaining(unit.getChargeRemaining());
@@ -1127,8 +1174,111 @@ public class BattleService {
         // 构建 Boss 敌方
         ctx.setEnemySide(buildBossSide(boss, diffConfig, difficulty));
 
+        // 阶段 10：自动战斗资源快照（自动挑战时玩家方 AI 可能使用道具）
+        PlayerEntity player = playerMapper.selectOne(
+                new LambdaQueryWrapper<PlayerEntity>()
+                        .eq(PlayerEntity::getSaveId, saveId));
+        if (player != null) {
+            snapshotBattleResources(ctx, player);
+        }
+
         battles.put(battleId, ctx);
         return battleId;
+    }
+
+    /**
+     * 阶段 10 自动战斗资源快照：恢复/复苏道具存量（同捕捉球模式，结算统一扣库）
+     * + 从玩家偏好构建默认关闭的自动设置（enabled=false，手动链路零影响）。
+     */
+    private void snapshotBattleResources(BattleContext ctx, PlayerEntity player) {
+        for (PlayerInventoryEntity inv : loadRecoveryItems(player.getSaveId())) {
+            ctx.getAvailableRecoveryItems().put(inv.getItemId(), inv.getQuantity());
+        }
+        ctx.setAutoSettings(buildAutoSettings(player, false));
+    }
+
+    /** 从玩家偏好构建战斗级自动设置（策略/开关/阈值）。 */
+    private com.petgame.battle.ai.AutoBattleSettings buildAutoSettings(PlayerEntity player, boolean enabled) {
+        com.petgame.battle.ai.AutoBattleSettings settings = new com.petgame.battle.ai.AutoBattleSettings();
+        settings.setEnabled(enabled);
+        settings.setStrategy(player.getAutoStrategy() != null ? player.getAutoStrategy() : "BALANCED");
+        settings.setAutoSwitch(player.getAutoSwitch() == null || player.getAutoSwitch());
+        settings.setAutoSwitchHpThreshold(player.getAutoSwitchHpThreshold() != null
+                ? player.getAutoSwitchHpThreshold() / 100.0 : 0.25);
+        settings.setAutoUseRecoveryItem(Boolean.TRUE.equals(player.getAutoUseRecoveryItem()));
+        settings.setAutoRecoveryHpThreshold(player.getAutoRecoveryHpThreshold() != null
+                ? player.getAutoRecoveryHpThreshold() / 100.0 : 0.35);
+        settings.setAutoRevive(Boolean.TRUE.equals(player.getAutoRevive()));
+        return settings;
+    }
+
+    /** 查询玩家背包中的恢复/复苏道具存量（阶段 10 自动战斗）。 */
+    private List<PlayerInventoryEntity> loadRecoveryItems(String saveId) {
+        List<PlayerInventoryEntity> all = playerInventoryMapper.selectList(
+                new LambdaQueryWrapper<PlayerInventoryEntity>()
+                        .eq(PlayerInventoryEntity::getSaveId, saveId));
+        List<PlayerInventoryEntity> items = new ArrayList<>();
+        for (PlayerInventoryEntity inv : all) {
+            ItemConfig item = registry.getItem(inv.getItemId());
+            if (item != null && ("HEAL_HP".equals(item.getItemType()) || "REVIVE".equals(item.getItemType()))) {
+                items.add(inv);
+            }
+        }
+        return items;
+    }
+
+    /**
+     * 开启/关闭当前战斗的自动战斗（阶段 10）：策略与捕捉目标随请求更新，
+     * 开关/阈值类偏好同步持久化到玩家存档。
+     */
+    @Transactional
+    public BattleSnapshot configureAuto(String battleId, boolean enabled, String strategy,
+                                        Boolean autoSwitch, Integer autoSwitchHpThreshold,
+                                        Boolean autoUseRecoveryItem, Integer autoRecoveryHpThreshold,
+                                        Boolean autoRevive, String captureTargetId) {
+        BattleContext ctx = requireBattle(battleId);
+        if (ctx.isFinished()) {
+            throw new BusinessException("BATTLE_FINISHED", "战斗已结束，不能再切换自动战斗");
+        }
+        PlayerEntity player = requirePlayer();
+        // 偏好持久化（仅更新非 null 字段）
+        boolean changed = false;
+        if (strategy != null && !strategy.isBlank()) {
+            String upper = strategy.toUpperCase();
+            if (!java.util.Set.of("BALANCED", "AGGRESSIVE", "DEFENSIVE", "CAPTURE").contains(upper)) {
+                throw new BusinessException("INVALID_STRATEGY", "未知自动战斗策略: " + strategy);
+            }
+            player.setAutoStrategy(upper);
+            changed = true;
+        }
+        if (autoSwitch != null) { player.setAutoSwitch(autoSwitch); changed = true; }
+        if (autoSwitchHpThreshold != null) { player.setAutoSwitchHpThreshold(autoSwitchHpThreshold); changed = true; }
+        if (autoUseRecoveryItem != null) { player.setAutoUseRecoveryItem(autoUseRecoveryItem); changed = true; }
+        if (autoRecoveryHpThreshold != null) { player.setAutoRecoveryHpThreshold(autoRecoveryHpThreshold); changed = true; }
+        if (autoRevive != null) { player.setAutoRevive(autoRevive); changed = true; }
+        if (changed) {
+            playerMapper.updateById(player);
+        }
+        com.petgame.battle.ai.AutoBattleSettings settings = buildAutoSettings(player, enabled);
+        settings.setCaptureTargetId(captureTargetId);
+        ctx.setAutoSettings(settings);
+        log.info("自动战斗配置：battleId={}, enabled={}, strategy={}", battleId, enabled, settings.getStrategy());
+        return toSnapshot(ctx, new ArrayList<>());
+    }
+
+    /** 查询玩家自动战斗偏好（前端面板初始化用）。 */
+    public Map<String, Object> getAutoPreference() {
+        PlayerEntity player = requirePlayer();
+        Map<String, Object> pref = new LinkedHashMap<>();
+        pref.put("strategy", player.getAutoStrategy() != null ? player.getAutoStrategy() : "BALANCED");
+        pref.put("autoSwitch", player.getAutoSwitch() == null || player.getAutoSwitch());
+        pref.put("autoSwitchHpThreshold", player.getAutoSwitchHpThreshold() != null
+                ? player.getAutoSwitchHpThreshold() : 25);
+        pref.put("autoUseRecoveryItem", Boolean.TRUE.equals(player.getAutoUseRecoveryItem()));
+        pref.put("autoRecoveryHpThreshold", player.getAutoRecoveryHpThreshold() != null
+                ? player.getAutoRecoveryHpThreshold() : 35);
+        pref.put("autoRevive", Boolean.TRUE.equals(player.getAutoRevive()));
+        return pref;
     }
 
     /** 获取战斗上下文（供自动挑战使用）。 */

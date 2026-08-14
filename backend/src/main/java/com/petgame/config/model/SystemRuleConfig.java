@@ -142,6 +142,42 @@ public class SystemRuleConfig {
     /** 野生宠物极低概率特殊外观的概率（默认 0.01）。 */
     private double specialAppearanceChance = 0.01;
 
+    // ---- 精英个体（阶段 10，需求 §57） ----
+
+    /** 精英个体出现概率（默认 0.05 = 5%）。 */
+    private double eliteSpawnChance = 0.05;
+
+    /** 精英个体等级加成下限。 */
+    private int eliteLevelBonusMin = 2;
+
+    /** 精英个体等级加成上限。 */
+    private int eliteLevelBonusMax = 5;
+
+    /** 精英个体最低资质下限（普通为 0）。 */
+    private int eliteMinAptitudeFloor = 60;
+
+    /** 精英个体稀有技能额外概率（叠加到 rareSkillChance 上）。 */
+    private double eliteRareSkillChanceBonus = 0.15;
+
+    // ---- 特殊外观变体（阶段 10，需求 §57） ----
+
+    /** 特殊外观变体列表（替代原有单一 SPECIAL 标记）。 */
+    private java.util.List<AppearanceVariantConfig> specialAppearanceVariants = new java.util.ArrayList<>();
+
+    /**
+     * 特殊外观变体配置（阶段 10）。
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class AppearanceVariantConfig {
+        /** 变体 ID（如 APPEARANCE_SHINY / APPEARANCE_GLOW）。 */
+        private String id;
+        /** 出现概率。 */
+        private double chance = 0.005;
+        /** 描述文本。 */
+        private String description;
+    }
+
     /** 放生礼物价值点数基础值：key=稀有度（COMMON/RARE/EPIC/LEGENDARY），value=点数（决策七：20/60/150/400）。 */
     private java.util.Map<String, Integer> releaseGiftBaseValue = new java.util.HashMap<>();
 
@@ -170,6 +206,9 @@ public class SystemRuleConfig {
 
     /** Boss AI 决策参数（BossDecisionProvider 评分权重，均不影响实际战斗结算）。 */
     private BossAiConfig bossAi = new BossAiConfig();
+
+    /** 玩家自动战斗决策参数（AutoBattleDecisionProvider 评分权重，均不影响实际战斗结算，阶段 10）。 */
+    private AutoBattleConfig autoBattle = new AutoBattleConfig();
 
     // ---- Boss 控制抗性（阶段 7，需求 §43 + 决策六）----
 
@@ -243,6 +282,151 @@ public class SystemRuleConfig {
 
         /** 阶段治疗倍率（后期降权，允许爆发优先于小额治疗）。 */
         private java.util.List<Double> phaseHealMultipliers = java.util.List.of(1.0, 0.8, 0.6);
+    }
+
+    /**
+     * 玩家自动战斗 AI 配置（阶段 10，评分式规则 AI）。
+     * <p>
+     * 四套策略（BALANCED/AGGRESSIVE/DEFENSIVE/CAPTURE）通过 strategyWeights
+     * 权重表差异化，宠物定位通过 roleWeights 修正；全部参数仅影响决策排序，
+     * 不影响实际战斗结算。
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class AutoBattleConfig {
+
+        /** 接近分容差：评分 ≥ 最高分 × (1 - 该值) 的候选间随机选择（默认 0.05）。 */
+        private double tieTolerance = 0.05;
+
+        /** 斩杀奖励比例：预计伤害可击杀目标时额外加 估算伤害 × 该值（默认 0.6）。 */
+        private double killBonusPercent = 0.6;
+
+        /** 低血目标加权：攻击分 × (1 + 该值 × (1 - 目标HP%))（默认 0.5）。 */
+        private double lowHpTargetWeight = 0.5;
+
+        /** 高伤浪费惩罚：目标 HP% < overkillLowHpPercent 且技能高冷却时的降权比例（默认 0.4）。 */
+        private double overkillWastePenalty = 0.4;
+
+        /** 高伤浪费判定的目标低血阈值（默认 0.05）。 */
+        private double overkillLowHpPercent = 0.05;
+
+        /** 高冷却定义（cooldown >= 该值视为高冷却终极技能，默认 3）。 */
+        private int highCooldownThreshold = 3;
+
+        /** FINISHER 标签生效的目标 HP% 阈值（默认 0.30）。 */
+        private double finisherHpThreshold = 0.30;
+
+        /** 治疗三段阈值（HP% 低于对应值时启用对应紧迫度倍率，默认 0.70/0.50/0.30）。 */
+        private java.util.List<Double> healHpThresholds = java.util.List.of(0.70, 0.50, 0.30);
+
+        /** 治疗紧迫度倍率（与 healHpThresholds 一一对应，未命中任何阈值但缺血时 ×首项之前的基础 1.0）。 */
+        private java.util.List<Double> healUrgencyMultipliers = java.util.List.of(1.2, 1.6, 2.2);
+
+        /** 治疗免费阈值：HP% 高于该值时治疗候选大幅降权（默认 0.90）。 */
+        private double healNoNeedHpPercent = 0.90;
+
+        /** 控制技能基础分（默认 60）。 */
+        private double controlBaseScore = 60.0;
+
+        /** 辅助/增益技能基础分（默认 40）。 */
+        private double utilityBaseScore = 40.0;
+
+        /** 目标已受控时的控制评分惩罚倍率（默认 0.15）。 */
+        private double existingControlPenalty = 0.15;
+
+        /** 防御保底候选的基础分（默认 1，仅在无其他候选时胜出）。 */
+        private double defendBaseScore = 1.0;
+
+        /** AGGRESSIVE 策略生存底线：自身 HP% 低于该值时生存修正回升（默认 0.15）。 */
+        private double aggressiveSurvivalFloor = 0.15;
+
+        /** DEFENSIVE 策略提前恢复阈值（HP% 低于该值即开始考虑恢复/换宠，默认 0.50）。 */
+        private double defensiveHealEarly = 0.50;
+
+        /** 捕捉危险血量区：目标 HP% 低于该值时开始计算误杀风险（默认 0.40）。 */
+        private double captureDangerHp = 0.40;
+
+        /** 误杀风险惩罚比例：预计伤害 ≥ 目标当前 HP 时攻击分 × (1 - 该值)（默认 0.95）。 */
+        private double captureKillPenalty = 0.95;
+
+        /** 留生一击（LEAVE_AT_ONE_HP）在捕捉危险区的额外奖励（默认 80）。 */
+        private double captureAssistLeaveAliveBonus = 80.0;
+
+        /** 目标 1 HP + 震慑时的捕捉行动巨额加成（默认 300）。 */
+        private double captureReadyBonus = 300.0;
+
+        /** 捕捉策略下捕捉率对捕捉行动分的换算系数（默认 200）。 */
+        private double captureRateScoreFactor = 200.0;
+
+        /** 捕捉行动最低捕捉率门槛：低于该值时继续削弱而非投球（1HP+震慑不受限，默认 0.45）。 */
+        private double captureMinRate = 0.45;
+
+        /** 命运天平（HP_PERCENT_EXCHANGE）最低净收益阈值（默认 0.25）。 */
+        private double balanceMinBenefit = 0.25;
+
+        /** 目标为 Boss 时命运天平的更高净收益阈值（默认 0.45）。 */
+        private double balanceBossMinBenefit = 0.45;
+
+        /** 复苏决策危险判定：敌方存活数 ≥ 该比例时认为局势仍危险（默认 0.5）。 */
+        private double reviveDangerEnemyRatio = 0.5;
+
+        /** 敌人即将被斩杀阈值（任一敌人 HP% < 该值时复苏降权，默认 0.10）。 */
+        private double reviveEnemyNearlyDeadPercent = 0.10;
+
+        /**
+         * 策略权重表：策略名（BALANCED/AGGRESSIVE/DEFENSIVE/CAPTURE）
+         * → 语义标签（DAMAGE/FINISHER/HEAL/SURVIVAL/CONTROL/CAPTURE_ASSIST/DISPEL/
+         * SHIELD_BREAK/ACTION_ORDER/LIFE_STEAL/CAPTURE_ACTION/SWITCH_ACTION）→ 权重。
+         */
+        private java.util.Map<String, java.util.Map<String, Double>> strategyWeights = defaultStrategyWeights();
+
+        /** 定位权重表：定位（DAMAGE/TANK/SUPPORT/CONTROL）→ 语义标签 → 权重。 */
+        private java.util.Map<String, java.util.Map<String, Double>> roleWeights = defaultRoleWeights();
+
+        private static java.util.Map<String, java.util.Map<String, Double>> defaultStrategyWeights() {
+            java.util.Map<String, java.util.Map<String, Double>> map = new java.util.LinkedHashMap<>();
+            map.put("BALANCED", java.util.Map.ofEntries(
+                    java.util.Map.entry("DAMAGE", 1.0), java.util.Map.entry("FINISHER", 1.1),
+                    java.util.Map.entry("HEAL", 1.0), java.util.Map.entry("SURVIVAL", 1.0),
+                    java.util.Map.entry("CONTROL", 1.0), java.util.Map.entry("CAPTURE_ASSIST", 0.3),
+                    java.util.Map.entry("DISPEL", 1.0), java.util.Map.entry("SHIELD_BREAK", 1.0),
+                    java.util.Map.entry("ACTION_ORDER", 1.0), java.util.Map.entry("LIFE_STEAL", 1.0),
+                    java.util.Map.entry("CAPTURE_ACTION", 0.2), java.util.Map.entry("SWITCH_ACTION", 1.0)));
+            map.put("AGGRESSIVE", java.util.Map.ofEntries(
+                    java.util.Map.entry("DAMAGE", 1.4), java.util.Map.entry("FINISHER", 1.5),
+                    java.util.Map.entry("HEAL", 0.6), java.util.Map.entry("SURVIVAL", 0.7),
+                    java.util.Map.entry("CONTROL", 0.8), java.util.Map.entry("CAPTURE_ASSIST", 0.2),
+                    java.util.Map.entry("DISPEL", 0.8), java.util.Map.entry("SHIELD_BREAK", 1.3),
+                    java.util.Map.entry("ACTION_ORDER", 0.8), java.util.Map.entry("LIFE_STEAL", 1.2),
+                    java.util.Map.entry("CAPTURE_ACTION", 0.1), java.util.Map.entry("SWITCH_ACTION", 0.6)));
+            map.put("DEFENSIVE", java.util.Map.ofEntries(
+                    java.util.Map.entry("DAMAGE", 0.8), java.util.Map.entry("FINISHER", 0.9),
+                    java.util.Map.entry("HEAL", 1.5), java.util.Map.entry("SURVIVAL", 1.4),
+                    java.util.Map.entry("CONTROL", 1.2), java.util.Map.entry("CAPTURE_ASSIST", 0.3),
+                    java.util.Map.entry("DISPEL", 1.4), java.util.Map.entry("SHIELD_BREAK", 0.9),
+                    java.util.Map.entry("ACTION_ORDER", 1.1), java.util.Map.entry("LIFE_STEAL", 1.0),
+                    java.util.Map.entry("CAPTURE_ACTION", 0.2), java.util.Map.entry("SWITCH_ACTION", 1.4)));
+            map.put("CAPTURE", java.util.Map.ofEntries(
+                    java.util.Map.entry("DAMAGE", 0.7), java.util.Map.entry("FINISHER", 0.3),
+                    java.util.Map.entry("HEAL", 1.0), java.util.Map.entry("SURVIVAL", 1.1),
+                    java.util.Map.entry("CONTROL", 1.2), java.util.Map.entry("CAPTURE_ASSIST", 2.0),
+                    java.util.Map.entry("DISPEL", 0.8), java.util.Map.entry("SHIELD_BREAK", 0.7),
+                    java.util.Map.entry("ACTION_ORDER", 0.8), java.util.Map.entry("LIFE_STEAL", 0.9),
+                    java.util.Map.entry("CAPTURE_ACTION", 1.0), java.util.Map.entry("SWITCH_ACTION", 1.0)));
+            return map;
+        }
+
+        private static java.util.Map<String, java.util.Map<String, Double>> defaultRoleWeights() {
+            java.util.Map<String, java.util.Map<String, Double>> map = new java.util.LinkedHashMap<>();
+            map.put("DAMAGE", java.util.Map.of("DAMAGE", 1.2, "FINISHER", 1.3, "SHIELD_BREAK", 1.2,
+                    "HEAL", 0.9, "SURVIVAL", 0.9, "CONTROL", 0.9));
+            map.put("TANK", java.util.Map.of("SURVIVAL", 1.3, "CONTROL", 1.2, "DAMAGE", 0.9,
+                    "HEAL", 1.0, "FINISHER", 0.9));
+            map.put("SUPPORT", java.util.Map.of("HEAL", 1.4, "DISPEL", 1.3, "ACTION_ORDER", 1.2,
+                    "SURVIVAL", 1.2, "DAMAGE", 0.8, "FINISHER", 0.8));
+            map.put("CONTROL", java.util.Map.of("CONTROL", 1.4, "ACTION_ORDER", 1.2, "DAMAGE", 0.95));
+            return map;
+        }
     }
 
     /**

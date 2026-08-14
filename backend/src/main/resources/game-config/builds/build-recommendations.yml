@@ -1,0 +1,148 @@
+# ============================================================
+# 宠物精灵游戏 - 推荐 Build 配置（阶段 10）
+# ============================================================
+# 按种族推荐加点与技能组合方案（需求 §63）。
+# 纯展示，不修改玩家数据。每种族 2~3 套方案。
+# ============================================================
+
+recommendations:
+  # ---------- 火系 ----------
+  - speciesId: PET_FIRE_001
+    builds:
+      - name: 物理爆发
+        description: 全力堆叠力量与速度，追求先手秒杀。
+        statPriority: [STRENGTH, SPEED, HP]
+        skillPriority: [SKILL_FIRE_CLAW, SKILL_FLAME_BURST]
+      - name: 生存输出
+        description: 兼顾防御与输出的均衡方案。
+        statPriority: [STRENGTH, HP, DEFENSE]
+        skillPriority: [SKILL_FIRE_CLAW, SKILL_METEOR_FALL]
+
+  - speciesId: PET_FIRE_002
+    builds:
+      - name: 物理爆发
+        description: 力量为主，速度为辅的暴力路线。
+        statPriority: [STRENGTH, SPEED, HP]
+        skillPriority: [SKILL_FLAME_BURST, SKILL_BLAZING_SPIRIT]
+      - name: 坦克火系
+        description: 堆叠生命与防御，以持久战消耗对手。
+        statPriority: [HP, DEFENSE, STRENGTH]
+        skillPriority: [SKILL_EMBER_BITE]
+
+  - speciesId: PET_FIRE_003
+    builds:
+      - name: 极限输出
+        description: 传说种族的极限暴力路线。
+        statPriority: [STRENGTH, SPEED, SPIRIT]
+        skillPriority: []
+      - name: 全能战士
+        description: 均衡分配六维，适应各种战斗场景。
+        statPriority: [STRENGTH, HP, SPEED, DEFENSE]
+        skillPriority: []
+
+  # ---------- 水系 ----------
+  - speciesId: PET_WATER_001
+    builds:
+      - name: 防御水盾
+        description: 高防御与生命，作为队伍前排承伤。
+        statPriority: [HP, DEFENSE, RESISTANCE]
+        skillPriority: []
+      - name: 灵力输出
+        description: 堆叠灵力，利用水系技能进行魔法输出。
+        statPriority: [SPIRIT, SPEED, HP]
+        skillPriority: []
+
+  - speciesId: PET_WATER_002
+    builds:
+      - name: 均衡水系
+        description: 兼顾攻防的均衡水系方案。
+        statPriority: [SPIRIT, HP, DEFENSE]
+        skillPriority: []
+      - name: 速度先手
+        description: 以速度为核心的先手控制流。
+        statPriority: [SPEED, SPIRIT, HP]
+        skillPriority: []
+
+  # ---------- 木系 ----------
+  - speciesId: PET_WOOD_001
+    builds:
+      - name: 续航木系
+        description: 高生命与防御，依靠持续恢复能力打持久战。
+        statPriority: [HP, DEFENSE, RESISTANCE]
+        skillPriority: []
+      - name: 力量木系
+        description: 力量为主的物理攻击路线。
+        statPriority: [STRENGTH, HP, DEFENSE]
+        skillPriority: []
+
+  # ---------- 金系 ----------
+  - speciesId: PET_METAL_001
+    builds:
+      - name: 铁壁金系
+        description: 极限防御与抗性，坚不可摧。
+        statPriority: [DEFENSE, RESISTANCE, HP]
+        skillPriority: []
+      - name: 物理金属
+        description: 力量与防御并重的攻防一体方案。
+        statPriority: [STRENGTH, DEFENSE, HP]
+        skillPriority: []
+
+  # ---------- 雷系 ----------
+  - speciesId: PET_THUNDER_001
+    builds:
+      - name: 极速雷系
+        description: 极致速度，先手控制与输出。
+        statPriority: [SPEED, SPIRIT, STRENGTH]
+        skillPriority: []
+      - name: 均衡雷系
+        description: 速度与生命均衡，保证生存与输出。
+        statPriority: [SPEED, HP, SPIRIT]
+        skillPriority: []
+
+  # ---------- 风系 ----------
+  - speciesId: PET_WIND_001
+    builds:
+      - name: 速度风系
+        description: 风系天然速度优势，堆叠速度确保先手。
+        statPriority: [SPEED, STRENGTH, HP]
+        skillPriority: []
+      - name: 灵力风系
+        description: 灵力为主的魔法输出路线。
+        statPriority: [SPIRIT, SPEED, HP]
+        skillPriority: []
+
+  # ---------- 地系 ----------
+  - speciesId: PET_EARTH_001
+    builds:
+      - name: 坦克地系
+        description: 高防御高生命的地系坦克。
+        statPriority: [HP, DEFENSE, RESISTANCE]
+        skillPriority: []
+      - name: 力量地系
+        description: 力量与防御并重。
+        statPriority: [STRENGTH, HP, DEFENSE]
+        skillPriority: []
+
+  # ---------- 光系 ----------
+  - speciesId: PET_LIGHT_001
+    builds:
+      - name: 辅助光系
+        description: 高灵力与生命，作为队伍辅助支援。
+        statPriority: [SPIRIT, HP, RESISTANCE]
+        skillPriority: []
+      - name: 输出光系
+        description: 灵力为主的魔法输出路线。
+        statPriority: [SPIRIT, SPEED, HP]
+        skillPriority: []
+
+  # ---------- 暗系 ----------
+  - speciesId: PET_DARK_001
+    builds:
+      - name: 暗杀暗系
+        description: 力量与速度，追求先手秒杀。
+        statPriority: [STRENGTH, SPEED, HP]
+        skillPriority: []
+      - name: 持久暗系
+        description: 生命与力量均衡，持久作战。
+        statPriority: [HP, STRENGTH, DEFENSE]
+        skillPriority: []

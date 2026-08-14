@@ -13,6 +13,8 @@ import { useMapStore } from '../../stores/map'
 import { useBattleStore } from '../../stores/battle'
 import { useGameStore } from '../../stores/game'
 import { useQuestStore } from '../../stores/quest'
+import { apiGet, apiPost } from '../../api/client'
+import type { ApiResponse } from '../../types/api'
 import type { RewardResultView } from '../../types/map'
 
 const router = useRouter()
@@ -35,9 +37,24 @@ const busy = ref(false)
 const actionError = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
+// 随机事件（阶段 10）
+const randomEvent = ref<{
+  eventId: string
+  name: string
+  description: string
+  options: Array<{ optionId: string; text: string }>
+} | null>(null)
+const eventResult = ref<{
+  type: string
+  description: string
+  goldGained?: number
+  itemId?: string
+  encounterGroupId?: string
+} | null>(null)
+
 const regionName = computed(() => mapStore.currentMap?.name ?? '')
 const dialogOpen = computed(
-  () => encounterReq.value !== null || campDialogId.value !== null || exitReq.value !== null,
+  () => encounterReq.value !== null || campDialogId.value !== null || exitReq.value !== null || randomEvent.value !== null || eventResult.value !== null,
 )
 
 /** 构建 Phaser 场景数据（业务状态全部来自后端）。 */
@@ -186,6 +203,8 @@ async function confirmExit() {
     exitReq.value = null
     const data = buildSceneData()
     if (data) gameBridge.emit('cmd:restart-map', data)
+    // 进入新区域后尝试触发随机事件
+    await tryRollRandomEvent()
   } catch (e) {
     actionError.value = mapStore.error || '区域移动失败'
     exitReq.value = null // 非法出口直接关闭，避免反复触发
@@ -208,6 +227,59 @@ function openWorldMap() {
   router.push('/world-map')
 }
 
+// ==================== 随机事件（阶段 10） ====================
+
+/** 尝试触发随机事件（进入区域后调用）。 */
+async function tryRollRandomEvent() {
+  try {
+    const res = await apiGet<any>('/api/maps/events/roll')
+    const data = (res as ApiResponse<any>).data
+    if (data) {
+      randomEvent.value = data
+      syncInputLock()
+    }
+  } catch {
+    // 无事件触发或网络错误，忽略
+  }
+}
+
+/** 解析随机事件选项。 */
+async function resolveEvent(optionId: string) {
+  if (!randomEvent.value || busy.value) return
+  busy.value = true
+  try {
+    const res = await apiPost<any>('/api/maps/events/resolve', {
+      eventId: randomEvent.value.eventId,
+      optionId,
+    })
+    const result = (res as ApiResponse<any>).data
+    eventResult.value = result
+    randomEvent.value = null
+    // 刷新玩家金币等状态
+    await gameStore.loadBootstrap()
+    // 如果触发了战斗/捕捉，跳转战斗页
+    if (result.type === 'TRIGGER_BATTLE' && result.encounterGroupId) {
+      try {
+        await battleStore.startMapEncounter(result.encounterGroupId)
+        eventResult.value = null
+        await router.push('/battle')
+      } catch {
+        showToast('战斗触发失败')
+      }
+    }
+  } catch (e: any) {
+    showToast(e?.message || '事件解析失败')
+  } finally {
+    busy.value = false
+    syncInputLock()
+  }
+}
+
+function closeEventResult() {
+  eventResult.value = null
+  syncInputLock()
+}
+
 // ==================== 生命周期 ====================
 
 onMounted(async () => {
@@ -225,6 +297,8 @@ onMounted(async () => {
       game.scene.start('BootScene', data)
     }
   }
+  // 进入区域后尝试触发随机事件
+  await tryRollRandomEvent()
 })
 
 onBeforeUnmount(() => {
@@ -254,6 +328,7 @@ onBeforeUnmount(() => {
     <div v-if="encounterReq" class="modal-mask">
       <div class="modal-card">
         <h3>遭遇野生宠物！</h3>
+        <p v-if="encounterReq.elite" class="elite-banner">✨ 精英个体！属性更强，捕捉难度更高</p>
         <p class="modal-text">
           发现一只野生的野生宠物（行为：{{ encounterReq.behavior }}）。
           可以在开战前调整队伍首发，也可以绕开它继续探索。
@@ -315,6 +390,37 @@ onBeforeUnmount(() => {
         </ul>
         <div class="modal-actions">
           <button class="btn-primary" @click="closeRewardPopup">收下</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 随机事件对话框（阶段 10） -->
+    <div v-if="randomEvent" class="modal-mask">
+      <div class="modal-card">
+        <h3>{{ randomEvent.name }}</h3>
+        <p class="modal-text">{{ randomEvent.description }}</p>
+        <div class="modal-actions">
+          <button
+            v-for="opt in randomEvent.options"
+            :key="opt.optionId"
+            class="btn-secondary"
+            :disabled="busy"
+            @click="resolveEvent(opt.optionId)"
+          >{{ opt.text }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 随机事件结果（阶段 10） -->
+    <div v-if="eventResult" class="modal-mask" @click.self="closeEventResult">
+      <div class="modal-card">
+        <h3>事件结果</h3>
+        <p class="modal-text">{{ eventResult.description }}</p>
+        <ul v-if="eventResult.goldGained" class="reward-list">
+          <li>金币 +{{ eventResult.goldGained }}</li>
+        </ul>
+        <div class="modal-actions">
+          <button class="btn-primary" @click="closeEventResult">继续探索</button>
         </div>
       </div>
     </div>
@@ -467,6 +573,18 @@ onBeforeUnmount(() => {
 
 .error-text {
   color: #d32f2f;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+/* 精英个体提示（阶段 10） */
+.elite-banner {
+  background: linear-gradient(135deg, #fff8e1, #ffe0b2);
+  border: 1px solid #e6a817;
+  color: #7a4a00;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   margin-bottom: 10px;
 }

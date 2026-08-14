@@ -100,6 +100,12 @@ export interface PetDetail {
   newlyLearnedSkillNames: string[]
   /** 新技能因槽位已满未能自动装备（REV-011 提示）。 */
   skillEquipOverflow: boolean
+  /** 技能书主动技能装备槽（阶段 10，槽位 5~6）。 */
+  bookSkillSlots: LearnedSkillView[]
+  /** 已学习的技能书技能列表（阶段 10）。 */
+  learnedBookSkills: LearnedSkillView[]
+  /** 已学技能书主动技能数量（阶段 10，/10）。 */
+  bookSkillLearnCount: number
   expPool: number
   /** 已消耗自由点数（按需求 §20 转换表折算：速度每点次 2 点，其余 1 点）。 */
   allocatedFreePoints: number

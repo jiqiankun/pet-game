@@ -28,6 +28,15 @@ public class PetDetail {
     /** 已学习技能列表（含槽位，仅主动技能；被动见 passives）。 */
     private List<LearnedSkillView> learnedSkills = new ArrayList<>();
 
+    /** 技能书主动技能装备槽（槽位 5~6，最多 2 个，阶段 10）。 */
+    private List<LearnedSkillView> bookSkillSlots = new ArrayList<>();
+
+    /** 已学习的技能书技能列表（阶段 10）。 */
+    private List<LearnedSkillView> learnedBookSkills = new ArrayList<>();
+
+    /** 已学技能书主动技能数量（阶段 10，上限 10）。 */
+    private Integer bookSkillLearnCount = 0;
+
     /** 未来可解锁的技能列表（unlockLevel > currentLevel），按解锁等级升序。 */
     private List<AvailableSkillView> availableSkills = new ArrayList<>();
 

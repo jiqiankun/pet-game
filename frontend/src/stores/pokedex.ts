@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { apiGet, apiPost } from '../api/client'
-import type { ApiResponse } from '../types/api'
 import type { PokedexDetail, PokedexEntry, WildIdentification } from '../types/pokedex'
 
 /**

@@ -1,0 +1,116 @@
+# ============================================================
+# 宠物精灵游戏 - 商店配置（阶段 10）
+# ============================================================
+# 商品随主线推进固定解锁（需求 §95）。
+# 不做：每日刷新、限购、随机商店、倒计时商品。
+# 普通捕捉球长期常驻。
+# unlockQuestId 为 null 表示始终可用，否则需该任务 COMPLETED 才解锁。
+# price 优先使用此处的值，未设置时回退到 items.yml 中的 price 字段。
+# ============================================================
+
+configVersion: 1
+
+shopItems:
+  # ---------- 始终可用 ----------
+  - itemId: ITEM_CAPTURE_BALL_NORMAL
+    price: 50
+    category: CAPTURE
+
+  - itemId: ITEM_CAPTURE_BALL_GREAT
+    price: 150
+    unlockQuestId: QUEST_MAIN_03
+    category: CAPTURE
+
+  - itemId: ITEM_CAPTURE_BALL_ULTRA
+    price: 400
+    unlockQuestId: QUEST_MAIN_07
+    category: CAPTURE
+
+  - itemId: ITEM_POTION_SMALL
+    price: 30
+    category: RECOVERY
+
+  - itemId: ITEM_POTION_MEDIUM
+    price: 80
+    unlockQuestId: QUEST_MAIN_02
+    category: RECOVERY
+
+  - itemId: ITEM_POTION_LARGE
+    price: 200
+    unlockQuestId: QUEST_MAIN_05
+    category: RECOVERY
+
+  - itemId: ITEM_REVIVE
+    price: 120
+    unlockQuestId: QUEST_MAIN_03
+    category: RECOVERY
+
+  - itemId: ITEM_PURIFY_POTION
+    price: 80
+    unlockQuestId: QUEST_MAIN_04
+    category: RECOVERY
+
+  # ---------- 技能书（始终可用或早期解锁） ----------
+  - itemId: ITEM_SKILL_BOOK_LEAVE_ALIVE
+    price: 200
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_IRON_DEFENSE
+    price: 250
+    unlockQuestId: QUEST_MAIN_03
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_AGILITY
+    price: 250
+    unlockQuestId: QUEST_MAIN_03
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_BULK_UP
+    price: 300
+    unlockQuestId: QUEST_MAIN_05
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_CALM_MIND
+    price: 300
+    unlockQuestId: QUEST_MAIN_05
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_LIFE_DRAIN
+    price: 350
+    unlockQuestId: QUEST_MAIN_06
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_SHIELD_BREAK
+    price: 300
+    unlockQuestId: QUEST_MAIN_06
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_DISPEL
+    price: 300
+    unlockQuestId: QUEST_MAIN_06
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_FOCUS_ENERGY
+    price: 280
+    unlockQuestId: QUEST_MAIN_04
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_TOXIC
+    price: 320
+    unlockQuestId: QUEST_MAIN_05
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_TAUNT
+    price: 280
+    unlockQuestId: QUEST_MAIN_04
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_HEAL_BELL
+    price: 400
+    unlockQuestId: QUEST_MAIN_07
+    category: SKILL_BOOK
+
+  - itemId: ITEM_SKILL_BOOK_COUNTER
+    price: 350
+    unlockQuestId: QUEST_MAIN_06
+    category: SKILL_BOOK

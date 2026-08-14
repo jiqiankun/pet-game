@@ -36,6 +36,8 @@ export interface UnitSnapshot {
   defending: boolean
   /** 是否已被捕捉（野生战斗，阶段 5）。 */
   captured: boolean
+  /** 是否精英个体（阶段 10）。 */
+  elite: boolean
   charging: boolean
   chargingSkillId: string | null
   chargeRemaining: number
@@ -115,4 +117,29 @@ export interface SkillConfigView {
 export interface SkillsConfigView {
   configVersion: number
   skills: SkillConfigView[]
+}
+
+/** 自动战斗策略（阶段 10）。 */
+export type AutoStrategy = 'BALANCED' | 'AGGRESSIVE' | 'DEFENSIVE' | 'CAPTURE'
+
+/** 自动战斗配置请求（阶段 10；null 字段表示不修改）。 */
+export interface ConfigureAutoRequest {
+  enabled: boolean
+  strategy?: AutoStrategy | null
+  autoSwitch?: boolean | null
+  autoSwitchHpThreshold?: number | null
+  autoUseRecoveryItem?: boolean | null
+  autoRecoveryHpThreshold?: number | null
+  autoRevive?: boolean | null
+  captureTargetId?: string | null
+}
+
+/** 玩家自动战斗偏好（GET /api/battles/auto-preference）。 */
+export interface AutoPreference {
+  strategy: AutoStrategy
+  autoSwitch: boolean
+  autoSwitchHpThreshold: number
+  autoUseRecoveryItem: boolean
+  autoRecoveryHpThreshold: number
+  autoRevive: boolean
 }

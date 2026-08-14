@@ -3,9 +3,12 @@ package com.petgame.pet.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
+import com.petgame.config.model.ItemConfig;
 import com.petgame.config.model.PetSpeciesConfig;
 import com.petgame.config.model.SkillConfig;
 import com.petgame.config.model.SystemRuleConfig;
+import com.petgame.inventory.entity.PlayerInventoryEntity;
+import com.petgame.inventory.mapper.PlayerInventoryMapper;
 import com.petgame.pet.domain.PetGrowthService;
 import com.petgame.pet.domain.PetPanelStats;
 import com.petgame.pet.entity.PlayerPetEntity;
@@ -50,19 +53,22 @@ public class PetService {
     private final PetGrowthService growthService;
     private final GameConfigRegistry registry;
     private final PokedexService pokedexService;
+    private final PlayerInventoryMapper inventoryMapper;
 
     public PetService(PlayerMapper playerMapper,
                       PlayerPetMapper playerPetMapper,
                       PlayerPetSkillMapper playerPetSkillMapper,
                       PetGrowthService growthService,
                       GameConfigRegistry registry,
-                      PokedexService pokedexService) {
+                      PokedexService pokedexService,
+                      PlayerInventoryMapper inventoryMapper) {
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
         this.growthService = growthService;
         this.registry = registry;
         this.pokedexService = pokedexService;
+        this.inventoryMapper = inventoryMapper;
     }
 
     // ==================== 宠物详情 ====================
@@ -83,6 +89,8 @@ public class PetService {
         detail.setAvailableSkills(loadAvailableSkills(species, pet.getLevel()));
         detail.setPassives(loadPassives(species, pet.getLevel()));
         detail.setTotalInnateActiveSkills(species.getSkills() != null ? species.getSkills().size() : 0);
+        // 阶段 10：技能书信息
+        loadBookSkillInfo(pet.getId(), detail);
         detail.setExpPool(player.getExpPool());
         detail.setFreePointsAvailable(growthService.freePointsAvailable(pet, species));
         detail.setAllocatedFreePoints(growthService.consumedFreePoints(pet));
@@ -423,6 +431,256 @@ public class PetService {
         return getPetDetail(petId);
     }
 
+    // ==================== 技能书系统（阶段 10） ====================
+
+    /** 技能书主动技能学习上限。 */
+    private static final int BOOK_SKILL_LEARN_LIMIT = 10;
+    /** 技能书主动技能装备槽数。 */
+    private static final int BOOK_SKILL_EQUIP_SLOTS = 2;
+    /** 技能书装备槽起始编号。 */
+    private static final int BOOK_SLOT_START = 5;
+
+    /**
+     * 使用技能书学习技能（需求 §23 技能书部分）。
+     * <p>
+     * 校验：道具存在且为 SKILL_BOOK → 背包有该道具 → 宠物满足学习限制 → 非专属技能 →
+     * 学习上限 10 个（超限时要求 forgetSkillId）→ 扣道具 → 写 player_pet_skill（source_type=SKILL_BOOK）。
+     *
+     * @param petId         宠物 ID
+     * @param itemId        技能书道具 ID
+     * @param forgetSkillId 超限时要遗忘的技能 ID（可为 null）
+     */
+    @Transactional
+    public PetDetail learnSkillBook(Long petId, String itemId, String forgetSkillId) {
+        if (itemId == null || itemId.isBlank()) {
+            throw new BusinessException("INVALID_ITEM", "道具 ID 不能为空");
+        }
+        PlayerPetEntity pet = requirePet(petId);
+        PetSpeciesConfig species = requireSpecies(pet.getSpeciesId());
+        PlayerEntity player = requirePlayer();
+
+        // 1. 校验道具存在且为 SKILL_BOOK
+        ItemConfig item = registry.getItem(itemId);
+        if (item == null || !"SKILL_BOOK".equals(item.getCategory())) {
+            throw new BusinessException("INVALID_SKILL_BOOK", "无效的道具或不是技能书: " + itemId);
+        }
+        String skillId = item.getSkillId();
+        if (skillId == null || skillId.isBlank()) {
+            throw new BusinessException("INVALID_SKILL_BOOK", "该道具没有关联技能: " + itemId);
+        }
+        SkillConfig skill = registry.getSkill(skillId);
+        if (skill == null) {
+            throw new BusinessException("SKILL_NOT_FOUND", "技能配置不存在: " + skillId);
+        }
+
+        // 2. 校验背包有该道具
+        PlayerInventoryEntity inv = inventoryMapper.selectOne(
+                new LambdaQueryWrapper<PlayerInventoryEntity>()
+                        .eq(PlayerInventoryEntity::getSaveId, player.getSaveId())
+                        .eq(PlayerInventoryEntity::getItemId, itemId));
+        if (inv == null || inv.getQuantity() <= 0) {
+            throw new BusinessException("ITEM_NOT_ENOUGH", "背包中没有该技能书: " + itemId);
+        }
+
+        // 3. 校验宠物满足学习限制
+        if (item.getSkillBookRestriction() != null) {
+            checkBookRestriction(species, item.getSkillBookRestriction(), skillId);
+        }
+
+        // 4. 校验未重复学习
+        Long existing = playerPetSkillMapper.selectCount(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSkillId, skillId));
+        if (existing != null && existing > 0) {
+            throw new BusinessException("SKILL_ALREADY_LEARNED", "宠物已学习该技能: " + skillId);
+        }
+
+        // 5. 校验学习上限（仅主动技能计入上限）
+        if ("ACTIVE".equals(skill.getSkillType())) {
+            long bookActiveCount = playerPetSkillMapper.selectCount(
+                    new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                            .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                            .eq(PlayerPetSkillEntity::getSourceType, "SKILL_BOOK"));
+            if (bookActiveCount >= BOOK_SKILL_LEARN_LIMIT) {
+                if (forgetSkillId == null || forgetSkillId.isBlank()) {
+                    throw new BusinessException("BOOK_SKILL_LIMIT",
+                            "技能书主动技能已达上限 " + BOOK_SKILL_LEARN_LIMIT + "，请提供 forgetSkillId 遗忘一个技能");
+                }
+                forgetBookSkill(petId, forgetSkillId);
+            }
+        }
+
+        // 6. 扣道具
+        inv.setQuantity(inv.getQuantity() - 1);
+        if (inv.getQuantity() <= 0) {
+            inventoryMapper.deleteById(inv.getId());
+        } else {
+            inventoryMapper.updateById(inv);
+        }
+
+        // 7. 写入 player_pet_skill
+        PlayerPetSkillEntity petSkill = new PlayerPetSkillEntity();
+        petSkill.setPetId(pet.getId());
+        petSkill.setSkillId(skillId);
+        petSkill.setSourceType("SKILL_BOOK");
+        petSkill.setSlot(null); // 默认不装备
+        playerPetSkillMapper.insert(petSkill);
+
+        log.info("技能书学习：petId={}, item={}, skill={}", petId, itemId, skillId);
+        return getPetDetail(petId);
+    }
+
+    /**
+     * 遗忘技能书主动技能。
+     * 校验：source_type=SKILL_BOOK → 如装备中则卸下 → 删除记录。
+     */
+    @Transactional
+    public PetDetail forgetBookSkill(Long petId, String skillId) {
+        if (skillId == null || skillId.isBlank()) {
+            throw new BusinessException("INVALID_SKILL", "技能 ID 不能为空");
+        }
+        PlayerPetEntity pet = requirePet(petId);
+
+        PlayerPetSkillEntity learned = playerPetSkillMapper.selectOne(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSkillId, skillId)
+                        .eq(PlayerPetSkillEntity::getSourceType, "SKILL_BOOK"));
+        if (learned == null) {
+            throw new BusinessException("SKILL_NOT_BOOK", "该技能不是通过技能书学习的: " + skillId);
+        }
+        // 删除记录（卸下 + 遗忘一步完成）
+        playerPetSkillMapper.deleteById(learned.getId());
+
+        log.info("技能书遗忘：petId={}, skill={}", petId, skillId);
+        return getPetDetail(petId);
+    }
+
+    /**
+     * 装备技能书主动技能（槽位 5~6）。
+     */
+    @Transactional
+    public PetDetail equipBookSkill(Long petId, String skillId, int bookSlot) {
+        if (skillId == null || skillId.isBlank()) {
+            throw new BusinessException("INVALID_SKILL", "技能 ID 不能为空");
+        }
+        if (bookSlot < BOOK_SLOT_START || bookSlot >= BOOK_SLOT_START + BOOK_SKILL_EQUIP_SLOTS) {
+            throw new BusinessException("INVALID_SLOT",
+                    "技能书槽位必须在 " + BOOK_SLOT_START + "~" + (BOOK_SLOT_START + BOOK_SKILL_EQUIP_SLOTS - 1) + " 范围内");
+        }
+        PlayerPetEntity pet = requirePet(petId);
+
+        PlayerPetSkillEntity learned = playerPetSkillMapper.selectOne(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSkillId, skillId)
+                        .eq(PlayerPetSkillEntity::getSourceType, "SKILL_BOOK"));
+        if (learned == null) {
+            throw new BusinessException("SKILL_NOT_BOOK", "宠物未通过技能书学习该技能: " + skillId);
+        }
+
+        // 若目标槽位已有技能，先卸下
+        PlayerPetSkillEntity occupant = playerPetSkillMapper.selectOne(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSlot, bookSlot));
+        if (occupant != null && !occupant.getId().equals(learned.getId())) {
+            occupant.setSlot(null);
+            playerPetSkillMapper.updateById(occupant);
+        }
+
+        learned.setSlot(bookSlot);
+        playerPetSkillMapper.updateById(learned);
+
+        log.info("技能书装备：petId={}, skillId={}, bookSlot={}", petId, skillId, bookSlot);
+        return getPetDetail(petId);
+    }
+
+    /**
+     * 卸下技能书主动技能。
+     */
+    @Transactional
+    public PetDetail unequipBookSkill(Long petId, int bookSlot) {
+        if (bookSlot < BOOK_SLOT_START || bookSlot >= BOOK_SLOT_START + BOOK_SKILL_EQUIP_SLOTS) {
+            throw new BusinessException("INVALID_SLOT",
+                    "技能书槽位必须在 " + BOOK_SLOT_START + "~" + (BOOK_SLOT_START + BOOK_SKILL_EQUIP_SLOTS - 1) + " 范围内");
+        }
+        PlayerPetEntity pet = requirePet(petId);
+
+        PlayerPetSkillEntity equipped = playerPetSkillMapper.selectOne(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, pet.getId())
+                        .eq(PlayerPetSkillEntity::getSlot, bookSlot));
+        if (equipped == null) {
+            throw new BusinessException("SLOT_EMPTY", "技能书槽位 " + bookSlot + " 未装备技能");
+        }
+        equipped.setSlot(null);
+        playerPetSkillMapper.updateById(equipped);
+
+        log.info("技能书卸下：petId={}, bookSlot={}", petId, bookSlot);
+        return getPetDetail(petId);
+    }
+
+    /** 检查技能书学习限制。 */
+    private void checkBookRestriction(PetSpeciesConfig species,
+                                       ItemConfig.SkillBookRestriction restriction,
+                                       String skillId) {
+        if (restriction.getElements() != null && !restriction.getElements().isEmpty()
+                && !restriction.getElements().contains(species.getElement())) {
+            throw new BusinessException("BOOK_RESTRICTION_ELEMENT",
+                    "技能 " + skillId + " 不允许 " + species.getElement() + " 属性宠物学习");
+        }
+        if (restriction.getRarities() != null && !restriction.getRarities().isEmpty()
+                && !restriction.getRarities().contains(species.getRarity())) {
+            throw new BusinessException("BOOK_RESTRICTION_RARITY",
+                    "技能 " + skillId + " 不允许 " + species.getRarity() + " 稀有度宠物学习");
+        }
+        if (restriction.getSpeciesIds() != null && !restriction.getSpeciesIds().isEmpty()
+                && !restriction.getSpeciesIds().contains(species.getId())) {
+            throw new BusinessException("BOOK_RESTRICTION_SPECIES",
+                    "技能 " + skillId + " 仅限指定种族学习");
+        }
+        if (restriction.getExcludeSpeciesIds() != null
+                && restriction.getExcludeSpeciesIds().contains(species.getId())) {
+            throw new BusinessException("BOOK_RESTRICTION_EXCLUDED",
+                    "技能 " + skillId + " 不允许 " + species.getName() + " 学习（专属技能保护）");
+        }
+    }
+
+    /** 加载技能书相关信息到 PetDetail（阶段 10）。 */
+    private void loadBookSkillInfo(Long petId, PetDetail detail) {
+        List<PlayerPetSkillEntity> bookSkills = playerPetSkillMapper.selectList(
+                new LambdaQueryWrapper<PlayerPetSkillEntity>()
+                        .eq(PlayerPetSkillEntity::getPetId, petId)
+                        .eq(PlayerPetSkillEntity::getSourceType, "SKILL_BOOK"));
+        int bookActiveCount = 0;
+        for (PlayerPetSkillEntity rec : bookSkills) {
+            SkillConfig skill = registry.getSkill(rec.getSkillId());
+            if (skill == null) continue;
+            PetDetail.LearnedSkillView view = new PetDetail.LearnedSkillView();
+            view.setSkillId(skill.getId());
+            view.setName(skill.getName());
+            view.setElement(skill.getElement());
+            view.setDamageType(skill.getDamageType());
+            view.setEffectType(skill.getEffectType());
+            view.setCooldown(skill.getCooldown());
+            view.setSlot(rec.getSlot());
+            view.setSourceType(rec.getSourceType());
+            view.setSkillType(skill.getSkillType());
+            view.setSignature(false);
+
+            if ("ACTIVE".equals(skill.getSkillType())) {
+                bookActiveCount++;
+                detail.getLearnedBookSkills().add(view);
+                if (rec.getSlot() != null && rec.getSlot() >= BOOK_SLOT_START) {
+                    detail.getBookSkillSlots().add(view);
+                }
+            }
+        }
+        detail.setBookSkillLearnCount(bookActiveCount);
+    }
+
     // ==================== 内部工具 ====================
 
     private PlayerPetEntity requirePet(Long petId) {
@@ -477,8 +735,8 @@ public class PetService {
             view.setSignature(isSignatureSkill(species, rec.getSkillId()));
             views.add(view);
         }
-        views.sort(Comparator.nullsLast(
-                Comparator.comparing(PetDetail.LearnedSkillView::getSlot)));
+        views.sort(Comparator.comparing(PetDetail.LearnedSkillView::getSlot,
+                Comparator.nullsLast(Comparator.naturalOrder())));
         return views;
     }
 

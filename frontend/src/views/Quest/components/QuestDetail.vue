@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { QuestDetail, QuestCompleteResult } from '../../../types/quest'
 
-const props = defineProps<{
+defineProps<{
   detail: QuestDetail
   completeResult: QuestCompleteResult | null
 }>()
@@ -10,6 +10,7 @@ const emit = defineEmits<{
   (e: 'accept', questId: string): void
   (e: 'complete', questId: string): void
   (e: 'choose-reward', choiceId: string, optionIndex: number): void
+  (e: 'dismiss-result'): void
   (e: 'close'): void
 }>()
 
@@ -129,7 +130,7 @@ function objectiveProgress(obj: { progress: number; targetCount: number; complet
     </div>
 
     <!-- 完成结果 -->
-    <div v-if="completeResult" class="complete-result modal-mask" @click.self="completeResult = null">
+    <div v-if="completeResult" class="complete-result modal-mask" @click.self="emit('dismiss-result')">
       <div class="result-card">
         <h3>任务完成！</h3>
         <p class="result-name">{{ completeResult.name }}</p>
@@ -145,7 +146,7 @@ function objectiveProgress(obj: { progress: number; targetCount: number; complet
           <li v-if="completeResult.storyCompleted" class="story-complete">🎉 恭喜通关！</li>
         </ul>
         <div class="modal-actions">
-          <button class="btn-primary" @click="completeResult = null">收下</button>
+          <button class="btn-primary" @click="emit('dismiss-result')">收下</button>
         </div>
       </div>
     </div>

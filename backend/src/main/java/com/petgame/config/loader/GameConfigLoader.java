@@ -12,7 +12,10 @@ import com.petgame.config.model.ItemsConfig;
 import com.petgame.config.model.MapsConfig;
 import com.petgame.config.model.PetsConfig;
 import com.petgame.config.model.QuestsConfig;
+import com.petgame.config.model.RandomEventsConfig;
+import com.petgame.config.model.BuildRecommendationConfig;
 import com.petgame.config.model.ReleaseGiftsConfig;
+import com.petgame.config.model.ShopConfig;
 import com.petgame.config.model.SkillsConfig;
 import com.petgame.config.model.StatusesConfig;
 import com.petgame.config.model.SystemRuleConfig;
@@ -52,6 +55,9 @@ public class GameConfigLoader {
     private static final String MAPS_YML = "maps/maps.yml";
     private static final String BOSSES_YML = "bosses/bosses.yml";
     private static final String QUESTS_YML = "quests/quests.yml";
+    private static final String SHOP_YML = "shop/shop.yml";
+    private static final String RANDOM_EVENTS_YML = "events/random-events.yml";
+    private static final String BUILD_RECOMMENDATIONS_YML = "builds/build-recommendations.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -270,6 +276,57 @@ public class GameConfigLoader {
         QuestsConfig external = loadExternalYaml(QUESTS_YML, QuestsConfig.class);
         if (external != null) {
             log.info("已加载外部 quests/quests.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载商店配置（阶段 10）。
+     */
+    public ShopConfig loadShopConfig() {
+        ShopConfig config = loadInternalYaml(SHOP_YML, ShopConfig.class);
+        if (config == null) {
+            config = new ShopConfig();
+            log.warn("内部 shop/shop.yml 未找到，使用空商店配置");
+        }
+        ShopConfig external = loadExternalYaml(SHOP_YML, ShopConfig.class);
+        if (external != null) {
+            log.info("已加载外部 shop/shop.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载随机事件配置（阶段 10）。
+     */
+    public RandomEventsConfig loadRandomEventsConfig() {
+        RandomEventsConfig config = loadInternalYaml(RANDOM_EVENTS_YML, RandomEventsConfig.class);
+        if (config == null) {
+            config = new RandomEventsConfig();
+            log.warn("内部 events/random-events.yml 未找到，使用空随机事件配置");
+        }
+        RandomEventsConfig external = loadExternalYaml(RANDOM_EVENTS_YML, RandomEventsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 events/random-events.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载推荐 Build 配置（阶段 10）。
+     */
+    public BuildRecommendationConfig loadBuildRecommendationsConfig() {
+        BuildRecommendationConfig config = loadInternalYaml(BUILD_RECOMMENDATIONS_YML, BuildRecommendationConfig.class);
+        if (config == null) {
+            config = new BuildRecommendationConfig();
+            log.warn("内部 builds/build-recommendations.yml 未找到，使用空推荐 Build 配置");
+        }
+        BuildRecommendationConfig external = loadExternalYaml(BUILD_RECOMMENDATIONS_YML, BuildRecommendationConfig.class);
+        if (external != null) {
+            log.info("已加载外部 builds/build-recommendations.yml 覆盖内部配置");
             config = external;
         }
         return config;

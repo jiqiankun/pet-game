@@ -1,8 +1,7 @@
 # ============================================================
-# 宠物精灵游戏 - 道具配置（阶段 4：恢复道具基础）
+# 宠物精灵游戏 - 道具配置（阶段 4~10 全量道具）
 # ============================================================
-# 阶段 4 恢复道具；阶段 5 补入捕捉球（需求 §48）。
-# 技能书（阶段 10）、材料（掉落）后续阶段补入。
+# 阶段 4 恢复道具；阶段 5 捕捉球；阶段 10 材料/技能书/净化药。
 # 玩家存档只存道具 ID 与数量（player_inventory），不复制配置内容。
 # ============================================================
 
@@ -19,6 +18,7 @@ items:
     usableOutsideBattle: true
     usableInBattle: true
     discardable: true
+    price: 30
 
   - id: ITEM_POTION_MEDIUM
     name: 中型恢复药
@@ -29,6 +29,7 @@ items:
     usableOutsideBattle: true
     usableInBattle: true
     discardable: true
+    price: 80
 
   - id: ITEM_REVIVE
     name: 复苏药剂
@@ -39,6 +40,7 @@ items:
     usableOutsideBattle: true
     usableInBattle: true
     discardable: true
+    price: 120
 
   - id: ITEM_POTION_LARGE
     name: 大型恢复药
@@ -49,6 +51,7 @@ items:
     usableOutsideBattle: true
     usableInBattle: true
     discardable: true
+    price: 200
 
   # ---------- 捕捉类（阶段 5：仅 3 档，需求 §48） ----------
   - id: ITEM_CAPTURE_BALL_NORMAL
@@ -60,6 +63,7 @@ items:
     usableOutsideBattle: false
     usableInBattle: true
     discardable: true
+    price: 50
 
   - id: ITEM_CAPTURE_BALL_GREAT
     name: 高级捕捉球
@@ -70,6 +74,7 @@ items:
     usableOutsideBattle: false
     usableInBattle: true
     discardable: true
+    price: 150
 
   - id: ITEM_CAPTURE_BALL_ULTRA
     name: 特级捕捉球
@@ -80,14 +85,331 @@ items:
     usableOutsideBattle: false
     usableInBattle: true
     discardable: true
+    price: 400
 
-  # ---------- 技能书（阶段 9 教学赠送入背包，阶段 10 正式学习使用） ----------
+  # ---------- 净化类（阶段 10） ----------
+  - id: ITEM_PURIFY_POTION
+    name: 净化药
+    description: 清除一只宠物的全部异常状态（战斗中使用，待战斗道具系统开放后启用）。
+    category: RECOVERY
+    itemType: KEY_ITEM
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: true
+    price: 80
+
+  # ---------- 材料类（阶段 10：9 种属性材料 + Boss 核心） ----------
+  - id: ITEM_MATERIAL_FIRE
+    name: 火元素结晶
+    description: 蕴含火元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_WATER
+    name: 水元素结晶
+    description: 蕴含水元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_WOOD
+    name: 木元素结晶
+    description: 蕴含木元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_METAL
+    name: 金元素结晶
+    description: 蕴含金元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_EARTH
+    name: 土元素结晶
+    description: 蕴含土元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_WIND
+    name: 风元素结晶
+    description: 蕴含风元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_THUNDER
+    name: 雷元素结晶
+    description: 蕴含雷元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_LIGHT
+    name: 光元素结晶
+    description: 蕴含光元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_MATERIAL_DARK
+    name: 暗元素结晶
+    description: 蕴含暗元素力量的结晶材料。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: true
+    price: 40
+
+  - id: ITEM_BOSS_CORE_MEADOW
+    name: 青草原Boss核心
+    description: 击败青草原 Boss 后掉落的珍贵核心。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: false
+
+  - id: ITEM_BOSS_CORE_FOREST
+    name: 翠树林Boss核心
+    description: 击败翠树林 Boss 后掉落的珍贵核心。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: false
+
+  - id: ITEM_BOSS_CORE_WATERS
+    name: 静水湖域Boss核心
+    description: 击败静水湖域 Boss 后掉落的珍贵核心。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: false
+
+  - id: ITEM_BOSS_CORE_THUNDER
+    name: 雷鸣高地Boss核心
+    description: 击败雷鸣高地 Boss 后掉落的珍贵核心。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: false
+
+  - id: ITEM_BOSS_CORE_RUINS
+    name: 远古遗迹Boss核心
+    description: 击败远古遗迹 Boss 后掉落的珍贵核心。
+    category: MATERIAL
+    itemType: MATERIAL
+    value: 0
+    usableOutsideBattle: false
+    usableInBattle: false
+    discardable: false
+
+  # ---------- 技能书（阶段 10：学习上限 10、携带上限 2，需求 §96） ----------
   - id: ITEM_SKILL_BOOK_LEAVE_ALIVE
     name: 技能书·留生一击
-    description: 学习后永久掌握【留生一击】技能。致死时将可捕捉目标 HP 保留为 1 并附加震慑。
+    description: 学习后永久掌握【留生一击】技能。致死时将可捕捉目标 HP 保留为 1 并附加震慑。通用技能，所有宠物可学。
     category: SKILL_BOOK
     itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_LEAVE_ALIVE
     value: 0
     usableOutsideBattle: true
     usableInBattle: false
     discardable: false
+    price: 200
+
+  - id: ITEM_SKILL_BOOK_LIFE_DRAIN
+    name: 技能书·吸血之牙
+    description: 学习后永久掌握【吸血之牙】技能。造成伤害并恢复自身 HP。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_LIFE_DRAIN
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 350
+
+  - id: ITEM_SKILL_BOOK_SHIELD_BREAK
+    name: 技能书·破盾击
+    description: 学习后永久掌握【破盾击】技能。移除目标护盾并造成伤害。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_SHIELD_BREAK
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 300
+
+  - id: ITEM_SKILL_BOOK_DISPEL
+    name: 技能书·驱散之光
+    description: 学习后永久掌握【驱散之光】技能。移除目标身上的增益效果。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_DISPEL
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 300
+
+  - id: ITEM_SKILL_BOOK_IRON_DEFENSE
+    name: 技能书·铁壁
+    description: 学习后永久掌握【铁壁】技能。大幅提升自身防御。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_IRON_DEFENSE
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 250
+
+  - id: ITEM_SKILL_BOOK_AGILITY
+    name: 技能书·疾风步
+    description: 学习后永久掌握【疾风步】技能。大幅提升自身速度。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_AGILITY
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 250
+
+  - id: ITEM_SKILL_BOOK_FOCUS_ENERGY
+    name: 技能书·集气
+    description: 学习后永久掌握【集气】技能。提升自身暴击率。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_FOCUS_ENERGY
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 280
+
+  - id: ITEM_SKILL_BOOK_TOXIC
+    name: 技能书·剧毒
+    description: 学习后永久掌握【剧毒】技能。使目标陷入剧毒状态。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_TOXIC
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 320
+    skillBookRestriction:
+      excludeSpeciesIds: []
+
+  - id: ITEM_SKILL_BOOK_TAUNT
+    name: 技能书·嘲讽
+    description: 学习后永久掌握【嘲讽】技能。迫使敌方攻击自己。限坦克定位宠物学习。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_TAUNT
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 280
+    skillBookRestriction:
+      speciesIds: [PET_EARTH_001, PET_METAL_002, PET_EARTH_002]
+
+  - id: ITEM_SKILL_BOOK_HEAL_BELL
+    name: 技能书·治愈铃音
+    description: 学习后永久掌握【治愈铃音】技能。恢复全体友方少量 HP。限光属性宠物学习。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_HEAL_BELL
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 400
+    skillBookRestriction:
+      elements: [LIGHT]
+
+  - id: ITEM_SKILL_BOOK_COUNTER
+    name: 技能书·反击
+    description: 学习后永久掌握【反击】技能。受到物理攻击时反弹部分伤害。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_COUNTER
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 350
+    skillBookRestriction:
+      elements: [METAL, EARTH]
+
+  - id: ITEM_SKILL_BOOK_BULK_UP
+    name: 技能书·健美
+    description: 学习后永久掌握【健美】技能。提升自身力量与防御。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_BULK_UP
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 300
+
+  - id: ITEM_SKILL_BOOK_CALM_MIND
+    name: 技能书·冒想
+    description: 学习后永久掌握【冒想】技能。提升自身灵力与抗性。
+    category: SKILL_BOOK
+    itemType: SKILL_BOOK
+    skillId: SKILL_BOOK_CALM_MIND
+    value: 0
+    usableOutsideBattle: true
+    usableInBattle: false
+    discardable: false
+    price: 300

@@ -117,11 +117,11 @@ pet-game/
 
 ## 开发进度
 
-当前阶段：**阶段 9（任务系统）— 已完成**
+当前阶段：**阶段 10（效率、经济与随机内容系统）— 已完成**
 
-已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8、阶段 9
+已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8、阶段 9、阶段 10
 
-下一阶段：阶段 10（以规划文档为准）
+下一阶段：阶段 11（以规划文档为准）
 
 详细的阶段划分与进度跟踪见 [`AGENTS.md`](AGENTS.md) §6「当前阶段状态」。
 
@@ -271,6 +271,21 @@ pet-game/
 - **新区域实装**：3 区域从 planned 改为实装（静水湖域/雷鸣高地/远古遗迹，QUEST 解锁）+ 3 Tiled 占位地图（waters.json/thunder.json/ruins.json）+ 遭遇组配置
 - **前端实现**：QuestView（三标签布局）+ QuestDetail（目标进度+奖励+操作）+ DialogueBox（逐字打字对话框）+ TutorialOverlay（新手教学浮层）+ HomeView（主线摘要卡片）+ ExploreView（npc:touch 对话）+ MainLayout（全局对话框+教学浮层）
 - 单元测试：QuestServiceTest/NpcDialogueServiceTest/TutorialServiceTest/QuestConfigValidateTest；E2E 脚本 `e2e-quest-test.ps1`
+
+### 阶段 10 完成内容
+
+- **Flyway V8 迁移**：2 张表（player_ambush_triggered 一次性埋伏记录 / player_random_event_used 会话事件去重）
+- **道具体系补齐**：9 属性材料 + 5 Boss 核心 + 净化药 + 10 技能书道具；ItemConfig 新增 skillId/price 字段
+- **商店系统**：shop.yml 25 商品（主线任务解锁）；ShopConfig/ShopService/ShopController（`GET /api/shop`、`POST /api/shop/buy`，单事务扣金币+入背包）；前端商店页 ShopView + shop store
+- **技能书系统**：PetService 新增学习/遗忘/装备/卸下 4 接口（学习上限 10、携带槽位 5~6、专属技能保护、学习限制 elements/rarities/speciesIds）；SkillConfig 新增 learnRestriction/exclusive；PetDetail 新增 bookSkillSlots/learnedBookSkills/bookSkillLearnCount；前端宠物页技能书管理区
+- **精英个体**：system.yml elite 配置段（5% 概率、等级 +2~5、资质下限 60、稀有技能概率加成）；WildEncounterService 精英生成；UnitSnapshot 新增 elite 字段；前端遭遇/战斗精英标识
+- **特殊外观多变体**：system.yml specialAppearanceVariants（APPEARANCE_SHINY 0.5% / APPEARANCE_GLOW 0.3%）替代单一 SPECIAL 标记
+- **随机事件**：random-events.yml 6 事件（区域限定 + 选项权重结果：GIFT_GOLD/GIFT_ITEM/GIFT_MATERIAL/TRIGGER_BATTLE/TRIGGER_CAPTURE/NOTHING）；RandomEventService + `GET /api/maps/events/roll`、`POST /api/maps/events/resolve`；前端探索页事件对话框
+- **隐藏遭遇与埋伏**：encounters.yml hidden 遭遇组；MapsConfig 新增 ambushSpots 配置结构；一次性埋伏实体/mapper
+- **推荐 Build**：build-recommendations.yml（6 种族 × 2 方案）；`GET /api/pets/{petId}/build-recommendations` 纯展示；前端宠物页推荐方案标签页
+- **战斗加速**：BattleView 速度控制 1x/2x/3x + 自动播放（Boss 战可用）
+- **配置校验**：GameConfigValidator 新增 validateShop/validateRandomEvents/validateBuildRecommendations
+- 单元测试：ShopServiceTest/RandomEventServiceTest/Phase10ConfigValidateTest + PetServiceTest 技能书排序回归；E2E 脚本 `e2e-phase10-test.ps1`；未实现自动战斗策略预设（用户明确排除）
 
 ---
 

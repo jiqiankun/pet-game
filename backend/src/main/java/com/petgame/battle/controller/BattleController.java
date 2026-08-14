@@ -8,6 +8,7 @@ import lombok.Data;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 战斗接口（阶段 3 起提供战斗流程；阶段 4 接入结算）。
@@ -72,6 +73,30 @@ public class BattleController {
         return ApiResponse.success(battleService.settleBattle(battleId, joinTeam));
     }
 
+    // ==================== 自动战斗（阶段 10） ====================
+
+    /**
+     * 开启/关闭当前战斗的自动战斗（阶段 10）。
+     * <p>
+     * enabled=true 后，后续提交回合的玩家方行动由 AutoBattleDecisionProvider 生成；
+     * 策略/开关/阈值偏好同步持久化到玩家存档。关闭后完全回到手动战斗。
+     */
+    @PostMapping("/{battleId}/auto")
+    public ApiResponse<BattleSnapshot> configureAuto(@PathVariable String battleId,
+                                                     @RequestBody ConfigureAutoRequest request) {
+        return ApiResponse.success(battleService.configureAuto(battleId,
+                Boolean.TRUE.equals(request.getEnabled()), request.getStrategy(),
+                request.getAutoSwitch(), request.getAutoSwitchHpThreshold(),
+                request.getAutoUseRecoveryItem(), request.getAutoRecoveryHpThreshold(),
+                request.getAutoRevive(), request.getCaptureTargetId()));
+    }
+
+    /** 查询玩家自动战斗偏好（前端面板初始化用）。 */
+    @GetMapping("/auto-preference")
+    public ApiResponse<Map<String, Object>> getAutoPreference() {
+        return ApiResponse.success(battleService.getAutoPreference());
+    }
+
     @Data
     public static class StartBattleRequest {
         private String type;
@@ -87,5 +112,26 @@ public class BattleController {
     public static class SettleRequest {
         /** 捕捉成功后是否直接加入队伍（队伍未满时生效，需求 §48）。 */
         private Boolean joinTeam;
+    }
+
+    /** 自动战斗配置请求（阶段 10）。 */
+    @Data
+    public static class ConfigureAutoRequest {
+        /** 是否开启自动战斗。 */
+        private Boolean enabled;
+        /** 策略：BALANCED/AGGRESSIVE/DEFENSIVE/CAPTURE（null = 不修改）。 */
+        private String strategy;
+        /** 自动换宠开关（null = 不修改）。 */
+        private Boolean autoSwitch;
+        /** 自动换宠 HP 阈值百分比 0~100（null = 不修改）。 */
+        private Integer autoSwitchHpThreshold;
+        /** 自动使用恢复道具开关（默认关，null = 不修改）。 */
+        private Boolean autoUseRecoveryItem;
+        /** 自动恢复道具 HP 阈值百分比 0~100（null = 不修改）。 */
+        private Integer autoRecoveryHpThreshold;
+        /** 自动复苏开关（默认关，null = 不修改）。 */
+        private Boolean autoRevive;
+        /** CAPTURE 策略指定捕捉目标单位 ID（null = 自动选择）。 */
+        private String captureTargetId;
     }
 }

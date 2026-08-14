@@ -39,4 +39,36 @@ public class ItemConfig {
 
     /** 是否可丢弃（重要物品不可丢弃）。 */
     private boolean discardable = true;
+
+    /** 技能书引用的技能 ID（仅 SKILL_BOOK 类型使用，引用 skills.yml）。 */
+    private String skillId;
+
+    /** 商店售价（0 或未设置表示不可在商店购买）。 */
+    private int price = 0;
+
+    /** 技能书学习限制（仅 SKILL_BOOK 类型使用，阶段 10）。 */
+    private SkillBookRestriction skillBookRestriction;
+
+    /**
+     * 技能书学习限制配置。
+     * <p>
+     * 为空或 null 表示不限制（所有宠物可学，如留生一击等通用技能）。
+     * 非空时按 elements/rarities/speciesIds/excludeSpeciesIds 联合过滤。
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class SkillBookRestriction {
+
+        /** 允许学习的宠物属性列表（为空表示不限属性）。 */
+        private java.util.List<String> elements;
+
+        /** 允许学习的稀有度列表（COMMON/RARE/EPIC/LEGENDARY，为空表示不限）。 */
+        private java.util.List<String> rarities;
+
+        /** 明确允许学习的种族 ID 列表（为空表示不限，仅排除列表生效）。 */
+        private java.util.List<String> speciesIds;
+
+        /** 明确排除的种族 ID 列表（专属技能保护，不可通过技能书学习）。 */
+        private java.util.List<String> excludeSpeciesIds;
+    }
 }

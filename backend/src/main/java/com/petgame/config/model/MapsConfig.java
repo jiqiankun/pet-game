@@ -65,6 +65,21 @@ public class MapsConfig {
         private List<GatherPointConfig> gathers = new ArrayList<>();
         /** 隐藏宝箱列表（一次性）。 */
         private List<ChestConfig> chests = new ArrayList<>();
+        /** 埋伏点列表（阶段 10，需求 §57）。 */
+        private List<AmbushSpotConfig> ambushSpots = new ArrayList<>();
+    }
+
+    /** 埋伏点配置（阶段 10，需求 §57）。 */
+    @Data
+    public static class AmbushSpotConfig {
+        /** 埋伏 ID（唯一标识，用于一次性记录）。 */
+        private String ambushId;
+        /** 使用的遭遇组 ID。 */
+        private String encounterGroupId;
+        /** 触发概率。 */
+        private double chance = 0.10;
+        /** 是否一次性（触发后记录到数据库，不再重复）。 */
+        private boolean oneTime = false;
     }
 
     /** 出口配置（区域间移动，需求 §69）。 */

@@ -1,11 +1,15 @@
 package com.petgame.pet.controller;
 
 import com.petgame.common.ApiResponse;
+import com.petgame.config.GameConfigRegistry;
+import com.petgame.config.model.BuildRecommendationConfig;
 import com.petgame.pet.domain.PetGrowthService;
 import com.petgame.pet.service.PetDetail;
 import com.petgame.pet.service.PetService;
 import lombok.Data;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 宠物接口（阶段 4：养成与队伍闭环）。
@@ -19,9 +23,11 @@ import org.springframework.web.bind.annotation.*;
 public class PetController {
 
     private final PetService petService;
+    private final GameConfigRegistry registry;
 
-    public PetController(PetService petService) {
+    public PetController(PetService petService, GameConfigRegistry registry) {
         this.petService = petService;
+        this.registry = registry;
     }
 
     /**
@@ -97,6 +103,66 @@ public class PetController {
         return ApiResponse.success(petService.unequipSkill(petId, request.getSlot()));
     }
 
+    // ==================== 技能书接口（阶段 10） ====================
+
+    /**
+     * 使用技能书学习技能。
+     */
+    @PostMapping("/{petId}/learn-skill-book")
+    public ApiResponse<PetDetail> learnSkillBook(@PathVariable Long petId,
+                                                   @RequestBody LearnSkillBookRequest request) {
+        return ApiResponse.success(petService.learnSkillBook(petId, request.getItemId(), request.getForgetSkillId()));
+    }
+
+    /**
+     * 遗忘技能书主动技能。
+     */
+    @PostMapping("/{petId}/forget-book-skill")
+    public ApiResponse<PetDetail> forgetBookSkill(@PathVariable Long petId,
+                                                    @RequestBody ForgetBookSkillRequest request) {
+        return ApiResponse.success(petService.forgetBookSkill(petId, request.getSkillId()));
+    }
+
+    /**
+     * 装备技能书主动技能（槽位 5~6）。
+     */
+    @PostMapping("/{petId}/equip-book-skill")
+    public ApiResponse<PetDetail> equipBookSkill(@PathVariable Long petId,
+                                                   @RequestBody EquipBookSkillRequest request) {
+        return ApiResponse.success(petService.equipBookSkill(petId, request.getSkillId(), request.getBookSlot()));
+    }
+
+    /**
+     * 卸下技能书主动技能。
+     */
+    @PostMapping("/{petId}/unequip-book-skill")
+    public ApiResponse<PetDetail> unequipBookSkill(@PathVariable Long petId,
+                                                     @RequestBody UnequipBookSkillRequest request) {
+        return ApiResponse.success(petService.unequipBookSkill(petId, request.getBookSlot()));
+    }
+
+    // ==================== 推荐 Build 接口（阶段 10） ====================
+
+    /**
+     * 查询宠物种族推荐 Build 方案（纯展示，不修改数据）。
+     */
+    @GetMapping("/{petId}/build-recommendations")
+    public ApiResponse<List<BuildRecommendationConfig.BuildConfig>> getBuildRecommendations(
+            @PathVariable Long petId) {
+        PetDetail detail = petService.getPetDetail(petId);
+        String speciesId = detail.getPet().getSpeciesId();
+        BuildRecommendationConfig config = registry.getBuildRecommendationsConfig();
+        if (config == null || config.getRecommendations() == null) {
+            return ApiResponse.success(List.of());
+        }
+        for (BuildRecommendationConfig.SpeciesBuildConfig rec : config.getRecommendations()) {
+            if (speciesId.equals(rec.getSpeciesId())) {
+                return ApiResponse.success(rec.getBuilds());
+            }
+        }
+        return ApiResponse.success(List.of());
+    }
+
     // ---- 请求 DTO ----
 
     @Data
@@ -128,5 +194,29 @@ public class PetController {
     public static class UnequipSkillRequest {
         /** 槽位 1~4。 */
         private Integer slot;
+    }
+
+    @Data
+    public static class LearnSkillBookRequest {
+        private String itemId;
+        private String forgetSkillId;
+    }
+
+    @Data
+    public static class ForgetBookSkillRequest {
+        private String skillId;
+    }
+
+    @Data
+    public static class EquipBookSkillRequest {
+        private String skillId;
+        /** 技能书槽位 5~6。 */
+        private Integer bookSlot;
+    }
+
+    @Data
+    public static class UnequipBookSkillRequest {
+        /** 技能书槽位 5~6。 */
+        private Integer bookSlot;
     }
 }

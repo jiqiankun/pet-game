@@ -53,7 +53,7 @@ class NpcDialogueServiceTest {
         QuestsConfig.DialogueNodeConfig n1 = new QuestsConfig.DialogueNodeConfig();
         n1.setNodeId("NODE_1");
         n1.setText("你好，冒险者！");
-        n1.setNextNodeId("NODE_2");
+        n1.setNextNode("NODE_2");
 
         QuestsConfig.DialogueNodeConfig n2 = new QuestsConfig.DialogueNodeConfig();
         n2.setNodeId("NODE_2");
@@ -75,8 +75,7 @@ class NpcDialogueServiceTest {
 
     @Test
     void talk_firstTime_returnsFirstNode() {
-        when(playerDialogueMapper.selectList(any())).thenReturn(Collections.emptyList());
-
+        // 首次对话（selectOne 默认返回 null）
         NpcDialogueService.DialogueView view = dialogueService.talk(NPC_ID);
 
         assertEquals(NPC_ID, view.getNpcId());
@@ -92,7 +91,7 @@ class NpcDialogueServiceTest {
         existing.setNpcId(NPC_ID);
         existing.setDialogueNodeId("NODE_2");
         existing.setDialogueCount(1);
-        when(playerDialogueMapper.selectList(any())).thenReturn(List.of(existing));
+        when(playerDialogueMapper.selectOne(any())).thenReturn(existing);
 
         NpcDialogueService.DialogueView view = dialogueService.talk(NPC_ID);
 
@@ -107,8 +106,6 @@ class NpcDialogueServiceTest {
 
     @Test
     void talk_incrementsDialogueCount() {
-        when(playerDialogueMapper.selectList(any())).thenReturn(Collections.emptyList());
-
         dialogueService.talk(NPC_ID);
 
         verify(playerDialogueMapper, atLeastOnce()).insert(any(PlayerDialogueEntity.class));

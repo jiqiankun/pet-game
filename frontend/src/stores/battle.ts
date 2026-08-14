@@ -3,10 +3,12 @@ import { computed, ref } from 'vue'
 import { apiGet, apiPost } from '../api/client'
 import type { ApiResponse } from '../types/api'
 import type {
+  AutoPreference,
   BattleAction,
   BattleEvent,
   BattleSnapshot,
   CaptureRateView,
+  ConfigureAutoRequest,
   SkillConfigView,
   SkillsConfigView,
   UnitSnapshot,
@@ -31,6 +33,12 @@ export const useBattleStore = defineStore('battle', () => {
   const settlement = ref<BattleSettlement | null>(null)
   /** 野生战斗捕捉率（后端计算，选择捕捉球时展示）。 */
   const captureRates = ref<CaptureRateView[]>([])
+
+  // ---- 自动战斗（阶段 10） ----
+  /** 当前战斗是否开启自动。 */
+  const autoEnabled = ref(false)
+  /** 玩家自动战斗偏好（面板初始化）。 */
+  const autoPreference = ref<AutoPreference | null>(null)
 
   const inBattle = computed(() => snapshot.value !== null && !snapshot.value.finished)
 
@@ -206,7 +214,38 @@ export const useBattleStore = defineStore('battle', () => {
     eventLog.value = []
     settlement.value = null
     captureRates.value = []
+    autoEnabled.value = false
     error.value = ''
+  }
+
+  /** 加载玩家自动战斗偏好（阶段 10）。 */
+  async function loadAutoPreference() {
+    try {
+      const res = await apiGet<AutoPreference>('/api/battles/auto-preference')
+      autoPreference.value = (res as ApiResponse<AutoPreference>).data
+    } catch (e: any) {
+      console.warn('自动战斗偏好加载失败', e)
+    }
+  }
+
+  /**
+   * 开启/关闭当前战斗的自动战斗（阶段 10）。
+   * 开启后玩家方行动由后端 AutoBattleDecisionProvider 生成。
+   */
+  async function configureAuto(battleId: string, request: ConfigureAutoRequest) {
+    loading.value = true
+    error.value = ''
+    try {
+      const res = await apiPost<BattleSnapshot>(`/api/battles/${battleId}/auto`, request)
+      snapshot.value = (res as ApiResponse<BattleSnapshot>).data
+      autoEnabled.value = request.enabled
+      appendEvents(snapshot.value.events)
+    } catch (e: any) {
+      error.value = e.message || '自动战斗配置失败'
+      throw e
+    } finally {
+      loading.value = false
+    }
   }
 
   /**
@@ -330,6 +369,13 @@ export const useBattleStore = defineStore('battle', () => {
         return `${source} 成功逃离了战斗`
       case 'FLEE_FAIL':
         return `${source} 逃跑失败！`
+      case 'ITEM_USED': {
+        const healed = event.data?.healed
+        const revived = event.data?.revivedHp
+        if (typeof healed === 'number') return `${source} 对 ${target} 使用恢复道具，恢复 ${healed} 点 HP`
+        if (typeof revived === 'number') return `${source} 复苏了 ${target}（HP ${revived}）`
+        return `${source} 使用道具`
+      }
       case 'PASSIVE_TRIGGERED':
         return `${source} 触发被动`
       case 'BATTLE_ENDED':
@@ -353,6 +399,8 @@ export const useBattleStore = defineStore('battle', () => {
     inBattle,
     settlement,
     captureRates,
+    autoEnabled,
+    autoPreference,
     loadSkillConfig,
     startTestBattle,
     startWildBattle,
@@ -364,6 +412,8 @@ export const useBattleStore = defineStore('battle', () => {
     getAction,
     leaveBattle,
     settleBattle,
+    loadAutoPreference,
+    configureAuto,
     skillName,
     unitName,
   }

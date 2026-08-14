@@ -74,6 +74,15 @@ public class BattleContext {
     /** 玩家是否逃跑成功（同战败结算：HP 回写、无奖励、无胜方）。 */
     private boolean fled;
 
+    /** 战斗级自动战斗设置（阶段 10；null 或 enabled=false 时为手动战斗）。 */
+    private com.petgame.battle.ai.AutoBattleSettings autoSettings;
+
+    /** 开战时玩家背包恢复/复苏道具存量快照：itemId → 数量（阶段 10，同捕捉球模式）。 */
+    private Map<String, Integer> availableRecoveryItems = new HashMap<>();
+
+    /** 本场战斗已使用的恢复/复苏道具：itemId → 数量（战斗过程不落库，结算时统一扣除）。 */
+    private Map<String, Integer> consumedRecoveryItems = new HashMap<>();
+
     /** 本场战斗全部事件序列。 */
     private List<BattleEvent> events = new ArrayList<>();
 

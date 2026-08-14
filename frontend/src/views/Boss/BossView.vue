@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBossStore } from '../../stores/boss'
-import type { BossInfo, DifficultyInfo, DropTierInfo } from '../../types/boss'
+import type { BossInfo, DifficultyInfo } from '../../types/boss'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,7 +45,7 @@ onMounted(async () => {
   if (queryBossId && bossStore.bosses.some(b => b.bossId === queryBossId)) {
     selectBoss(queryBossId)
   } else if (bossStore.bosses.length > 0) {
-    selectBoss(bossStore.bosses[0].bossId)
+    selectBoss(bossStore.bosses[0]!.bossId)
   }
 })
 

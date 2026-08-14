@@ -159,6 +159,7 @@ async function chooseReward(choiceId: string, optionIndex: number) {
           @accept="acceptQuest"
           @complete="completeQuest"
           @choose-reward="chooseReward"
+          @dismiss-result="completeResult = null"
           @close="closeDetail"
         />
       </div>

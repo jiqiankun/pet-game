@@ -31,6 +31,8 @@ export interface WildTouchPayload {
   spawnId: string
   groupId: string
   behavior: string
+  /** 精英个体标记（阶段 10，可选）。 */
+  elite?: boolean
 }
 
 export interface ExitTouchPayload {

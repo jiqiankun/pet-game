@@ -4,6 +4,7 @@ import com.petgame.battle.service.BattleService;
 import com.petgame.battle.service.BattleSnapshot;
 import com.petgame.common.ApiResponse;
 import com.petgame.map.service.MapExplorationService;
+import com.petgame.map.service.RandomEventService;
 import lombok.Data;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,10 +21,13 @@ public class MapController {
 
     private final MapExplorationService mapService;
     private final BattleService battleService;
+    private final RandomEventService randomEventService;
 
-    public MapController(MapExplorationService mapService, BattleService battleService) {
+    public MapController(MapExplorationService mapService, BattleService battleService,
+                         RandomEventService randomEventService) {
         this.mapService = mapService;
         this.battleService = battleService;
+        this.randomEventService = randomEventService;
     }
 
     /** 大地图视图（需求 §116：区域、推荐等级、Boss 状态占位、营地、传送）。 */
@@ -80,6 +84,34 @@ public class MapController {
         return ApiResponse.success(battleService.startWildBattle(request.getGroupId(), request.getSeed()));
     }
 
+    // ==================== 随机事件接口（阶段 10） ====================
+
+    /**
+     * 尝试触发随机事件（探索时调用，概率返回事件或 null）。
+     */
+    @GetMapping("/events/roll")
+    public ApiResponse<RandomEventService.EventView> rollRandomEvent(
+            @RequestParam(required = false) String mapId) {
+        String targetMapId = mapId;
+        if (targetMapId == null || targetMapId.isBlank()) {
+            // 默认使用当前区域
+            var current = mapService.getCurrentMapView();
+            targetMapId = current.getMapId();
+        }
+        return ApiResponse.success(randomEventService.rollRandomEvent(
+                targetMapId, new com.petgame.common.GameRandom()));
+    }
+
+    /**
+     * 解析事件选项（玩家选择后调用）。
+     */
+    @PostMapping("/events/resolve")
+    public ApiResponse<RandomEventService.EventResultView> resolveEvent(
+            @RequestBody ResolveEventRequest request) {
+        return ApiResponse.success(randomEventService.resolveEventOption(
+                request.getEventId(), request.getOptionId(), new com.petgame.common.GameRandom()));
+    }
+
     @Data
     public static class EnterRegionRequest {
         /** 出发出口 ID（出口移动时传；大地图进入可为空，落到区域默认出生点）。 */
@@ -92,5 +124,11 @@ public class MapController {
         private String groupId;
         /** 随机种子（可选，固定种子可复现遭遇）。 */
         private Long seed;
+    }
+
+    @Data
+    public static class ResolveEventRequest {
+        private String eventId;
+        private String optionId;
     }
 }

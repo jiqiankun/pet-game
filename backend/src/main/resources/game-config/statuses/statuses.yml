@@ -153,6 +153,13 @@ statuses:
     defaultDuration: 1
     speedPercent: 0.25
 
+  - id: SPDEF_UP
+    name: 抗性提升
+    category: BUFF
+    description: 抗性提高 30%。
+    defaultDuration: 2
+    resistancePercent: 0.30
+
   - id: TAUNT
     name: 嘲讽
     category: BUFF

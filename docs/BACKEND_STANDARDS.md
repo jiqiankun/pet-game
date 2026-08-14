@@ -629,3 +629,62 @@ config/model/SystemRuleConfig.PokedexRuleConfig  # 图鉴配置内部类（嵌�
   - `player_hidden_trigger`（save_id + trigger_key）
 - ALTER `player` 表新增 `story_completed` 字段。
 - 迁移文件 `V7__quest_tables.sql`，**禁止手工改表**。
+
+---
+
+## 21. 阶段 10 系统实现约定（效率、经济与随机内容）
+
+### 21.1 道具体系补齐
+
+- `ItemConfig` 新增字段：`skillId`（SKILL_BOOK 类引用 skills.yml）、`price`（商店售价，0=不可购买）。
+- 新增道具：9 属性材料（MATERIAL）、5 Boss 核心（MATERIAL）、净化药（RECOVERY）、10 技能书道具。
+
+### 21.2 商店系统
+
+- 配置：`game-config/shop/shop.yml`，商品含 `itemId` / `price` / `unlockQuestId`（主线任务解锁）。
+- `ShopService`：查询商品列表（含解锁状态，金币/商品从 `player` + `shop.yml` 读取）；购买在**单事务**内校验金币充足 → 扣金币 → 入背包。
+- `ShopController`：`GET /api/shop`、`POST /api/shop/buy`。解锁校验直接查 `player_quest` 任务 COMPLETED 状态（无独立解锁表）。
+- 商店无每日刷新、无限购（明确不做）。
+
+### 21.3 技能书系统
+
+- `SkillConfig` 新增 `learnRestriction`（可选：elements/rarities/speciesIds/excludeSpeciesIds）与 `exclusive`（专属技能不可学习）。
+- `PetService` 新增四接口：
+  - `learnSkillBook(petId, itemId, forgetSkillId)`：校验道具为 SKILL_BOOK + 背包持有 + 学习限制 + 非专属 + 上限 10（超限需 forgetSkillId）→ 扣道具 → 写 `player_pet_skill`（source_type=SKILL_BOOK）。
+  - `forgetBookSkill(petId, skillId)`：仅 source_type=SKILL_BOOK 可遗忘，如已装备则卸下。
+  - `equipBookSkill(petId, skillId, bookSlot)` / `unequipBookSkill(petId, bookSlot)`：书槽 5~6（与自身槽位 1~4 独立）。
+- `PetDetail` 新增 `bookSkillSlots` / `learnedBookSkills` / `bookSkillLearnCount`。
+- 已学技能排序使用 `Comparator.nullsLast` 避免未装备技能（slot=null）引发 NPE。
+
+### 21.4 精英个体与特殊外观
+
+- `SystemRuleConfig` 新增 elite 配置段（spawnChance/levelBonusMin/levelBonusMax/minAptitudeFloor/rareSkillChanceBonus）与 `specialAppearanceVariants` 列表。
+- `WildEncounterService` 按概率生成精英（等级加成 + 资质下限 + 稀有技能概率），标记 `isElite=true`；特殊外观从多变体按概率抽取。
+- `BattleUnit.WildUnitData` 与 `UnitSnapshot` 新增 `elite` 字段供前端展示。
+
+### 21.5 随机事件
+
+- 配置：`game-config/events/random-events.yml`，事件含 regionIds 限定与选项权重结果（GIFT_GOLD/GIFT_ITEM/GIFT_MATERIAL/TRIGGER_BATTLE/TRIGGER_CAPTURE/NOTHING）。
+- `RandomEventService`：`rollRandomEvent(mapId, random)`（15% 概率触发，区域筛选）；`resolveEventOption(eventId, optionId, random)`（按权重抽取结果）。
+- `MapController`：`GET /api/maps/events/roll`、`POST /api/maps/events/resolve`。
+
+### 21.6 隐藏遭遇与埋伏
+
+- `encounters.yml` 新增隐藏遭遇组（hidden）；`maps.yml` 区域新增 `ambushSpots`（ambushId/encounterGroupId/chance/oneTime）。
+- 一次性埋伏触发后记录到 `player_ambush_triggered`，不再重复。
+
+### 21.7 推荐 Build
+
+- 配置：`game-config/builds/build-recommendations.yml`（按种族分组，statPriority/skillPriority）。
+- `GET /api/pets/{petId}/build-recommendations` 纯展示，不修改玩家数据。
+
+### 21.8 配置校验
+
+- `GameConfigValidator` 新增：`validateShop()`（商品引用/price 非负/unlockQuestId 引用）、`validateRandomEvents()`（事件 ID 唯一/区域/道具/遭遇组引用）、`validateBuildRecommendations()`（种族/技能引用）。
+
+### 21.9 数据库迁移（V8）
+
+- 2 张表（复合主键无 @TableId）：
+  - `player_ambush_triggered`（save_id + ambush_id）一次性埋伏记录
+  - `player_random_event_used`（save_id + event_id + session_id）会话事件去重
+- 迁移文件 `V8__phase10_tables.sql`，**禁止手工改表**。

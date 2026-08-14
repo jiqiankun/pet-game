@@ -1,0 +1,115 @@
+# ============================================================
+# 宠物精灵游戏 - 随机事件配置（阶段 10）
+# ============================================================
+# 探索区域时按概率触发的简单选择事件（需求 §74）。
+# 每个事件包含描述与多个选项，选项下按权重抽取结果。
+# 结果类型：GIFT_GOLD / GIFT_ITEM / GIFT_MATERIAL / TRIGGER_BATTLE / TRIGGER_CAPTURE / NOTHING
+# ============================================================
+
+randomEvents:
+  # ---------- 受伤宠物 ----------
+  - id: EVENT_INJURED_PET
+    name: 受伤的宠物
+    description: 你发现了一只受伤的野生宠物，它看起来需要帮助。
+    regionIds: [MAP_AREA_MEADOW, MAP_AREA_FOREST]
+    options:
+      - id: HEAL
+        text: 治疗它
+        outcomes:
+          - { type: GIFT_GOLD, weight: 40, valueMin: 20, valueMax: 50 }
+          - { type: GIFT_ITEM, weight: 30, itemPool: [ITEM_POTION_SMALL, ITEM_POTION_MEDIUM] }
+          - { type: NOTHING, weight: 30 }
+      - id: LEAVE
+        text: 离开
+        outcomes:
+          - { type: NOTHING, weight: 100 }
+      - id: APPROACH
+        text: 尝试接近
+        outcomes:
+          - { type: TRIGGER_BATTLE, weight: 40, encounterGroupId: ENCOUNTER_MEADOW }
+          - { type: TRIGGER_CAPTURE, weight: 20, encounterGroupId: ENCOUNTER_MEADOW }
+          - { type: GIFT_MATERIAL, weight: 40, itemPool: [ITEM_MATERIAL_WOOD, ITEM_MATERIAL_EARTH] }
+
+  # ---------- 神秘宝箱 ----------
+  - id: EVENT_MYSTERY_CHEST
+    name: 神秘的宝箱
+    description: 路边有一个散发微光的宝箱，看起来很可疑。
+    regionIds: [MAP_AREA_FOREST, MAP_AREA_WATERS, MAP_AREA_THUNDER]
+    options:
+      - id: OPEN
+        text: 打开宝箱
+        outcomes:
+          - { type: GIFT_GOLD, weight: 50, valueMin: 30, valueMax: 80 }
+          - { type: GIFT_ITEM, weight: 30, itemPool: [ITEM_POTION_MEDIUM, ITEM_PURIFY_POTION, ITEM_CAPTURE_BALL_NORMAL] }
+          - { type: TRIGGER_BATTLE, weight: 20, encounterGroupId: ENCOUNTER_FOREST }
+      - id: LEAVE
+        text: 谨慎离开
+        outcomes:
+          - { type: NOTHING, weight: 100 }
+
+  # ---------- 旅行商人 ----------
+  - id: EVENT_TRAVELER
+    name: 旅行商人
+    description: 一位旅行商人拦住了你的去路，想要和你做个交易。
+    regionIds: [MAP_AREA_MEADOW, MAP_AREA_FOREST, MAP_AREA_WATERS]
+    options:
+      - id: TRADE
+        text: 看看他的货物
+        outcomes:
+          - { type: GIFT_ITEM, weight: 60, itemPool: [ITEM_POTION_SMALL, ITEM_POTION_LARGE, ITEM_PURIFY_POTION] }
+          - { type: GIFT_GOLD, weight: 40, valueMin: 10, valueMax: 30 }
+      - id: IGNORE
+        text: 婉拒
+        outcomes:
+          - { type: NOTHING, weight: 100 }
+
+  # ---------- 元素异动 ----------
+  - id: EVENT_ELEMENT_SURGE
+    name: 元素异动
+    description: 空气中弥漫着强烈的元素能量，周围的宠物显得躁动不安。
+    regionIds: [MAP_AREA_WATERS, MAP_AREA_THUNDER, MAP_AREA_RUINS]
+    options:
+      - id: INVESTIGATE
+        text: 调查能量源头
+        outcomes:
+          - { type: GIFT_MATERIAL, weight: 50, itemPool: [ITEM_MATERIAL_WATER, ITEM_MATERIAL_THUNDER, ITEM_MATERIAL_FIRE] }
+          - { type: TRIGGER_BATTLE, weight: 30, encounterGroupId: ENCOUNTER_WATERS }
+          - { type: GIFT_GOLD, weight: 20, valueMin: 40, valueMax: 100 }
+      - id: RETREAT
+        text: 迅速撤离
+        outcomes:
+          - { type: NOTHING, weight: 100 }
+
+  # ---------- 迷路的小宠物 ----------
+  - id: EVENT_LOST_PET
+    name: 迷路的小宠物
+    description: 一只迷路的小宠物在路边哭泣，它似乎和训练家走散了。
+    regionIds: [MAP_AREA_MEADOW]
+    options:
+      - id: HELP
+        text: 帮助它找到训练家
+        outcomes:
+          - { type: GIFT_GOLD, weight: 60, valueMin: 30, valueMax: 60 }
+          - { type: GIFT_ITEM, weight: 40, itemPool: [ITEM_POTION_SMALL, ITEM_CAPTURE_BALL_NORMAL] }
+      - id: LEAVE
+        text: 默默走开
+        outcomes:
+          - { type: NOTHING, weight: 100 }
+
+  # ---------- 远古遗迹探索 ----------
+  - id: EVENT_RUINS_EXPLORE
+    name: 远古遗迹探索
+    description: 你在遗迹深处发现了一扇刻满符文的石门，门后传来低沉的咆哮声。
+    regionIds: [MAP_AREA_RUINS]
+    options:
+      - id: ENTER
+        text: 推开石门
+        outcomes:
+          - { type: TRIGGER_BATTLE, weight: 40, encounterGroupId: ENCOUNTER_RUINS }
+          - { type: GIFT_MATERIAL, weight: 30, itemPool: [ITEM_MATERIAL_DARK, ITEM_MATERIAL_LIGHT, ITEM_MATERIAL_METAL] }
+          - { type: GIFT_GOLD, weight: 30, valueMin: 50, valueMax: 150 }
+      - id: SEAL
+        text: 封印石门
+        outcomes:
+          - { type: GIFT_ITEM, weight: 50, itemPool: [ITEM_PURIFY_POTION, ITEM_POTION_LARGE] }
+          - { type: NOTHING, weight: 50 }

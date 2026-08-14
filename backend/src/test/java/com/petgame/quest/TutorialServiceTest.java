@@ -62,13 +62,11 @@ class TutorialServiceTest {
         tut2.setOrder(2);
         tut2.setSkippable(false);
 
-        QuestsConfig.RewardConfig captureReward = new QuestsConfig.RewardConfig();
-        QuestsConfig.RewardEntry entry = new QuestsConfig.RewardEntry();
-        entry.setType("SKILL_BOOK");
-        entry.setItemId("ITEM_SKILL_BOOK_LEAVE_ALIVE");
-        entry.setQuantity(1);
-        captureReward.setFixed(List.of(entry));
-        tut2.setRewards(captureReward);
+        QuestsConfig.RewardEntry captureRewardEntry = new QuestsConfig.RewardEntry();
+        captureRewardEntry.setType("SKILL_BOOK");
+        captureRewardEntry.setItemId("ITEM_SKILL_BOOK_LEAVE_ALIVE");
+        captureRewardEntry.setQuantity(1);
+        tut2.setRewards(List.of(captureRewardEntry));
 
         questsConfig.setTutorials(List.of(tut1, tut2));
 
@@ -94,8 +92,7 @@ class TutorialServiceTest {
 
     @Test
     void completeStep_marksAsComplete() {
-        when(playerTutorialMapper.selectList(any())).thenReturn(Collections.emptyList());
-
+        // 未完成过（selectOne 默认返回 null）
         tutorialService.completeStep("TUT_MOVE");
 
         verify(playerTutorialMapper).insert(any(PlayerTutorialEntity.class));
@@ -103,8 +100,6 @@ class TutorialServiceTest {
 
     @Test
     void completeStep_captureStep_grantsSkillBook() {
-        when(playerTutorialMapper.selectList(any())).thenReturn(Collections.emptyList());
-
         tutorialService.completeStep("TUT_CAPTURE");
 
         verify(playerTutorialMapper).insert(any(PlayerTutorialEntity.class));
@@ -116,8 +111,6 @@ class TutorialServiceTest {
 
     @Test
     void skipTutorial_skipsSkippableSteps() {
-        when(playerTutorialMapper.selectList(any())).thenReturn(Collections.emptyList());
-
         tutorialService.skipTutorial();
 
         // TUT_MOVE is skippable, TUT_CAPTURE is not

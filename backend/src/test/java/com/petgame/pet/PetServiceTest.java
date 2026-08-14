@@ -3,7 +3,9 @@ package com.petgame.pet;
 import com.petgame.common.BusinessException;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.PetSpeciesConfig;
+import com.petgame.inventory.mapper.PlayerInventoryMapper;
 import com.petgame.pet.domain.PetGrowthService;
+import com.petgame.pokedex.service.PokedexService;
 import com.petgame.pet.entity.PlayerPetEntity;
 import com.petgame.pet.entity.PlayerPetSkillEntity;
 import com.petgame.pet.mapper.PlayerPetMapper;
@@ -46,6 +48,10 @@ class PetServiceTest {
     private PlayerPetMapper playerPetMapper;
     @Mock
     private PlayerPetSkillMapper playerPetSkillMapper;
+    @Mock
+    private PokedexService pokedexService;
+    @Mock
+    private PlayerInventoryMapper inventoryMapper;
 
     private PetGrowthService growthService;
     private GameConfigRegistry registry;
@@ -65,7 +71,7 @@ class PetServiceTest {
 
         // 重新构建 PetService（@InjectMocks 无法注入构造参数中非 Mock 的 growthService/registry）
         petService = new PetService(playerMapper, playerPetMapper, playerPetSkillMapper,
-                growthService, registry);
+                growthService, registry, pokedexService, inventoryMapper);
     }
 
     // ==================== 升级 ====================
@@ -545,6 +551,28 @@ class PetServiceTest {
     }
 
     // ==================== 详情查询 ====================
+
+    @Test
+    void getPetDetail_mixedNullAndNonNullSlots_sortsWithoutNpe() {
+        // 回归：技能书技能 slot=null 与已装备技能共存时，排序不得抛 NPE
+        PlayerPetEntity pet = pet(10, 50, 80);
+        PlayerEntity player = playerWithExp(500);
+
+        PlayerPetSkillEntity equipped = new PlayerPetSkillEntity();
+        equipped.setSkillId("SKILL_A");
+        equipped.setSourceType("LEVEL_UP");
+        equipped.setSlot(1);
+        PlayerPetSkillEntity bookSkill = new PlayerPetSkillEntity();
+        bookSkill.setSkillId("SKILL_B");
+        bookSkill.setSourceType("SKILL_BOOK");
+        bookSkill.setSlot(null);
+
+        when(playerPetMapper.selectById(1L)).thenReturn(pet);
+        when(playerMapper.selectOne(isNull())).thenReturn(player);
+        when(playerPetSkillMapper.selectList(any())).thenReturn(List.of(bookSkill, equipped));
+
+        assertDoesNotThrow(() -> petService.getPetDetail(1L));
+    }
 
     @Test
     void getPetDetail_aggregatesAllFields() {

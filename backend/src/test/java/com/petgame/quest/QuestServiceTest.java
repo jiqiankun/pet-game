@@ -11,8 +11,10 @@ import com.petgame.pet.mapper.PlayerPetSkillMapper;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.pokedex.service.PokedexService;
+import com.petgame.inventory.entity.PlayerInventoryEntity;
 import com.petgame.quest.entity.PlayerQuestEntity;
 import com.petgame.quest.entity.PlayerQuestObjectiveEntity;
+import com.petgame.quest.entity.PlayerHiddenTriggerEntity;
 import com.petgame.quest.mapper.*;
 import com.petgame.quest.service.QuestService;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -35,6 +39,7 @@ import static org.mockito.Mockito.*;
  * 完成任务发放奖励、三选一奖励、区域解锁、隐藏任务触发、赠送宠物、通关标记。
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class QuestServiceTest {
 
     private static final String SAVE_ID = "test-save-id";
@@ -147,7 +152,7 @@ class QuestServiceTest {
         QuestsConfig.DialogueNodeConfig dn = new QuestsConfig.DialogueNodeConfig();
         dn.setNodeId("NODE_1");
         dn.setText("欢迎来到村庄！");
-        dn.setNextNodeId("NODE_2");
+        dn.setNextNode("NODE_2");
         QuestsConfig.DialogueNodeConfig dn2 = new QuestsConfig.DialogueNodeConfig();
         dn2.setNodeId("NODE_2");
         dn2.setText("去冒险吧！");
@@ -185,8 +190,7 @@ class QuestServiceTest {
 
     @Test
     void acceptQuest_noPrerequisite_shouldSucceed() {
-        when(playerQuestMapper.selectList(any())).thenReturn(Collections.emptyList());
-
+        // 未接受过（selectOne 默认返回 null）
         questService.acceptQuest("QUEST_MAIN_01");
 
         verify(playerQuestMapper, times(1)).insert(any(PlayerQuestEntity.class));
@@ -198,15 +202,14 @@ class QuestServiceTest {
         PlayerQuestEntity existing = new PlayerQuestEntity();
         existing.setQuestId("QUEST_MAIN_01");
         existing.setStatus("ACTIVE");
-        when(playerQuestMapper.selectList(any())).thenReturn(List.of(existing));
+        when(playerQuestMapper.selectOne(any())).thenReturn(existing);
 
         assertThrows(Exception.class, () -> questService.acceptQuest("QUEST_MAIN_01"));
     }
 
     @Test
     void acceptQuest_prerequisiteNotCompleted_shouldThrow() {
-        when(playerQuestMapper.selectList(any())).thenReturn(Collections.emptyList());
-
+        // 前置任务 QUEST_MAIN_01 未接受（selectOne 默认返回 null）
         assertThrows(Exception.class, () -> questService.acceptQuest("QUEST_MAIN_02"));
     }
 
@@ -219,7 +222,7 @@ class QuestServiceTest {
         pq.setSaveId(SAVE_ID);
         pq.setQuestId("QUEST_MAIN_01");
         pq.setStatus("ACTIVE");
-        pq.setCurrentObjective("OBJ_MAIN_01_2");
+        pq.setCurrentObjective(2);
         when(playerQuestMapper.selectList(any())).thenReturn(List.of(pq));
 
         PlayerQuestObjectiveEntity objEntity = new PlayerQuestObjectiveEntity();
@@ -227,24 +230,25 @@ class QuestServiceTest {
         objEntity.setProgress(1);
         objEntity.setTargetCount(3);
         objEntity.setCompleted(false);
-        when(playerQuestObjectiveMapper.selectList(any())).thenReturn(List.of(objEntity));
+        when(playerQuestObjectiveMapper.selectOne(any())).thenReturn(objEntity);
 
         questService.checkObjectiveProgress(SAVE_ID, "DEFEAT", "PET_GRASS_001", 1);
 
-        verify(playerQuestObjectiveMapper, atLeastOnce()).updateById(any());
+        verify(playerQuestObjectiveMapper, atLeastOnce()).update(any(PlayerQuestObjectiveEntity.class), any());
     }
 
     // ==================== 隐藏任务触发 ====================
 
     @Test
     void checkHiddenTrigger_reachedCount_shouldUnlock() {
-        when(playerHiddenTriggerMapper.selectList(any())).thenReturn(Collections.emptyList());
-        when(playerQuestMapper.selectList(any())).thenReturn(Collections.emptyList());
+        // 模拟已累计 4 次触发，本次达到阈值 5
+        PlayerHiddenTriggerEntity trigger = new PlayerHiddenTriggerEntity();
+        trigger.setSaveId(SAVE_ID);
+        trigger.setTriggerKey("LOCATION:MAP_AREA_FOREST");
+        trigger.setTriggerCount(4);
+        when(playerHiddenTriggerMapper.selectOne(any())).thenReturn(trigger);
 
-        // 模拟已有 4 次触发，第 5 次达到阈值
-        for (int i = 0; i < 5; i++) {
-            questService.checkHiddenTrigger(SAVE_ID, "LOCATION", "MAP_AREA_FOREST");
-        }
+        questService.checkHiddenTrigger(SAVE_ID, "LOCATION", "MAP_AREA_FOREST");
 
         // 达到阈值后应该创建任务
         verify(playerQuestMapper, atLeastOnce()).insert(any(PlayerQuestEntity.class));
@@ -258,7 +262,7 @@ class QuestServiceTest {
         pq.setSaveId(SAVE_ID);
         pq.setQuestId("QUEST_MAIN_01");
         pq.setStatus("ACTIVE");
-        when(playerQuestMapper.selectList(any())).thenReturn(List.of(pq));
+        when(playerQuestMapper.selectOne(any())).thenReturn(pq);
 
         PlayerQuestObjectiveEntity obj1 = new PlayerQuestObjectiveEntity();
         obj1.setObjectiveId("OBJ_MAIN_01_1");
@@ -276,8 +280,9 @@ class QuestServiceTest {
 
         questService.completeQuest("QUEST_MAIN_01");
 
-        verify(playerQuestMapper).updateById(any());
-        verify(playerInventoryMapper, atLeastOnce()).insert(any());
+        verify(playerQuestMapper).update(any(PlayerQuestEntity.class), any());
+        // 固定奖励为 GOLD + EXP：玩家记录被更新
+        verify(playerMapper, atLeastOnce()).updateById(any(PlayerEntity.class));
     }
 
     // ==================== 辅助方法 ====================

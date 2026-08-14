@@ -85,6 +85,19 @@ rareSkillChance: 0.05
 # 野生宠物极低概率特殊外观的概率
 specialAppearanceChance: 0.01
 
+# ---- 精英个体（阶段 10，需求 §57） ----
+eliteSpawnChance: 0.05          # 精英出现概率
+eliteLevelBonusMin: 2           # 等级加成下限
+eliteLevelBonusMax: 5           # 等级加成上限
+eliteMinAptitudeFloor: 60       # 精英最低资质下限（普通为 0）
+eliteRareSkillChanceBonus: 0.15 # 稀有技能额外概率
+
+# ---- 特殊外观变体（阶段 10，需求 §57） ----
+# 替代原有单一 SPECIAL 标记，多种变体按概率独立抽取
+specialAppearanceVariants:
+  - { id: APPEARANCE_SHINY, chance: 0.005, description: "异色个体" }
+  - { id: APPEARANCE_GLOW, chance: 0.003, description: "辉光个体" }
+
 # ---- 放生礼物（阶段 5，决策七） ----
 # 礼物价值点数 = 基础值(稀有度) × 捕获等级系数(1+等级×1%，上限 1.5) × 培养系数(1.0～1.5)
 releaseGiftBaseValue:
@@ -143,6 +156,118 @@ bossAi:
   phaseAttackMultipliers: [1.0, 1.3, 1.6]   # 阶段攻击倍率（一阶段均衡/二阶段进攻/三阶段爆发）
   phaseControlMultipliers: [1.0, 0.8, 1.2]  # 阶段控制倍率（三阶段关键控制回升）
   phaseHealMultipliers: [1.0, 0.8, 0.6]     # 阶段治疗倍率（后期降权）
+
+# ---- 玩家自动战斗决策参数（阶段 10 自动战斗策略系统）----
+# 仅供 AutoBattleDecisionProvider 评分使用，不参与实际战斗结算；
+# 四套策略（均衡/进攻/稳健/捕捉）通过 strategyWeights 权重表差异化；
+# 不读取玩家等级/战力做动态缩放，决策仅来源于配置与战场状态。
+autoBattle:
+  tieTolerance: 0.05               # 接近分容差（接近分候选间随机）
+  killBonusPercent: 0.6            # 可斩杀目标时的额外奖励比例
+  lowHpTargetWeight: 0.5           # 低血目标加权系数
+  overkillWastePenalty: 0.4        # 高冷却高伤打极低血目标的降权比例
+  overkillLowHpPercent: 0.05       # 高伤浪费判定的目标低血阈值
+  highCooldownThreshold: 3         # 高冷却定义（cooldown >= 该值）
+  finisherHpThreshold: 0.30        # FINISHER 标签生效的目标 HP% 阈值
+  healHpThresholds: [0.70, 0.50, 0.30]        # 治疗三段阈值
+  healUrgencyMultipliers: [1.2, 1.6, 2.2]     # 对应紧迫度倍率
+  healNoNeedHpPercent: 0.90        # 接近满血时治疗大幅降权
+  controlBaseScore: 60.0           # 控制技能基础分
+  utilityBaseScore: 40.0           # 辅助/增益技能基础分
+  existingControlPenalty: 0.15     # 目标已受控时的控制评分惩罚倍率
+  defendBaseScore: 1.0             # 防御保底候选基础分
+  aggressiveSurvivalFloor: 0.15    # 进攻策略生存底线（低于该 HP% 生存修正回升）
+  defensiveHealEarly: 0.50         # 稳健策略提前恢复阈值
+  captureDangerHp: 0.40            # 捕捉危险血量区（低于该值计算误杀风险）
+  captureKillPenalty: 0.95         # 误杀风险惩罚比例
+  captureAssistLeaveAliveBonus: 80.0  # 留生一击（LEAVE_AT_ONE_HP）捕捉区额外奖励
+  captureReadyBonus: 300.0         # 目标 1 HP + 震慑时的捕捉巨额加成
+  captureRateScoreFactor: 200.0    # 捕捉率换算捕捉行动分系数
+  captureMinRate: 0.45             # 捕捉行动最低捕捉率门槛（1HP+震慑不受限）
+  balanceMinBenefit: 0.25          # 命运天平最低净收益阈值
+  balanceBossMinBenefit: 0.45      # 目标为 Boss 时命运天平更高阈值
+  reviveDangerEnemyRatio: 0.5      # 复苏危险判定：敌方存活比例阈值
+  reviveEnemyNearlyDeadPercent: 0.10  # 敌人即将被斩杀时复苏降权阈值
+  # 策略权重表：策略 × 语义标签（未列出的标签默认 1.0）
+  strategyWeights:
+    BALANCED:
+      DAMAGE: 1.0
+      FINISHER: 1.1
+      HEAL: 1.0
+      SURVIVAL: 1.0
+      CONTROL: 1.0
+      CAPTURE_ASSIST: 0.3
+      DISPEL: 1.0
+      SHIELD_BREAK: 1.0
+      ACTION_ORDER: 1.0
+      LIFE_STEAL: 1.0
+      CAPTURE_ACTION: 0.2
+      SWITCH_ACTION: 1.0
+    AGGRESSIVE:
+      DAMAGE: 1.4
+      FINISHER: 1.5
+      HEAL: 0.6
+      SURVIVAL: 0.7
+      CONTROL: 0.8
+      CAPTURE_ASSIST: 0.2
+      DISPEL: 0.8
+      SHIELD_BREAK: 1.3
+      ACTION_ORDER: 0.8
+      LIFE_STEAL: 1.2
+      CAPTURE_ACTION: 0.1
+      SWITCH_ACTION: 0.6
+    DEFENSIVE:
+      DAMAGE: 0.8
+      FINISHER: 0.9
+      HEAL: 1.5
+      SURVIVAL: 1.4
+      CONTROL: 1.2
+      CAPTURE_ASSIST: 0.3
+      DISPEL: 1.4
+      SHIELD_BREAK: 0.9
+      ACTION_ORDER: 1.1
+      LIFE_STEAL: 1.0
+      CAPTURE_ACTION: 0.2
+      SWITCH_ACTION: 1.4
+    CAPTURE:
+      DAMAGE: 0.7
+      FINISHER: 0.3
+      HEAL: 1.0
+      SURVIVAL: 1.1
+      CONTROL: 1.2
+      CAPTURE_ASSIST: 2.0
+      DISPEL: 0.8
+      SHIELD_BREAK: 0.7
+      ACTION_ORDER: 0.8
+      LIFE_STEAL: 0.9
+      CAPTURE_ACTION: 1.0
+      SWITCH_ACTION: 1.0
+  # 定位权重表：宠物定位 × 语义标签（未配置定位时按基础属性推断）
+  roleWeights:
+    DAMAGE:
+      DAMAGE: 1.2
+      FINISHER: 1.3
+      SHIELD_BREAK: 1.2
+      HEAL: 0.9
+      SURVIVAL: 0.9
+      CONTROL: 0.9
+    TANK:
+      SURVIVAL: 1.3
+      CONTROL: 1.2
+      DAMAGE: 0.9
+      HEAL: 1.0
+      FINISHER: 0.9
+    SUPPORT:
+      HEAL: 1.4
+      DISPEL: 1.3
+      ACTION_ORDER: 1.2
+      SURVIVAL: 1.2
+      DAMAGE: 0.8
+      FINISHER: 0.8
+    CONTROL:
+      CONTROL: 1.4
+      ACTION_ORDER: 1.2
+      DAMAGE: 0.95
 
 # ---- 图鉴（阶段 8，决策五）----
 # 研究值与等级门槛全部配置化，阶段 12 数值平衡时微调。

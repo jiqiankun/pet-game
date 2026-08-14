@@ -230,6 +230,8 @@ public class BattleEngine {
                     throw new BusinessException("INVALID_ACTION", "当前战斗不允许捕捉（Boss 不可捕捉）");
                 }
                 validateCaptureAction(ctx, action);
+            } else if ("ITEM".equalsIgnoreCase(action.getType())) {
+                validateItemAction(ctx, action);
             } else if ("FLEE".equalsIgnoreCase(action.getType())) {
                 requireWildBattle(ctx);
             } else if (!"DEFEND".equalsIgnoreCase(action.getType())) {
@@ -302,6 +304,60 @@ public class BattleEngine {
         return ball;
     }
 
+    /**
+     * 校验 ITEM 行动（阶段 10 自动战斗：恢复/复苏）：
+     * 道具在开战快照内存量充足；HEAL_HP 目标为存活单位；REVIVE 目标为倒下单位。
+     */
+    private void validateItemAction(BattleContext ctx, BattleAction action) {
+        ItemConfig item = registry.getItem(action.getItemId());
+        if (item == null || (!"HEAL_HP".equals(item.getItemType()) && !"REVIVE".equals(item.getItemType()))) {
+            throw new BusinessException("INVALID_ITEM", "战斗内道具不存在或不可用: " + action.getItemId());
+        }
+        int available = ctx.getAvailableRecoveryItems().getOrDefault(item.getId(), 0);
+        int used = ctx.getConsumedRecoveryItems().getOrDefault(item.getId(), 0);
+        if (used >= available) {
+            throw new BusinessException("ITEM_EXHAUSTED", "道具已用完: " + item.getId());
+        }
+        BattleUnit target = ctx.getPlayerSide().findUnit(action.getTargetId());
+        if (target == null) {
+            throw new BusinessException("INVALID_TARGET", "道具目标不存在: " + action.getTargetId());
+        }
+        if ("HEAL_HP".equals(item.getItemType()) && (!target.isAlive() || target.isCaptured())) {
+            throw new BusinessException("INVALID_TARGET", "恢复道具目标不是存活单位: " + action.getTargetId());
+        }
+        if ("REVIVE".equals(item.getItemType()) && target.isAlive()) {
+            throw new BusinessException("INVALID_TARGET", "复苏道具目标未倒下: " + action.getTargetId());
+        }
+    }
+
+    /**
+     * 执行 ITEM 行动（阶段 10 自动战斗）：
+     * HEAL_HP 恢复 HP（不超上限）；REVIVE 复活至 value 比例 HP（以候补身份回到战场）。
+     * 消耗记入战斗上下文，结算时统一扣背包（同捕捉球模式，战斗内零 DB 写入）。
+     */
+    private void executeItem(BattleContext ctx, BattleUnit caster, BattleAction action) {
+        ItemConfig item = registry.getItem(action.getItemId());
+        BattleUnit target = ctx.getPlayerSide().findUnit(action.getTargetId());
+        ctx.getConsumedRecoveryItems().merge(item.getId(), 1, Integer::sum);
+        if ("HEAL_HP".equals(item.getItemType())) {
+            int before = target.getCurrentHp();
+            int healed = (int) Math.min(item.getValue(), target.getMaxHp() - before);
+            target.setCurrentHp(before + healed);
+            ctx.emit(BattleEvent.of(BattleEventType.ITEM_USED, ctx.getCurrentRound())
+                    .source(caster.getUnitId()).target(target.getUnitId())
+                    .skill(item.getId()).put("healed", healed));
+        } else { // REVIVE
+            int revivedHp = (int) Math.max(1, Math.round(target.getMaxHp() * item.getValue()));
+            target.setAlive(true);
+            target.setCurrentHp(revivedHp);
+            target.setActive(false);
+            target.setPosition(-1);
+            ctx.emit(BattleEvent.of(BattleEventType.ITEM_USED, ctx.getCurrentRound())
+                    .source(caster.getUnitId()).target(target.getUnitId())
+                    .skill(item.getId()).put("revivedHp", revivedHp));
+        }
+    }
+
     // ---- 行动执行 ----
 
     private void executeAction(BattleContext ctx, BattleUnit unit, BattleAction action) {
@@ -335,6 +391,7 @@ public class BattleEngine {
             }
             case "SWITCH" -> executeSwitch(ctx, unit, action.getSwitchPetId());
             case "CAPTURE" -> executeCapture(ctx, unit, action);
+            case "ITEM" -> executeItem(ctx, unit, action);
             case "FLEE" -> executeFlee(ctx, unit);
             default -> log.warn("未知行动类型: {}", type);
         }
@@ -369,8 +426,9 @@ public class BattleEngine {
         double hpRatio = target.getMaxHp() > 0
                 ? (double) target.getCurrentHp() / target.getMaxHp() : 0.0;
         int statusCount = CaptureCalculator.countCaptureBonusStatuses(target, registry.getStatusIndex());
-        // 精英个体捕捉倍率（决策一，本阶段无精英个体，固定 1.0）
-        double eliteMultiplier = 1.0;
+        // 精英个体捕捉倍率（阶段 10：精英 wildData 标记时取配置倍率，默认 ×0.6）
+        double eliteMultiplier = target.getWildData() != null && target.getWildData().isElite()
+                ? registry.getSystemRules().getEliteCaptureMultiplier() : 1.0;
         double rate = CaptureCalculator.computeCaptureRate(species.getCaptureRate(), hpRatio,
                 statusCount, ball.getValue(), eliteMultiplier, registry.getSystemRules());
 

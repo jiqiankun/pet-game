@@ -26,6 +26,13 @@ public class PetSpeciesConfig {
     /** 属性 ID（9 属性之一）。 */
     private String element;
 
+    /**
+     * 战斗定位（阶段 10 自动战斗评分修正用，可选）：DAMAGE/TANK/SUPPORT/CONTROL。
+     * 未配置时由 AutoBattleDecisionProvider 按基础属性自动推断；
+     * 定位只影响决策倾向，不构成行为限制。
+     */
+    private String role;
+
     /** 种族描述（定位说明）。 */
     private String description;
 

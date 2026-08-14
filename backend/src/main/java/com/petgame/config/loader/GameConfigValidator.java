@@ -94,6 +94,31 @@ public class GameConfigValidator {
                          ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
                          ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses,
                          QuestsConfig quests) {
+        validate(system, elements, initialPets, skills, statuses, testBattle, items,
+                pets, encounters, releaseGifts, maps, bosses, quests, null, null, null);
+    }
+
+    /**
+     * 校验全部配置（阶段 10：含商店配置），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
+                         ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses,
+                         QuestsConfig quests, ShopConfig shop) {
+        validate(system, elements, initialPets, skills, statuses, testBattle, items,
+                pets, encounters, releaseGifts, maps, bosses, quests, shop, null, null);
+    }
+
+    /**
+     * 校验全部配置（阶段 10 完整：含商店/随机事件/推荐Build），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
+                         ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses,
+                         QuestsConfig quests, ShopConfig shop, RandomEventsConfig randomEvents,
+                         BuildRecommendationConfig buildRecommendations) {
         List<String> errors = new ArrayList<>();
 
         validateSystemRules(system, errors);
@@ -130,6 +155,15 @@ public class GameConfigValidator {
         }
         if (items != null) {
             validateItems(items, errors);
+        }
+        if (shop != null) {
+            validateShop(shop, items, quests, errors);
+        }
+        if (randomEvents != null) {
+            validateRandomEvents(randomEvents, items, maps, encounters, errors);
+        }
+        if (buildRecommendations != null) {
+            validateBuildRecommendations(buildRecommendations, pets, skills, errors);
         }
 
         if (!errors.isEmpty()) {
@@ -290,6 +324,69 @@ public class GameConfigValidator {
 
         // 阶段 8：图鉴研究值配置
         validatePokedexRules(system.getPokedex(), errors);
+
+        // 阶段 10：自动战斗决策参数
+        validateAutoBattle(system.getAutoBattle(), errors);
+    }
+
+    /** 校验自动战斗决策配置（阶段 10）：策略枚举、阈值范围、权重表非负。 */
+    private void validateAutoBattle(SystemRuleConfig.AutoBattleConfig ai, List<String> errors) {
+        if (ai == null) {
+            return;
+        }
+        if (ai.getTieTolerance() < 0 || ai.getTieTolerance() > 1) {
+            errors.add("autoBattle.tieTolerance 必须在 [0, 1] 范围内，当前值: " + ai.getTieTolerance());
+        }
+        if (ai.getFinisherHpThreshold() < 0 || ai.getFinisherHpThreshold() > 1) {
+            errors.add("autoBattle.finisherHpThreshold 必须在 [0, 1] 范围内，当前值: " + ai.getFinisherHpThreshold());
+        }
+        if (ai.getCaptureDangerHp() < 0 || ai.getCaptureDangerHp() > 1) {
+            errors.add("autoBattle.captureDangerHp 必须在 [0, 1] 范围内，当前值: " + ai.getCaptureDangerHp());
+        }
+        if (ai.getCaptureKillPenalty() < 0 || ai.getCaptureKillPenalty() > 1) {
+            errors.add("autoBattle.captureKillPenalty 必须在 [0, 1] 范围内，当前值: " + ai.getCaptureKillPenalty());
+        }
+        if (ai.getBalanceMinBenefit() < 0 || ai.getBalanceBossMinBenefit() < 0) {
+            errors.add("autoBattle.balanceMinBenefit/balanceBossMinBenefit 必须 >= 0");
+        }
+        if (ai.getHealHpThresholds() != null) {
+            for (Double t : ai.getHealHpThresholds()) {
+                if (t == null || t < 0 || t > 1) {
+                    errors.add("autoBattle.healHpThresholds 各项必须在 [0, 1] 范围内");
+                    break;
+                }
+            }
+        }
+        java.util.Set<String> validStrategies = java.util.Set.of("BALANCED", "AGGRESSIVE", "DEFENSIVE", "CAPTURE");
+        if (ai.getStrategyWeights() != null) {
+            for (Map.Entry<String, Map<String, Double>> entry : ai.getStrategyWeights().entrySet()) {
+                if (!validStrategies.contains(entry.getKey().toUpperCase())) {
+                    errors.add("autoBattle.strategyWeights 未知策略: " + entry.getKey());
+                }
+                validateWeightMap("autoBattle.strategyWeights." + entry.getKey(), entry.getValue(), errors);
+            }
+        }
+        java.util.Set<String> validRoles = java.util.Set.of("DAMAGE", "TANK", "SUPPORT", "CONTROL");
+        if (ai.getRoleWeights() != null) {
+            for (Map.Entry<String, Map<String, Double>> entry : ai.getRoleWeights().entrySet()) {
+                if (!validRoles.contains(entry.getKey().toUpperCase())) {
+                    errors.add("autoBattle.roleWeights 未知定位: " + entry.getKey());
+                }
+                validateWeightMap("autoBattle.roleWeights." + entry.getKey(), entry.getValue(), errors);
+            }
+        }
+    }
+
+    /** 权重表校验：全部权重非负。 */
+    private void validateWeightMap(String fieldName, Map<String, Double> map, List<String> errors) {
+        if (map == null) {
+            return;
+        }
+        for (Map.Entry<String, Double> entry : map.entrySet()) {
+            if (entry.getValue() == null || entry.getValue() < 0) {
+                errors.add(fieldName + " 权重必须 >= 0: " + entry.getKey());
+            }
+        }
     }
 
     /** 校验图鉴研究值配置（阶段 8）：等级门槛严格递增、分值非负、资质预估合法。 */
@@ -1435,6 +1532,132 @@ public class GameConfigValidator {
             if ("ITEM".equals(entry.getType()) || "SKILL_BOOK".equals(entry.getType())) {
                 if (entry.getItemId() != null && !itemIds.contains(entry.getItemId())) {
                     errors.add("任务 " + questId + " " + context + " 道具不存在: " + entry.getItemId());
+                }
+            }
+        }
+    }
+
+    // ==================== 阶段 10 校验 ====================
+
+    /** 校验商店配置：商品 ID 引用完整性、price 非负、unlockQuestId 引用完整性。 */
+    private void validateShop(ShopConfig shop, ItemsConfig items, QuestsConfig quests, List<String> errors) {
+        if (shop.getShopItems() == null) return;
+        Set<String> itemIds = items != null && items.getItems() != null
+                ? items.getItems().stream().map(ItemConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> questIds = quests != null && quests.getQuests() != null
+                ? quests.getQuests().stream().map(QuestsConfig.QuestConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        for (ShopConfig.ShopItemConfig entry : shop.getShopItems()) {
+            if (entry.getItemId() == null || entry.getItemId().isBlank()) {
+                errors.add("商店商品存在空 itemId");
+                continue;
+            }
+            if (!itemIds.contains(entry.getItemId())) {
+                errors.add("商店商品引用不存在的道具: " + entry.getItemId());
+            }
+            if (entry.getPrice() < 0) {
+                errors.add("商店商品 " + entry.getItemId() + " 价格不能为负数: " + entry.getPrice());
+            }
+            if (entry.getUnlockQuestId() != null && !entry.getUnlockQuestId().isBlank()
+                    && !questIds.contains(entry.getUnlockQuestId())) {
+                errors.add("商店商品 " + entry.getItemId() + " 解锁任务不存在: " + entry.getUnlockQuestId());
+            }
+        }
+    }
+
+    /** 校验随机事件：事件 ID 唯一性、区域引用、结果道具引用、概率范围。 */
+    private void validateRandomEvents(RandomEventsConfig events, ItemsConfig items,
+                                       MapsConfig maps, EncountersConfig encounters, List<String> errors) {
+        if (events.getRandomEvents() == null) return;
+        Set<String> eventIds = new HashSet<>();
+        Set<String> itemIds = items != null && items.getItems() != null
+                ? items.getItems().stream().map(ItemConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> regionIds = maps != null && maps.getRegions() != null
+                ? maps.getRegions().stream().map(MapsConfig.RegionConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> groupIds = encounters != null && encounters.getEncounterGroups() != null
+                ? encounters.getEncounterGroups().stream()
+                        .map(EncountersConfig.EncounterGroup::getId).collect(Collectors.toSet())
+                : Set.of();
+        for (RandomEventsConfig.RandomEventConfig event : events.getRandomEvents()) {
+            if (event.getId() == null || event.getId().isBlank()) {
+                errors.add("随机事件存在空 ID");
+                continue;
+            }
+            if (!eventIds.add(event.getId())) {
+                errors.add("随机事件 ID 重复: " + event.getId());
+            }
+            if (event.getRegionIds() != null) {
+                for (String rid : event.getRegionIds()) {
+                    if (!regionIds.contains(rid)) {
+                        errors.add("随机事件 " + event.getId() + " 区域不存在: " + rid);
+                    }
+                }
+            }
+            if (event.getOptions() != null) {
+                for (RandomEventsConfig.EventOptionConfig opt : event.getOptions()) {
+                    if (opt.getId() == null || opt.getId().isBlank()) {
+                        errors.add("随机事件 " + event.getId() + " 选项存在空 ID");
+                        continue;
+                    }
+                    if (opt.getOutcomes() != null) {
+                        for (RandomEventsConfig.EventOutcomeConfig outcome : opt.getOutcomes()) {
+                            if (outcome.getWeight() < 0) {
+                                errors.add("随机事件 " + event.getId() + " 选项 " + opt.getId() + " 结果权重不能为负数");
+                            }
+                            if (outcome.getItemPool() != null) {
+                                for (String itemId : outcome.getItemPool()) {
+                                    if (!itemIds.contains(itemId)) {
+                                        errors.add("随机事件 " + event.getId() + " 道具池引用不存在: " + itemId);
+                                    }
+                                }
+                            }
+                            if (outcome.getEncounterGroupId() != null
+                                    && !groupIds.contains(outcome.getEncounterGroupId())) {
+                                errors.add("随机事件 " + event.getId() + " 遭遇组不存在: " + outcome.getEncounterGroupId());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** 校验推荐 Build：种族引用、技能引用。 */
+    private void validateBuildRecommendations(BuildRecommendationConfig config,
+                                                PetsConfig pets, SkillsConfig skills, List<String> errors) {
+        if (config.getRecommendations() == null) return;
+        Set<String> speciesIds = pets != null && pets.getSpecies() != null
+                ? pets.getSpecies().stream().map(PetSpeciesConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> skillIds = new HashSet<>();
+        if (skills != null) {
+            if (skills.getSkills() != null) {
+                skills.getSkills().forEach(s -> skillIds.add(s.getId()));
+            }
+            if (skills.getPassives() != null) {
+                skills.getPassives().forEach(p -> skillIds.add(p.getId()));
+            }
+        }
+        for (BuildRecommendationConfig.SpeciesBuildConfig rec : config.getRecommendations()) {
+            if (rec.getSpeciesId() == null || rec.getSpeciesId().isBlank()) {
+                errors.add("推荐 Build 存在空 speciesId");
+                continue;
+            }
+            if (!speciesIds.contains(rec.getSpeciesId())) {
+                errors.add("推荐 Build 种族不存在: " + rec.getSpeciesId());
+            }
+            if (rec.getBuilds() != null) {
+                for (BuildRecommendationConfig.BuildConfig build : rec.getBuilds()) {
+                    if (build.getSkillPriority() != null) {
+                        for (String sid : build.getSkillPriority()) {
+                            if (!skillIds.contains(sid)) {
+                                errors.add("推荐 Build " + rec.getSpeciesId() + "/" + build.getName() + " 技能不存在: " + sid);
+                            }
+                        }
+                    }
                 }
             }
         }

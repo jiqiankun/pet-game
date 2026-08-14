@@ -76,6 +76,9 @@ public enum BattleEventType {
     /** 捕捉失败。 */
     CAPTURE_FAIL,
 
+    /** 使用道具（阶段 10 自动战斗：恢复/复苏，仅自动 AI 在开关开启时使用）。 */
+    ITEM_USED,
+
     /** 逃跑成功。 */
     FLEE_SUCCESS,
 

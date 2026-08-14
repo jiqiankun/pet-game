@@ -39,6 +39,9 @@ public class UnitSnapshot {
     /** 是否已被捕捉（野生战斗）。 */
     private boolean captured;
 
+    /** 是否精英个体（阶段 10，野生战斗前端展示用）。 */
+    private boolean elite;
+
     /** 蓄力中（chargingSkillId 非空）。 */
     private boolean charging;
     private String chargingSkillId;
