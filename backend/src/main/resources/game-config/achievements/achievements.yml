@@ -1,0 +1,324 @@
+# ============================================================
+# 宠物精灵游戏 - 成就配置（阶段 11）
+# ============================================================
+# 成就采用事件记录驱动：每个成就有独立的 conditionType/conditionValue/conditionCount，
+# 由 AchievementService 在既有结算点事件触发时按条件类型从玩家状态快照计算是否达成。
+# 奖励为金币/经验/捕捉球/材料/称号/头像/徽章，不增加永久大量战斗属性（需求 §110）。
+#
+# 分类 category：EXPLORE(探索) / CAPTURE(捕捉) / BREED(培养) /
+#                BATTLE(战斗) / BOSS / POKEDEX(图鉴) / SPECIAL(特殊)
+# 条件类型 conditionType 参考 AchievementService 支持列表。
+# 统计项 key 参考 StatisticsService 定义的统计键。
+# ============================================================
+
+configVersion: 1
+achievements:
+# ---------------- 探索 EXPLORE ----------------
+  - id: ACH_EXPLORE_FIRST_STEP
+    name: 迈出第一步
+    description: 解锁第一个新区域
+    category: EXPLORE
+    conditionType: REGION_UNLOCK_COUNT
+    conditionCount: 1
+    rewards:
+      - { type: GOLD, quantity: 200 }
+      - { type: ITEM, itemId: ITEM_POTION_SMALL, quantity: 3 }
+  - id: ACH_EXPLORE_WIDE
+    name: 足迹渐广
+    description: 解锁 3 个区域
+    category: EXPLORE
+    conditionType: REGION_UNLOCK_COUNT
+    conditionCount: 3
+    rewards:
+      - { type: GOLD, quantity: 500 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_NORMAL, quantity: 5 }
+  - id: ACH_EXPLORE_ALL
+    name: 迈向传说
+    description: 解锁全部 5 个区域
+    category: EXPLORE
+    conditionType: REGION_UNLOCK_COUNT
+    conditionCount: 5
+    rewards:
+      - { type: GOLD, quantity: 1500 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+  - id: ACH_EXPLORE_RUINS
+    name: 深入遗迹
+    description: 解锁最终遗迹区域
+    category: EXPLORE
+    conditionType: REGION_UNLOCK_SPECIFIC
+    conditionValue: MAP_AREA_RUINS
+    rewards:
+      - { type: GOLD, quantity: 1000 }
+      - { type: ITEM, itemId: ITEM_MATERIAL_EARTH, quantity: 3 }
+
+# ---------------- 捕捉 CAPTURE ----------------
+  - id: ACH_CAPTURE_FIRST
+    name: 初次相遇
+    description: 成功捕捉第一只宠物
+    category: CAPTURE
+    conditionType: CAPTURE_SPECIES_COUNT
+    conditionCount: 1
+    rewards:
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_NORMAL, quantity: 5 }
+  - id: ACH_CAPTURE_5
+    name: 小小收藏家
+    description: 捕捉 5 种不同宠物
+    category: CAPTURE
+    conditionType: CAPTURE_SPECIES_COUNT
+    conditionCount: 5
+    rewards:
+      - { type: GOLD, quantity: 500 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_NORMAL, quantity: 5 }
+  - id: ACH_CAPTURE_10
+    name: 熟练训练家
+    description: 捕捉 10 种不同宠物
+    category: CAPTURE
+    conditionType: CAPTURE_SPECIES_COUNT
+    conditionCount: 10
+    rewards:
+      - { type: GOLD, quantity: 800 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 3 }
+  - id: ACH_CAPTURE_15
+    name: 图鉴推进者
+    description: 捕捉 15 种不同宠物
+    category: CAPTURE
+    conditionType: CAPTURE_SPECIES_COUNT
+    conditionCount: 15
+    rewards:
+      - { type: GOLD, quantity: 1200 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+  - id: ACH_CAPTURE_20
+    name: 资深收藏家
+    description: 捕捉 20 种不同宠物
+    category: CAPTURE
+    conditionType: CAPTURE_SPECIES_COUNT
+    conditionCount: 20
+    rewards:
+      - { type: GOLD, quantity: 2000 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 3 }
+  - id: ACH_CAPTURE_ALL
+    name: 万物之主
+    description: 捕捉全部 27 种宠物
+    category: CAPTURE
+    conditionType: CAPTURE_SPECIES_COUNT
+    conditionCount: 27
+    rewards:
+      - { type: GOLD, quantity: 5000 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 5 }
+  - id: ACH_CAPTURE_ELITE
+    name: 天选之选
+    description: 捕捉到一只精英个体
+    category: CAPTURE
+    conditionType: ELITE_CAPTURE
+    hidden: true
+    rewards:
+      - { type: GOLD, quantity: 1500 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+  - id: ACH_CAPTURE_SHINY
+    name: 稀有邂逅
+    description: 捕捉到一只有特殊外观的宠物
+    category: CAPTURE
+    conditionType: SPECIAL_APPEARANCE_CAPTURE
+    hidden: true
+    rewards:
+      - { type: GOLD, quantity: 1000 }
+      - { type: ITEM, itemId: ITEM_MATERIAL_LIGHT, quantity: 3 }
+
+# ---------------- 培养 BREED ----------------
+  - id: ACH_BREED_LEVEL_30
+    name: 茁壮成长
+    description: 拥有 1 只达到 30 级的宠物
+    category: BREED
+    conditionType: PET_LEVEL_SPECIFIC
+    conditionCount: 30
+    rewards:
+      - { type: GOLD, quantity: 1000 }
+      - { type: ITEM, itemId: ITEM_POTION_MEDIUM, quantity: 3 }
+  - id: ACH_BREED_LEVEL_MAX
+    name: 巅峰之境
+    description: 拥有 1 只达到满级 50 级的宠物
+    category: BREED
+    conditionType: PET_LEVEL_MAX
+    rewards:
+      - { type: GOLD, quantity: 3000 }
+      - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 3 }
+  - id: ACH_BREED_FULL_TEAM
+    name: 精锐小队
+    description: 拥有 6 只满级宠物
+    category: BREED
+    conditionType: MAX_LEVEL_PETS_COUNT
+    conditionCount: 6
+    rewards:
+      - { type: GOLD, quantity: 3000 }
+      - { type: ITEM, itemId: ITEM_REVIVE, quantity: 3 }
+
+# ---------------- 战斗 BATTLE ----------------
+  - id: ACH_BATTLE_WIN_1
+    name: 首战告捷
+    description: 取得第一场战斗胜利
+    category: BATTLE
+    conditionType: STAT_GE
+    conditionValue: BATTLES_WON
+    conditionCount: 1
+    rewards:
+      - { type: GOLD, quantity: 300 }
+  - id: ACH_BATTLE_WIN_10
+    name: 常胜将军
+    description: 累计取得 10 场战斗胜利
+    category: BATTLE
+    conditionType: STAT_GE
+    conditionValue: BATTLES_WON
+    conditionCount: 10
+    rewards:
+      - { type: GOLD, quantity: 800 }
+      - { type: ITEM, itemId: ITEM_POTION_SMALL, quantity: 5 }
+  - id: ACH_BATTLE_WIN_50
+    name: 百战不殆
+    description: 累计取得 50 场战斗胜利
+    category: BATTLE
+    conditionType: STAT_GE
+    conditionValue: BATTLES_WON
+    conditionCount: 50
+    rewards:
+      - { type: GOLD, quantity: 2000 }
+      - { type: ITEM, itemId: ITEM_POTION_MEDIUM, quantity: 5 }
+  - id: ACH_BATTLE_WIN_100
+    name: 传奇战将
+    description: 累计取得 100 场战斗胜利
+    category: BATTLE
+    conditionType: STAT_GE
+    conditionValue: BATTLES_WON
+    conditionCount: 100
+    rewards:
+      - { type: GOLD, quantity: 5000 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+  - id: ACH_BATTLE_KILLS_100
+    name: 横扫千军
+    description: 累计击败 100 只野生宠物
+    category: BATTLE
+    conditionType: STAT_GE
+    conditionValue: TOTAL_KILLS
+    conditionCount: 100
+    rewards:
+      - { type: GOLD, quantity: 1500 }
+      - { type: ITEM, itemId: ITEM_MATERIAL_METAL, quantity: 3 }
+  - id: ACH_BATTLE_MAX_DAMAGE
+    name: 一击必杀
+    description: 单次造成 500 点以上伤害
+    category: BATTLE
+    conditionType: STAT_GE
+    conditionValue: MAX_DAMAGE
+    conditionCount: 500
+    rewards:
+      - { type: GOLD, quantity: 1000 }
+
+# ---------------- Boss BOSS ----------------
+  - id: ACH_BOSS_FIRST
+    name: 初遇强敌
+    description: 击败第一个 Boss
+    category: BOSS
+    conditionType: BOSS_DEFEAT_COUNT
+    conditionCount: 1
+    rewards:
+      - { type: GOLD, quantity: 1000 }
+      - { type: ITEM, itemId: ITEM_POTION_MEDIUM, quantity: 3 }
+  - id: ACH_BOSS_3
+    name: 猎手之名
+    description: 击败 3 个 Boss
+    category: BOSS
+    conditionType: BOSS_DEFEAT_COUNT
+    conditionCount: 3
+    rewards:
+      - { type: GOLD, quantity: 2000 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+  - id: ACH_BOSS_ALL_MAIN
+    name: 传说终结者
+    description: 击败全部 5 个主 Boss（普通难度）
+    category: BOSS
+    conditionType: BOSS_DEFEAT_ALL_MAIN
+    rewards:
+      - { type: GOLD, quantity: 5000 }
+      - type: ITEM
+        itemId: ITEM_BOSS_CORE_MEADOW
+        quantity: 1
+  - id: ACH_BOSS_CHALLENGE_1
+    name: 极限挑战
+    description: 完成第一个 Boss 挑战目标
+    category: BOSS
+    conditionType: BOSS_CHALLENGE_COUNT
+    conditionCount: 1
+    rewards:
+      - { type: GOLD, quantity: 1000 }
+  - id: ACH_BOSS_CHALLENGE_5
+    name: 挑战者之王
+    description: 累计完成 5 个 Boss 挑战目标
+    category: BOSS
+    conditionType: BOSS_CHALLENGE_COUNT
+    conditionCount: 5
+    rewards:
+      - { type: GOLD, quantity: 3000 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 3 }
+
+# ---------------- 图鉴 POKEDEX ----------------
+  - id: ACH_POKEDEX_DISCOVER_10
+    name: 初见世界
+    description: 发现 10 种宠物
+    category: POKEDEX
+    conditionType: DISCOVER_SPECIES_COUNT
+    conditionCount: 10
+    rewards:
+      - { type: GOLD, quantity: 800 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_NORMAL, quantity: 5 }
+  - id: ACH_POKEDEX_DISCOVER_ALL
+    name: 洞悉万物
+    description: 发现全部 27 种宠物
+    category: POKEDEX
+    conditionType: DISCOVER_SPECIES_COUNT
+    conditionCount: 27
+    rewards:
+      - { type: GOLD, quantity: 4000 }
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+  - id: ACH_POKEDEX_RESEARCH_5
+    name: 研究学者
+    description: 拥有 5 只研究等级 Lv.5 的宠物
+    category: POKEDEX
+    conditionType: POKEDEX_RESEARCHED_5_COUNT
+    conditionCount: 5
+    rewards:
+      - { type: GOLD, quantity: 2000 }
+      - { type: ITEM, itemId: ITEM_MATERIAL_LIGHT, quantity: 3 }
+
+# ---------------- 特殊 SPECIAL ----------------
+  - id: ACH_SPECIAL_QUEST_MAIN
+    name: 命运之线
+    description: 完成主线剧情
+    category: SPECIAL
+    conditionType: MAIN_QUEST_COMPLETE
+    hidden: true
+    rewards:
+      - { type: GOLD, quantity: 5000 }
+      - { type: ITEM, itemId: ITEM_REVIVE, quantity: 3 }
+  - id: ACH_SPECIAL_QUEST_10
+    name: 助人为乐
+    description: 完成 10 个任务
+    category: SPECIAL
+    conditionType: QUEST_COMPLETE_COUNT
+    conditionCount: 10
+    rewards:
+      - { type: GOLD, quantity: 1500 }
+  - id: ACH_SPECIAL_GOLD_10000
+    name: 富甲一方
+    description: 累计获得 10000 金币
+    category: SPECIAL
+    conditionType: GOLD_GE
+    conditionCount: 10000
+    rewards:
+      - { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 }
+  - id: ACH_SPECIAL_EXP_50000
+    name: 经验如海
+    description: 累计获得 50000 经验
+    category: SPECIAL
+    conditionType: EXP_POOL_GE
+    conditionCount: 50000
+    rewards:
+      - { type: ITEM, itemId: ITEM_POTION_LARGE, quantity: 3 }

@@ -18,6 +18,7 @@ import com.petgame.pet.mapper.PlayerPetSkillMapper;
 import com.petgame.pokedex.service.PokedexService;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
+import com.petgame.achievement.service.AchievementService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,7 @@ public class PetService {
     private final GameConfigRegistry registry;
     private final PokedexService pokedexService;
     private final PlayerInventoryMapper inventoryMapper;
+    private final AchievementService achievementService;
 
     public PetService(PlayerMapper playerMapper,
                       PlayerPetMapper playerPetMapper,
@@ -61,7 +63,8 @@ public class PetService {
                       PetGrowthService growthService,
                       GameConfigRegistry registry,
                       PokedexService pokedexService,
-                      PlayerInventoryMapper inventoryMapper) {
+                      PlayerInventoryMapper inventoryMapper,
+                      AchievementService achievementService) {
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
@@ -69,6 +72,7 @@ public class PetService {
         this.registry = registry;
         this.pokedexService = pokedexService;
         this.inventoryMapper = inventoryMapper;
+        this.achievementService = achievementService;
     }
 
     // ==================== 宠物详情 ====================
@@ -230,6 +234,11 @@ public class PetService {
         PetDetail detail = getPetDetail(petId);
         detail.setNewlyLearnedSkillNames(newActiveNames);
         detail.setSkillEquipOverflow(overflow);
+
+        // 阶段 11：成就检查（满级 / 等级类成就，失败不阻断主流程）
+        if (achievementService != null) {
+            achievementService.checkAchievements(player.getSaveId());
+        }
         return detail;
     }
 

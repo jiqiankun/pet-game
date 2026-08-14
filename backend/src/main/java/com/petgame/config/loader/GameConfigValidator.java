@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 游戏配置启动校验器。
@@ -164,6 +165,79 @@ public class GameConfigValidator {
         }
         if (buildRecommendations != null) {
             validateBuildRecommendations(buildRecommendations, pets, skills, errors);
+        }
+
+        if (!errors.isEmpty()) {
+            String msg = "游戏配置校验失败（" + errors.size() + " 个错误）:\n"
+                    + String.join("\n", errors.stream().map(e -> "  - " + e).toList());
+            log.error(msg);
+            throw new IllegalStateException(msg);
+        }
+
+        log.info("游戏配置校验通过");
+    }
+
+    /**
+     * 校验全部配置（阶段 11 完整：含成就/Boss 挑战目标），发现严重错误时抛出 {@link IllegalStateException}。
+     */
+    public void validate(SystemRuleConfig system, GameElementsConfig elements, InitialPetsConfig initialPets,
+                         SkillsConfig skills, StatusesConfig statuses, TestBattleConfig testBattle,
+                         ItemsConfig items, PetsConfig pets, EncountersConfig encounters,
+                         ReleaseGiftsConfig releaseGifts, MapsConfig maps, BossesConfig bosses,
+                         QuestsConfig quests, ShopConfig shop, RandomEventsConfig randomEvents,
+                         BuildRecommendationConfig buildRecommendations,
+                         AchievementsConfig achievements, BossChallengesConfig bossChallenges) {
+        List<String> errors = new ArrayList<>();
+
+        validateSystemRules(system, errors);
+        validateElements(elements, errors);
+        if (statuses != null) {
+            validateStatuses(statuses, errors);
+        }
+        if (skills != null) {
+            validateSkills(skills, elements, statuses, errors);
+        }
+        if (initialPets != null) {
+            validateInitialPets(initialPets, pets, items, skills, errors);
+        }
+        if (pets != null) {
+            validatePets(pets, skills, elements, system, errors);
+        }
+        if (encounters != null) {
+            validateEncounters(encounters, pets, errors);
+        }
+        if (releaseGifts != null) {
+            validateReleaseGifts(releaseGifts, items, errors);
+        }
+        if (maps != null) {
+            validateMaps(maps, encounters, items, initialPets, errors);
+        }
+        if (bosses != null) {
+            validateBosses(bosses, elements, skills, items, maps, errors);
+        }
+        if (quests != null) {
+            validateQuests(quests, items, pets, skills, maps, errors);
+        }
+        if (testBattle != null) {
+            validateTestBattle(testBattle, skills, elements, errors);
+        }
+        if (items != null) {
+            validateItems(items, errors);
+        }
+        if (shop != null) {
+            validateShop(shop, items, quests, errors);
+        }
+        if (randomEvents != null) {
+            validateRandomEvents(randomEvents, items, maps, encounters, errors);
+        }
+        if (buildRecommendations != null) {
+            validateBuildRecommendations(buildRecommendations, pets, skills, errors);
+        }
+        if (achievements != null) {
+            validateAchievements(achievements, pets, items, bossChallenges, errors);
+        }
+        if (bossChallenges != null) {
+            validateBossChallenges(bossChallenges, bosses, items, achievements, errors);
         }
 
         if (!errors.isEmpty()) {
@@ -1659,6 +1733,168 @@ public class GameConfigValidator {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /** 合法的成就分类。 */
+    private static final Set<String> ACHIEVEMENT_CATEGORIES = Set.of(
+            "EXPLORE", "CAPTURE", "BREED", "BATTLE", "BOSS", "POKEDEX", "SPECIAL");
+
+    /** 合法的成就条件类型。 */
+    private static final Set<String> ACHIEVEMENT_CONDITION_TYPES = Set.of(
+            "STAT_GE", "CAPTURE_SPECIES_COUNT", "DISCOVER_SPECIES_COUNT",
+            "CAPTURE_SPECIFIC", "DISCOVER_SPECIFIC", "REGION_UNLOCK_COUNT", "REGION_UNLOCK_SPECIFIC",
+            "BOSS_DEFEAT_COUNT", "BOSS_DEFEAT_ALL_MAIN", "BOSS_CHALLENGE_COUNT",
+            "POKEDEX_RESEARCH_LEVEL", "POKEDEX_RESEARCHED_5_COUNT",
+            "QUEST_COMPLETE_COUNT", "MAIN_QUEST_COMPLETE",
+            "PET_LEVEL_SPECIFIC", "PET_LEVEL_MAX", "MAX_LEVEL_PETS_COUNT",
+            "SPECIAL_APPEARANCE_CAPTURE", "ELITE_CAPTURE",
+            "GOLD_GE", "EXP_POOL_GE");
+
+    /** 校验成就配置：ID 唯一性、分类/条件类型合法性、种族/区域/Boss/道具引用完整性。 */
+    private void validateAchievements(AchievementsConfig config, PetsConfig pets, ItemsConfig items,
+                                      BossChallengesConfig bossChallenges, List<String> errors) {
+        if (config.getAchievements() == null) return;
+        Set<String> speciesIds = pets != null && pets.getSpecies() != null
+                ? pets.getSpecies().stream().map(PetSpeciesConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> itemIds = items != null && items.getItems() != null
+                ? items.getItems().stream().map(ItemConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> challengeIds = bossChallenges != null && bossChallenges.getGroups() != null
+                ? bossChallenges.getGroups().stream()
+                        .flatMap(g -> g.getChallenges() == null ? Stream.<String>empty()
+                                : g.getChallenges().stream().map(BossChallengesConfig.ChallengeConfig::getChallengeId))
+                        .collect(Collectors.toSet())
+                : Set.of();
+        Set<String> ids = new HashSet<>();
+        for (AchievementsConfig.AchievementConfig ach : config.getAchievements()) {
+            if (ach.getId() == null || ach.getId().isBlank()) {
+                errors.add("成就存在空 ID");
+                continue;
+            }
+            if (!ids.add(ach.getId())) {
+                errors.add("成就 ID 重复: " + ach.getId());
+            }
+            if (ach.getCategory() == null || !ACHIEVEMENT_CATEGORIES.contains(ach.getCategory())) {
+                errors.add("成就 " + ach.getId() + " 分类非法: " + ach.getCategory());
+            }
+            if (ach.getConditionType() == null || !ACHIEVEMENT_CONDITION_TYPES.contains(ach.getConditionType())) {
+                errors.add("成就 " + ach.getId() + " 条件类型非法: " + ach.getConditionType());
+            }
+            if (ach.getConditionCount() < 1) {
+                errors.add("成就 " + ach.getId() + " 条件数量必须 ≥ 1: " + ach.getConditionCount());
+            }
+            // 条件参考值引用完整性
+            String ct = ach.getConditionType();
+            String cv = ach.getConditionValue();
+            if (cv != null && !cv.isBlank()
+                    && ("CAPTURE_SPECIFIC".equals(ct) || "DISCOVER_SPECIFIC".equals(ct)
+                        || "POKEDEX_RESEARCH_LEVEL".equals(ct) || "PET_LEVEL_SPECIFIC".equals(ct))
+                    && !speciesIds.contains(cv)) {
+                errors.add("成就 " + ach.getId() + " 条件种族不存在: " + cv);
+            }
+            if (cv != null && !cv.isBlank()
+                    && "REGION_UNLOCK_SPECIFIC".equals(ct)) {
+                // 区域引用由外部 region 校验，此处仅提示非空（避免与地图配置耦合）
+                if (!cv.matches("[A-Z0-9_]+")) {
+                    errors.add("成就 " + ach.getId() + " 区域 ID 格式非法: " + cv);
+                }
+            }
+            if ("BOSS_CHALLENGE_COUNT".equals(ct) && cv != null && !cv.isBlank()
+                    && !challengeIds.contains(cv)) {
+                errors.add("成就 " + ach.getId() + " 关联 Boss 挑战不存在: " + cv);
+            }
+            // 奖励合法性
+            validateRewardEntries(ach.getId(), ach.getRewards(), itemIds, errors);
+        }
+    }
+
+    /** 校验 Boss 挑战目标：组内挑战 ID 唯一性、目标类型合法、Boss 引用、奖励/成就引用完整性。 */
+    private void validateBossChallenges(BossChallengesConfig config, BossesConfig bosses, ItemsConfig items,
+                                        AchievementsConfig achievements, List<String> errors) {
+        if (config.getGroups() == null) return;
+        Set<String> bossIds = bosses != null && bosses.getBosses() != null
+                ? bosses.getBosses().stream().map(BossesConfig.BossConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> itemIds = items != null && items.getItems() != null
+                ? items.getItems().stream().map(ItemConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> achievementIds = achievements != null && achievements.getAchievements() != null
+                ? achievements.getAchievements().stream()
+                        .map(AchievementsConfig.AchievementConfig::getId).collect(Collectors.toSet())
+                : Set.of();
+        Set<String> challengeType = Set.of("TURN_LIMIT", "NO_RECOVERY_ITEM", "NO_PET_FAINTED", "MULTI_ELEMENT");
+        Set<String> globalChallengeIds = new HashSet<>();
+        for (BossChallengesConfig.BossChallengeGroup group : config.getGroups()) {
+            if (group.getBossId() == null || group.getBossId().isBlank()) {
+                errors.add("Boss 挑战组存在空 bossId");
+                continue;
+            }
+            if (!bossIds.contains(group.getBossId())) {
+                errors.add("Boss 挑战组引用不存在的 Boss: " + group.getBossId());
+            }
+            if (group.getChallenges() == null) continue;
+            Set<String> groupIds = new HashSet<>();
+            for (BossChallengesConfig.ChallengeConfig ch : group.getChallenges()) {
+                if (ch.getChallengeId() == null || ch.getChallengeId().isBlank()) {
+                    errors.add("Boss 挑战组 " + group.getBossId() + " 存在空 challengeId");
+                    continue;
+                }
+                if (!groupIds.add(ch.getChallengeId())) {
+                    errors.add("Boss 挑战组 " + group.getBossId() + " 挑战 ID 重复: " + ch.getChallengeId());
+                }
+                if (!globalChallengeIds.add(group.getBossId() + ":" + ch.getChallengeId())) {
+                    errors.add("Boss 挑战 ID 全局重复: " + ch.getChallengeId());
+                }
+                if (ch.getType() == null || !challengeType.contains(ch.getType())) {
+                    errors.add("Boss 挑战 " + ch.getChallengeId() + " 类型非法: " + ch.getType());
+                }
+                if (ch.getValue() < 1) {
+                    errors.add("Boss 挑战 " + ch.getChallengeId() + " 参数必须 ≥ 1: " + ch.getValue());
+                }
+                if (ch.getAchievementId() != null && !ch.getAchievementId().isBlank()
+                        && !achievementIds.contains(ch.getAchievementId())) {
+                    errors.add("Boss 挑战 " + ch.getChallengeId() + " 关联成就不存在: " + ch.getAchievementId());
+                }
+                validateBossChallengeRewards(ch.getChallengeId(), ch.getRewards(), itemIds, errors);
+            }
+        }
+    }
+
+    /** 校验成就奖励条目列表：类型合法、道具引用存在。 */
+    private void validateRewardEntries(String ownerId, List<AchievementsConfig.RewardEntry> rewards,
+                                       Set<String> itemIds, List<String> errors) {
+        if (rewards == null) return;
+        for (AchievementsConfig.RewardEntry r : rewards) {
+            if (r.getType() == null || !Set.of("GOLD", "EXP", "ITEM").contains(r.getType())) {
+                errors.add(ownerId + " 奖励类型非法: " + r.getType());
+            }
+            if ("ITEM".equals(r.getType())
+                    && (r.getItemId() == null || r.getItemId().isBlank() || !itemIds.contains(r.getItemId()))) {
+                errors.add(ownerId + " 奖励道具不存在: " + r.getItemId());
+            }
+            if (r.getQuantity() < 1) {
+                errors.add(ownerId + " 奖励数量必须 ≥ 1: " + r.getQuantity());
+            }
+        }
+    }
+
+    /** 校验 Boss 挑战奖励条目列表：类型合法、道具引用存在。 */
+    private void validateBossChallengeRewards(String ownerId, List<BossChallengesConfig.RewardEntry> rewards,
+                                              Set<String> itemIds, List<String> errors) {
+        if (rewards == null) return;
+        for (BossChallengesConfig.RewardEntry r : rewards) {
+            if (r.getType() == null || !Set.of("GOLD", "EXP", "ITEM").contains(r.getType())) {
+                errors.add(ownerId + " 奖励类型非法: " + r.getType());
+            }
+            if ("ITEM".equals(r.getType())
+                    && (r.getItemId() == null || r.getItemId().isBlank() || !itemIds.contains(r.getItemId()))) {
+                errors.add(ownerId + " 奖励道具不存在: " + r.getItemId());
+            }
+            if (r.getQuantity() < 1) {
+                errors.add(ownerId + " 奖励数量必须 ≥ 1: " + r.getQuantity());
             }
         }
     }

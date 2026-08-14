@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.petgame.config.GameProperties;
+import com.petgame.config.model.AchievementsConfig;
+import com.petgame.config.model.BossChallengesConfig;
 import com.petgame.config.model.BossesConfig;
 import com.petgame.config.model.EncountersConfig;
 import com.petgame.config.model.GameElementsConfig;
@@ -58,6 +60,8 @@ public class GameConfigLoader {
     private static final String SHOP_YML = "shop/shop.yml";
     private static final String RANDOM_EVENTS_YML = "events/random-events.yml";
     private static final String BUILD_RECOMMENDATIONS_YML = "builds/build-recommendations.yml";
+    private static final String ACHIEVEMENTS_YML = "achievements/achievements.yml";
+    private static final String BOSS_CHALLENGES_YML = "bosses/boss-challenges.yml";
 
     private final GameProperties gameProperties;
     private final ObjectMapper yamlMapper;
@@ -327,6 +331,40 @@ public class GameConfigLoader {
         BuildRecommendationConfig external = loadExternalYaml(BUILD_RECOMMENDATIONS_YML, BuildRecommendationConfig.class);
         if (external != null) {
             log.info("已加载外部 builds/build-recommendations.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载成就配置（阶段 11）。
+     */
+    public AchievementsConfig loadAchievementsConfig() {
+        AchievementsConfig config = loadInternalYaml(ACHIEVEMENTS_YML, AchievementsConfig.class);
+        if (config == null) {
+            config = new AchievementsConfig();
+            log.warn("内部 achievements/achievements.yml 未找到，使用空成就配置");
+        }
+        AchievementsConfig external = loadExternalYaml(ACHIEVEMENTS_YML, AchievementsConfig.class);
+        if (external != null) {
+            log.info("已加载外部 achievements/achievements.yml 覆盖内部配置");
+            config = external;
+        }
+        return config;
+    }
+
+    /**
+     * 加载 Boss 挑战目标配置（阶段 11）。
+     */
+    public BossChallengesConfig loadBossChallengesConfig() {
+        BossChallengesConfig config = loadInternalYaml(BOSS_CHALLENGES_YML, BossChallengesConfig.class);
+        if (config == null) {
+            config = new BossChallengesConfig();
+            log.warn("内部 bosses/boss-challenges.yml 未找到，使用空 Boss 挑战配置");
+        }
+        BossChallengesConfig external = loadExternalYaml(BOSS_CHALLENGES_YML, BossChallengesConfig.class);
+        if (external != null) {
+            log.info("已加载外部 bosses/boss-challenges.yml 覆盖内部配置");
             config = external;
         }
         return config;

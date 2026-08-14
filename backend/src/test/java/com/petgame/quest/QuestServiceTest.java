@@ -55,6 +55,7 @@ class QuestServiceTest {
     @Mock private PlayerQuestObjectiveMapper playerQuestObjectiveMapper;
     @Mock private PlayerMapChangeMapper playerMapChangeMapper;
     @Mock private PlayerHiddenTriggerMapper playerHiddenTriggerMapper;
+    @Mock private com.petgame.achievement.service.AchievementService achievementService;
 
     private GameConfigRegistry registry;
     private QuestService questService;
@@ -175,7 +176,7 @@ class QuestServiceTest {
                 registry, playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerInventoryMapper, regionUnlockMapper, growthService, pokedexService,
                 playerQuestMapper, playerQuestObjectiveMapper,
-                playerMapChangeMapper, playerHiddenTriggerMapper);
+                playerMapChangeMapper, playerHiddenTriggerMapper, achievementService);
 
         // 模拟玩家
         PlayerEntity player = new PlayerEntity();

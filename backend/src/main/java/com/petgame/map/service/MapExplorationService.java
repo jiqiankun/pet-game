@@ -45,6 +45,7 @@ import java.util.UUID;
 import com.petgame.quest.mapper.PlayerMapChangeMapper;
 import com.petgame.quest.entity.PlayerMapChangeEntity;
 import com.petgame.quest.service.QuestService;
+import com.petgame.achievement.service.AchievementService;
 
 /**
  * 地图探索与区域服务（阶段 6）。
@@ -80,6 +81,7 @@ public class MapExplorationService {
     private final PlayerGatherUsedMapper gatherUsedMapper;
     private final QuestService questService;
     private final PlayerMapChangeMapper playerMapChangeMapper;
+    private final AchievementService achievementService;
 
     public MapExplorationService(GameConfigRegistry registry,
                                  PetGrowthService growthService,
@@ -94,7 +96,8 @@ public class MapExplorationService {
                                  PlayerMapSessionMapper mapSessionMapper,
                                  PlayerGatherUsedMapper gatherUsedMapper,
                                  @Lazy QuestService questService,
-                                 PlayerMapChangeMapper playerMapChangeMapper) {
+                                 PlayerMapChangeMapper playerMapChangeMapper,
+                                 AchievementService achievementService) {
         this.registry = registry;
         this.growthService = growthService;
         this.playerMapper = playerMapper;
@@ -109,6 +112,7 @@ public class MapExplorationService {
         this.gatherUsedMapper = gatherUsedMapper;
         this.questService = questService;
         this.playerMapChangeMapper = playerMapChangeMapper;
+        this.achievementService = achievementService;
     }
 
     // ==================== 大地图 / 区域 ====================
@@ -454,6 +458,10 @@ public class MapExplorationService {
                             saveId, camp.getCampId(), LocalDateTime.now()));
                 }
             }
+        }
+        // 阶段 11：区域解锁类成就检查（失败不阻断主流程）
+        if (achievementService != null) {
+            achievementService.checkAchievements(saveId);
         }
     }
 

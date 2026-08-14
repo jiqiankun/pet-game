@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiGet, apiPost } from '../api/client'
-import type { AutoChallengeResult, BossInfo } from '../types/boss'
+import type { AutoChallengeResult, BossChallengeGroup, BossInfo } from '../types/boss'
 
 /**
  * Boss Store（阶段 7）。
@@ -13,6 +13,7 @@ export const useBossStore = defineStore('boss', () => {
   const loading = ref(false)
   const error = ref('')
   const autoResult = ref<AutoChallengeResult | null>(null)
+  const challenges = ref<BossChallengeGroup[]>([])
 
   /** 加载 Boss 列表。 */
   async function loadBosses() {
@@ -100,16 +101,29 @@ export const useBossStore = defineStore('boss', () => {
     }
   }
 
+  /** 加载 Boss 挑战目标（阶段 11）。 */
+  async function loadChallenges() {
+    error.value = ''
+    try {
+      const res = await apiGet<BossChallengeGroup[]>('/api/boss-challenges')
+      challenges.value = res.data ?? []
+    } catch (e: any) {
+      error.value = e.message ?? '加载 Boss 挑战目标失败'
+    }
+  }
+
   return {
     bosses,
     currentBossId,
     loading,
     error,
     autoResult,
+    challenges,
     loadBosses,
     loadBoss,
     startBossBattle,
     autoChallenge,
     exchangeLuck,
+    loadChallenges,
   }
 })

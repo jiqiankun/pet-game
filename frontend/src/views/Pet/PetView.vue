@@ -29,7 +29,7 @@ const customExp = ref(0)
 const targetLevelInput = ref(1)
 
 // 标签页
-const activeTab = ref<'basic' | 'stats' | 'skills' | 'build'>('basic')
+const activeTab = ref<'basic' | 'stats' | 'skills' | 'build' | 'history'>('basic')
 
 // 技能书管理（阶段 10）
 const learnBookItemId = ref('')
@@ -310,9 +310,27 @@ async function loadBuilds() {
   }
 }
 
-function switchTab(tab: 'basic' | 'stats' | 'skills' | 'build') {
+function switchTab(tab: 'basic' | 'stats' | 'skills' | 'build' | 'history') {
   activeTab.value = tab
   if (tab === 'build') loadBuilds()
+}
+
+/** 捕获地点显示（无记录则显示未知）。 */
+function capturedLocationLabel(mapId: string | null): string {
+  return mapId || '未知地点'
+}
+
+/** 格式化小数安全加法。 */
+function nz(v: number | null | undefined): number {
+  return v ?? 0
+}
+
+/** 格式化捕获日期。 */
+function formatDate(iso: string | null): string {
+  if (!iso) return '未知'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 </script>
 
@@ -357,6 +375,7 @@ function switchTab(tab: 'basic' | 'stats' | 'skills' | 'build') {
             <button class="tab-btn" :class="{ active: activeTab === 'stats' }" @click="switchTab('stats')">属性</button>
             <button class="tab-btn" :class="{ active: activeTab === 'skills' }" @click="switchTab('skills')">技能</button>
             <button class="tab-btn" :class="{ active: activeTab === 'build' }" @click="switchTab('build')">推荐方案</button>
+            <button class="tab-btn" :class="{ active: activeTab === 'history' }" @click="switchTab('history')">记录</button>
           </div>
 
           <!-- 基础标签 -->
@@ -620,6 +639,54 @@ function switchTab(tab: 'basic' | 'stats' | 'skills' | 'build') {
               <div class="build-row">
                 <span class="build-label">推荐技能：</span>
                 <span v-for="skillId in build.skillPriority" :key="skillId" class="skill-tag">{{ skillId }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 记录标签（阶段 11 / 需求 §113） -->
+          <div v-if="activeTab === 'history'" class="tab-content">
+            <h4>个人履历</h4>
+            <p class="hint-text">仅作记录展示，不增加属性、不反向影响战斗数值。</p>
+            <div class="history-grid">
+              <div class="history-item">
+                <span class="history-label">捕获日期</span>
+                <span class="history-value small">{{ detail.pet.capturedAt ? formatDate(detail.pet.capturedAt) : '未知' }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">捕获地点</span>
+                <span class="history-value small">{{ capturedLocationLabel(detail.pet.capturedMapId) }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">捕获等级</span>
+                <span class="history-value small">Lv.{{ nz(detail.pet.capturedLevel) }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">战斗 / 胜利</span>
+                <span class="history-value small">{{ nz(detail.pet.battleCount) }} / {{ nz(detail.pet.winCount) }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">累计击败</span>
+                <span class="history-value small">{{ nz(detail.pet.killCount) }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">捕捉辅助</span>
+                <span class="history-value small">{{ nz(detail.pet.captureAssistCount) }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">Boss 参与 / 胜利</span>
+                <span class="history-value small">{{ nz(detail.pet.bossBattleCount) }} / {{ nz(detail.pet.bossWinCount) }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">累计造成伤害</span>
+                <span class="history-value small">{{ nz(detail.pet.totalDamage).toLocaleString('zh-CN') }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">累计承受伤害</span>
+                <span class="history-value small">{{ nz(detail.pet.totalDamageTaken).toLocaleString('zh-CN') }}</span>
+              </div>
+              <div class="history-item">
+                <span class="history-label">累计治疗量</span>
+                <span class="history-value small">{{ nz(detail.pet.totalHeal).toLocaleString('zh-CN') }}</span>
               </div>
             </div>
           </div>
@@ -1132,6 +1199,37 @@ function switchTab(tab: 'basic' | 'stats' | 'skills' | 'build') {
   color: #d32f2f;
   font-size: 13px;
   margin-top: 8px;
+}
+
+/* 宠物履历（阶段 11 / 需求 §113） */
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background-color: var(--bg-main);
+  border-radius: 6px;
+}
+
+.history-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.history-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.history-value.small {
+  font-size: 14px;
 }
 
 @media (max-width: 768px) {

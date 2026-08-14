@@ -43,6 +43,8 @@ class PetStorageServiceTest {
     private TeamService teamService;
     private PetGrowthService growthService;
     private GameConfigRegistry registry;
+    private com.petgame.statistics.service.StatisticsService statisticsService;
+    private com.petgame.achievement.service.AchievementService achievementService;
     private PetStorageService service;
     private PlayerEntity player;
 
@@ -55,6 +57,8 @@ class PetStorageServiceTest {
         teamService = mock(TeamService.class);
         growthService = mock(PetGrowthService.class);
         registry = mock(GameConfigRegistry.class);
+        statisticsService = mock(com.petgame.statistics.service.StatisticsService.class);
+        achievementService = mock(com.petgame.achievement.service.AchievementService.class);
 
         player = new PlayerEntity();
         player.setSaveId(SAVE_ID);
@@ -84,7 +88,8 @@ class PetStorageServiceTest {
         when(growthService.allocatedFreePoints(any())).thenReturn(0);
 
         service = new PetStorageService(playerMapper, playerPetMapper, playerPetSkillMapper,
-                playerInventoryMapper, teamService, growthService, registry);
+                playerInventoryMapper, teamService, growthService, registry,
+                statisticsService, achievementService);
     }
 
     private PetSpeciesConfig species(String id, String name, String rarity) {

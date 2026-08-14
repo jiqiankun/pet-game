@@ -81,6 +81,14 @@ class BattleServiceSettlementTest {
     private PokedexService pokedexService;
     @Mock
     private QuestService questService;
+    @Mock
+    private com.petgame.statistics.service.StatisticsService statisticsService;
+    @Mock
+    private com.petgame.pet.service.PetHistoryService petHistoryService;
+    @Mock
+    private com.petgame.boss.service.BossChallengeService bossChallengeService;
+    @Mock
+    private com.petgame.achievement.service.AchievementService achievementService;
 
     private GameConfigRegistry registry;
     private PetGrowthService growthService;
@@ -107,7 +115,8 @@ class BattleServiceSettlementTest {
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
                 growthService, wildEncounterService, teamService, mapExplorationService,
-                pokedexService, questService);
+                pokedexService, questService, statisticsService, petHistoryService,
+                bossChallengeService, achievementService);
     }
 
     // ==================== 玩家胜：HP 回写 + 奖励发放 ====================
@@ -368,7 +377,8 @@ class BattleServiceSettlementTest {
                 playerMapper, playerPetMapper, playerPetSkillMapper,
                 playerTeamMapper, playerTeamMemberMapper, playerInventoryMapper,
                 customGrowth, wildEncounterService, teamService, mapExplorationService,
-                pokedexService, questService);
+                pokedexService, questService, statisticsService, petHistoryService,
+                bossChallengeService, achievementService);
 
         BattleUnit unit1 = playerUnit("P_1", 1L, 100, 50);
         BattleContext ctx = finishedBattle("BATTLE_7", 1L, "PLAYER", unit1);

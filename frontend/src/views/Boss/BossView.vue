@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBossStore } from '../../stores/boss'
-import type { BossInfo, DifficultyInfo } from '../../types/boss'
+import { CHALLENGE_TYPE_LABELS, type BossInfo, type DifficultyInfo } from '../../types/boss'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,6 +40,7 @@ const elementLabels: Record<string, string> = {
 
 onMounted(async () => {
   await bossStore.loadBosses()
+  await bossStore.loadChallenges()
   // 从地图入口携带的 bossId 参数预选 Boss
   const queryBossId = route.query.bossId as string | undefined
   if (queryBossId && bossStore.bosses.some(b => b.bossId === queryBossId)) {
@@ -215,6 +216,34 @@ function getTotalDefeatCount(boss: BossInfo): number {
         </div>
       </div>
     </div>
+
+    <!-- Boss 挑战目标（阶段 11） -->
+    <div class="challenges-section" v-if="bossStore.challenges.length">
+      <h3 class="section-title">Boss 挑战目标</h3>
+      <p class="section-hint">在击败场次中判定，任意难度均可计入；集齐某 Boss 全部目标授予专属称号。</p>
+      <div v-for="group in bossStore.challenges" :key="group.bossId" class="challenge-group">
+        <div class="challenge-group-header">
+          <span class="challenge-boss-name">{{ group.bossId }}</span>
+          <span v-if="group.allCompleted" class="title-tag">已集齐：{{ group.completionTitleId }}</span>
+          <span v-else class="title-tag locked">未集齐</span>
+        </div>
+        <div class="challenge-list">
+          <div
+            v-for="ch in group.challenges"
+            :key="ch.challengeId"
+            :class="['challenge-item', { completed: ch.completed }]"
+          >
+            <div class="challenge-main">
+              <span class="challenge-type">{{ CHALLENGE_TYPE_LABELS[ch.type] ?? ch.type }}</span>
+              <span class="challenge-name">{{ ch.name }}</span>
+            </div>
+            <div class="challenge-desc">{{ ch.description }}</div>
+            <span v-if="ch.completed" class="challenge-status done">已完成</span>
+            <span v-else class="challenge-status">未完成</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -295,4 +324,26 @@ function getTotalDefeatCount(boss: BossInfo): number {
 .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 13px; margin-bottom: 8px; }
 .result-drops { font-size: 12px; }
 .result-drops div { padding: 2px 0; }
+
+/* Boss 挑战目标（阶段 11） */
+.challenges-section { margin-top: 20px; padding: 16px; background: var(--bg-card); border-radius: 8px; }
+.section-title { font-size: 16px; color: var(--color-primary); margin-bottom: 4px; }
+.section-hint { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+.challenge-group { margin-bottom: 16px; padding: 12px; background: var(--bg-main); border-radius: 8px; }
+.challenge-group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.challenge-boss-name { font-weight: 600; font-size: 14px; }
+.title-tag { font-size: 12px; color: #fff; background: var(--color-primary); padding: 2px 8px; border-radius: 4px; }
+.title-tag.locked { background: #999; }
+.challenge-list { display: flex; flex-direction: column; gap: 6px; }
+.challenge-item {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  background: #f8f9fa; border-radius: 6px; border: 1px solid #eee;
+}
+.challenge-item.completed { border-color: var(--color-success); background: #f0faf0; }
+.challenge-main { display: flex; align-items: center; gap: 8px; min-width: 140px; }
+.challenge-type { font-size: 11px; color: #fff; background: #6c757d; padding: 1px 6px; border-radius: 4px; }
+.challenge-name { font-weight: 600; font-size: 13px; }
+.challenge-desc { flex: 1; font-size: 12px; color: var(--text-secondary); }
+.challenge-status { font-size: 12px; color: #999; flex-shrink: 0; }
+.challenge-status.done { color: var(--color-success); font-weight: 600; }
 </style>

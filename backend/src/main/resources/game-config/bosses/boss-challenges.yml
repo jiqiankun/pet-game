@@ -1,0 +1,72 @@
+# ============================================================
+# 宠物精灵游戏 - Boss 挑战目标配置（阶段 11）
+# ============================================================
+# 每个主要 Boss 设 4 个挑战目标（决策四）：指定回合内击败、不使用恢复道具、
+# 无宠物失去战斗能力、使用多种不同属性宠物取胜；仅在击败场次中判定，任意难度均可计入。
+# 单目标首次完成发放成就 + 一次性实用奖励；集齐某 Boss 全部目标授予该 Boss 专属称号。
+# 隐藏/精英 Boss 不设挑战目标。
+#
+# 目标类型 type：TURN_LIMIT / NO_RECOVERY_ITEM / NO_PET_FAINTED / MULTI_ELEMENT
+#   - TURN_LIMIT：value = 回合上限
+#   - NO_RECOVERY_ITEM：不使用恢复道具（value 恒为 1）
+#   - NO_PET_FAINTED：无宠物失去战斗能力（value 恒为 1）
+#   - MULTI_ELEMENT：使用 value 种不同属性宠物（默认 3）
+# ============================================================
+
+configVersion: 1
+groups:
+  - bossId: BOSS_MEADOW_GUARDIAN
+    challenges:
+      - { challengeId: CHALLENGE_TURN_LIMIT, type: TURN_LIMIT, name: 速战速决, description: 在 12 回合内击败青草原守护者, value: 12,
+          rewards: [ { type: GOLD, quantity: 800 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_RECOVERY_ITEM, type: NO_RECOVERY_ITEM, name: 不假外物, description: 不使用任何恢复道具击败青草原守护者, value: 1,
+          rewards: [ { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 3 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_PET_FAINTED, type: NO_PET_FAINTED, name: 毫发无伤, description: 无宠物失去战斗能力击败青草原守护者, value: 1,
+          rewards: [ { type: GOLD, quantity: 800 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_MULTI_ELEMENT, type: MULTI_ELEMENT, name: 元素共鸣, description: 使用 3 种不同属性宠物击败青草原守护者, value: 3,
+          rewards: [ { type: ITEM, itemId: ITEM_MATERIAL_WOOD, quantity: 3 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+    completionTitleId: TITLE_MEADOW_SLAYER
+  - bossId: BOSS_FOREST_KING
+    challenges:
+      - { challengeId: CHALLENGE_TURN_LIMIT, type: TURN_LIMIT, name: 速战速决, description: 在 14 回合内击败翠林之王, value: 14,
+          rewards: [ { type: GOLD, quantity: 1000 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_RECOVERY_ITEM, type: NO_RECOVERY_ITEM, name: 不假外物, description: 不使用任何恢复道具击败翠林之王, value: 1,
+          rewards: [ { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_PET_FAINTED, type: NO_PET_FAINTED, name: 毫发无伤, description: 无宠物失去战斗能力击败翠林之王, value: 1,
+          rewards: [ { type: GOLD, quantity: 1000 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_MULTI_ELEMENT, type: MULTI_ELEMENT, name: 元素共鸣, description: 使用 3 种不同属性宠物击败翠林之王, value: 3,
+          rewards: [ { type: ITEM, itemId: ITEM_MATERIAL_WOOD, quantity: 5 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+    completionTitleId: TITLE_FOREST_SLAYER
+  - bossId: BOSS_WATERS_GUARDIAN
+    challenges:
+      - { challengeId: CHALLENGE_TURN_LIMIT, type: TURN_LIMIT, name: 速战速决, description: 在 14 回合内击败水域守护者, value: 14,
+          rewards: [ { type: GOLD, quantity: 1200 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_RECOVERY_ITEM, type: NO_RECOVERY_ITEM, name: 不假外物, description: 不使用任何恢复道具击败水域守护者, value: 1,
+          rewards: [ { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_PET_FAINTED, type: NO_PET_FAINTED, name: 毫发无伤, description: 无宠物失去战斗能力击败水域守护者, value: 1,
+          rewards: [ { type: GOLD, quantity: 1200 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_MULTI_ELEMENT, type: MULTI_ELEMENT, name: 元素共鸣, description: 使用 3 种不同属性宠物击败水域守护者, value: 3,
+          rewards: [ { type: ITEM, itemId: ITEM_MATERIAL_WATER, quantity: 5 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+    completionTitleId: TITLE_WATERS_SLAYER
+  - bossId: BOSS_THUNDER_GUARDIAN
+    challenges:
+      - { challengeId: CHALLENGE_TURN_LIMIT, type: TURN_LIMIT, name: 速战速决, description: 在 14 回合内击败雷域守护者, value: 14,
+          rewards: [ { type: GOLD, quantity: 1200 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_RECOVERY_ITEM, type: NO_RECOVERY_ITEM, name: 不假外物, description: 不使用任何恢复道具击败雷域守护者, value: 1,
+          rewards: [ { type: ITEM, itemId: ITEM_CAPTURE_BALL_GREAT, quantity: 5 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_PET_FAINTED, type: NO_PET_FAINTED, name: 毫发无伤, description: 无宠物失去战斗能力击败雷域守护者, value: 1,
+          rewards: [ { type: GOLD, quantity: 1200 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_MULTI_ELEMENT, type: MULTI_ELEMENT, name: 元素共鸣, description: 使用 3 种不同属性宠物击败雷域守护者, value: 3,
+          rewards: [ { type: ITEM, itemId: ITEM_MATERIAL_THUNDER, quantity: 5 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+    completionTitleId: TITLE_THUNDER_SLAYER
+  - bossId: BOSS_RUINS_GUARDIAN
+    challenges:
+      - { challengeId: CHALLENGE_TURN_LIMIT, type: TURN_LIMIT, name: 速战速决, description: 在 16 回合内击败遗迹守护者, value: 16,
+          rewards: [ { type: GOLD, quantity: 1500 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_RECOVERY_ITEM, type: NO_RECOVERY_ITEM, name: 不假外物, description: 不使用任何恢复道具击败遗迹守护者, value: 1,
+          rewards: [ { type: ITEM, itemId: ITEM_CAPTURE_BALL_ULTRA, quantity: 3 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_NO_PET_FAINTED, type: NO_PET_FAINTED, name: 毫发无伤, description: 无宠物失去战斗能力击败遗迹守护者, value: 1,
+          rewards: [ { type: GOLD, quantity: 1500 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+      - { challengeId: CHALLENGE_MULTI_ELEMENT, type: MULTI_ELEMENT, name: 元素共鸣, description: 使用 3 种不同属性宠物击败遗迹守护者, value: 3,
+          rewards: [ { type: ITEM, itemId: ITEM_MATERIAL_EARTH, quantity: 5 } ], achievementId: ACH_BOSS_CHALLENGE_1 }
+    completionTitleId: TITLE_RUINS_SLAYER

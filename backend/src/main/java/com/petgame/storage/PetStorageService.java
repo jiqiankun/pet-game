@@ -18,6 +18,8 @@ import com.petgame.pet.mapper.PlayerPetSkillMapper;
 import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.team.service.TeamService;
+import com.petgame.statistics.service.StatisticsService;
+import com.petgame.achievement.service.AchievementService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -59,6 +61,8 @@ public class PetStorageService {
     private final TeamService teamService;
     private final PetGrowthService growthService;
     private final GameConfigRegistry registry;
+    private final StatisticsService statisticsService;
+    private final AchievementService achievementService;
 
     public PetStorageService(PlayerMapper playerMapper,
                              PlayerPetMapper playerPetMapper,
@@ -66,7 +70,9 @@ public class PetStorageService {
                              PlayerInventoryMapper playerInventoryMapper,
                              TeamService teamService,
                              PetGrowthService growthService,
-                             GameConfigRegistry registry) {
+                             GameConfigRegistry registry,
+                             StatisticsService statisticsService,
+                             AchievementService achievementService) {
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
         this.playerPetSkillMapper = playerPetSkillMapper;
@@ -74,6 +80,8 @@ public class PetStorageService {
         this.teamService = teamService;
         this.growthService = growthService;
         this.registry = registry;
+        this.statisticsService = statisticsService;
+        this.achievementService = achievementService;
     }
 
     // ==================== 仓库浏览 ====================
@@ -398,6 +406,14 @@ public class PetStorageService {
 
         result.setTotalGiftPoints(totalPoints);
         result.setGifts(gifts);
+        // 阶段 11：放生统计 + 成就检查（失败不阻断主流程）
+        if (statisticsService != null) {
+            statisticsService.increment(player.getSaveId(),
+                    StatisticsService.ST_RELEASED_PETS, result.getReleased().size());
+        }
+        if (achievementService != null) {
+            achievementService.checkAchievements(player.getSaveId());
+        }
         log.info("放生完成：{} 只，礼物总点数 {}，礼物 {} 项",
                 result.getReleased().size(), totalPoints, gifts.size());
         return result;

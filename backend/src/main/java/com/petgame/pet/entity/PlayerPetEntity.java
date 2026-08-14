@@ -47,6 +47,20 @@ public class PlayerPetEntity {
     private Integer baseSpeedOffset;
     private Integer battleCount;
     private Integer winCount;
+    /** 累计击败数量（需求 §113）。 */
+    private Integer killCount;
+    /** Boss 参与次数（需求 §113）。 */
+    private Integer bossBattleCount;
+    /** Boss 胜利次数（需求 §113）。 */
+    private Integer bossWinCount;
+    /** 累计造成伤害（需求 §113）。 */
+    private Long totalDamage;
+    /** 累计承受伤害（需求 §113）。 */
+    private Long totalDamageTaken;
+    /** 累计治疗量（需求 §113）。 */
+    private Long totalHeal;
+    /** 捕捉辅助次数（需求 §113）。 */
+    private Integer captureAssistCount;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)

@@ -80,6 +80,8 @@ class MapExplorationServiceTest {
     private QuestService questService;
     @Mock
     private PlayerMapChangeMapper playerMapChangeMapper;
+    @Mock
+    private com.petgame.achievement.service.AchievementService achievementService;
 
     private GameConfigRegistry registry;
     private MapExplorationService mapService;
@@ -98,7 +100,8 @@ class MapExplorationServiceTest {
         mapService = new MapExplorationService(registry, growthService,
                 playerMapper, playerPetMapper, playerTeamMapper, playerTeamMemberMapper,
                 playerInventoryMapper, regionUnlockMapper, campActivationMapper,
-                chestLootMapper, mapSessionMapper, gatherUsedMapper, questService, playerMapChangeMapper);
+                chestLootMapper, mapSessionMapper, gatherUsedMapper, questService,
+                playerMapChangeMapper, achievementService);
 
         player = new PlayerEntity();
         player.setId(1L);

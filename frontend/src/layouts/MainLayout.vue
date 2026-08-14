@@ -9,7 +9,7 @@ import TutorialOverlay from '../views/Quest/components/TutorialOverlay.vue'
     <header class="app-header">
       <div class="header-brand">
         <h1 class="header-title">宠物精灵</h1>
-        <span class="header-badge">Phase 10</span>
+        <span class="header-badge">Phase 11</span>
       </div>
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>

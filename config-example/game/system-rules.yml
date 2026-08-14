@@ -20,3 +20,16 @@ configVersion: 1
 
 # 如需调整等级上限：
 # levelCap: 50
+
+# --- 游戏完成度权重（阶段 11，需求 §111/§138） ---
+# 各分项权重之和应为 100；完成度 = Σ(权重 × 单项进度)。
+# 100% 不要求 S 资质、特殊外观、稀有技能或 Boss 噩梦全通。
+# completion:
+#   mainQuestWeight: 20.0        # 主线
+#   regionWeight: 10.0           # 区域
+#   discoveryWeight: 10.0        # 宠物发现
+#   captureWeight: 25.0          # 宠物捕获
+#   researchWeight: 10.0         # 图鉴研究
+#   bossWeight: 15.0             # Boss
+#   hiddenRegionWeight: 5.0      # 隐藏区域
+#   sideQuestWeight: 5.0         # 主要支线

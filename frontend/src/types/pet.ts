@@ -140,8 +140,23 @@ export interface PlayerPetEntity {
   locked: boolean
   favorite: boolean
   capturedMapId: string | null
+  capturedAt: string | null
   battleCount: number
   winCount: number
+  /** 累计击败数量（阶段 11 / 需求 §113）。 */
+  killCount: number
+  /** Boss 参与次数（阶段 11 / 需求 §113）。 */
+  bossBattleCount: number
+  /** Boss 胜利次数（阶段 11 / 需求 §113）。 */
+  bossWinCount: number
+  /** 累计造成伤害（阶段 11 / 需求 §113）。 */
+  totalDamage: number
+  /** 累计承受伤害（阶段 11 / 需求 §113）。 */
+  totalDamageTaken: number
+  /** 累计治疗量（阶段 11 / 需求 §113）。 */
+  totalHeal: number
+  /** 捕捉辅助次数（阶段 11 / 需求 §113）。 */
+  captureAssistCount: number
 }
 
 // ==================== 升级预览 ====================

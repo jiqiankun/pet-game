@@ -19,6 +19,7 @@ import com.petgame.player.entity.PlayerEntity;
 import com.petgame.player.mapper.PlayerMapper;
 import com.petgame.quest.entity.*;
 import com.petgame.quest.mapper.*;
+import com.petgame.achievement.service.AchievementService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -53,6 +54,7 @@ public class QuestService {
     private final PlayerQuestObjectiveMapper playerQuestObjectiveMapper;
     private final PlayerMapChangeMapper playerMapChangeMapper;
     private final PlayerHiddenTriggerMapper playerHiddenTriggerMapper;
+    private final AchievementService achievementService;
 
     public QuestService(GameConfigRegistry registry,
                         PlayerMapper playerMapper,
@@ -65,7 +67,8 @@ public class QuestService {
                         PlayerQuestMapper playerQuestMapper,
                         PlayerQuestObjectiveMapper playerQuestObjectiveMapper,
                         PlayerMapChangeMapper playerMapChangeMapper,
-                        PlayerHiddenTriggerMapper playerHiddenTriggerMapper) {
+                        PlayerHiddenTriggerMapper playerHiddenTriggerMapper,
+                        AchievementService achievementService) {
         this.registry = registry;
         this.playerMapper = playerMapper;
         this.playerPetMapper = playerPetMapper;
@@ -78,6 +81,7 @@ public class QuestService {
         this.playerQuestObjectiveMapper = playerQuestObjectiveMapper;
         this.playerMapChangeMapper = playerMapChangeMapper;
         this.playerHiddenTriggerMapper = playerHiddenTriggerMapper;
+        this.achievementService = achievementService;
     }
 
     // ==================== 查询 ====================
@@ -537,6 +541,11 @@ public class QuestService {
 
         // 7. 更新 player.mainQuestId 到下一个未完成的主线
         updateMainQuestProgress(saveId);
+
+        // 8. 阶段 11：成就检查（任务完成 / 区域解锁 / 通关标记，失败不阻断主流程）
+        if (achievementService != null) {
+            achievementService.checkAchievements(saveId);
+        }
 
         log.info("任务完成：questId={}, saveId={}, 奖励金={}, 经验={}, 道具={} 项, 解锁区域={}, 地图变更={}",
                 questId, saveId, result.getGoldGained(), result.getExpGained(),

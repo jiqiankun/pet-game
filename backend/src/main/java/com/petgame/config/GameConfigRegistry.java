@@ -47,6 +47,8 @@ public class GameConfigRegistry {
     private ShopConfig shopConfig;
     private RandomEventsConfig randomEventsConfig;
     private BuildRecommendationConfig buildRecommendationsConfig;
+    private AchievementsConfig achievementsConfig;
+    private BossChallengesConfig bossChallengesConfig;
 
     /** 属性 ID → 属性配置 的快速索引。 */
     private Map<String, GameElementConfig> elementIndex;
@@ -84,6 +86,12 @@ public class GameConfigRegistry {
     /** NPC ID → NPC 配置 的快速索引（阶段 9）。 */
     private Map<String, QuestsConfig.NpcConfig> npcIndex;
 
+    /** 成就 ID → 成就配置 的快速索引（阶段 11）。 */
+    private Map<String, AchievementsConfig.AchievementConfig> achievementIndex;
+
+    /** Boss ID → Boss 挑战目标组配置 的快速索引（阶段 11）。 */
+    private Map<String, BossChallengesConfig.BossChallengeGroup> bossChallengeIndex;
+
     public GameConfigRegistry(GameConfigLoader loader, GameConfigValidator validator) {
         this.loader = loader;
         this.validator = validator;
@@ -113,12 +121,15 @@ public class GameConfigRegistry {
         this.shopConfig = loader.loadShopConfig();
         this.randomEventsConfig = loader.loadRandomEventsConfig();
         this.buildRecommendationsConfig = loader.loadBuildRecommendationsConfig();
+        this.achievementsConfig = loader.loadAchievementsConfig();
+        this.bossChallengesConfig = loader.loadBossChallengesConfig();
 
         // 校验
         validator.validate(systemRules, elementsConfig, initialPetsConfig,
                 skillsConfig, statusesConfig, testBattleConfig, itemsConfig,
                 petsConfig, encountersConfig, releaseGiftsConfig, mapsConfig,
-                bossesConfig, questsConfig, shopConfig, randomEventsConfig, buildRecommendationsConfig);
+                bossesConfig, questsConfig, shopConfig, randomEventsConfig, buildRecommendationsConfig,
+                achievementsConfig, bossChallengesConfig);
 
         // 构建索引
         buildElementIndex();
@@ -131,8 +142,10 @@ public class GameConfigRegistry {
         buildRegionIndex();
         buildBossIndex();
         buildQuestIndex();
+        buildAchievementIndex();
+        buildBossChallengeIndex();
 
-        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss，{} 个商店商品，{} 个随机事件，{} 个推荐 Build",
+        log.info("游戏配置加载完成：{} 种属性，{} 条克制关系，{} 个初始宠物选项，{} 个技能，{} 个被动，{} 个状态，{} 个道具，{} 个种族，{} 个遭遇组，{} 个区域，{} 个 Boss，{} 个商店商品，{} 个随机事件，{} 个推荐 Build, {} 个成就，{} 组 Boss 挑战",
                 elementsConfig.getElements().size(),
                 elementsConfig.getAdvantages() != null ? elementsConfig.getAdvantages().size() : 0,
                 initialPetsConfig.getInitialPets().size(),
@@ -147,7 +160,9 @@ public class GameConfigRegistry {
                 questsConfig.getQuests().size(),
                 shopConfig.getShopItems().size(),
                 randomEventsConfig.getRandomEvents() != null ? randomEventsConfig.getRandomEvents().size() : 0,
-                buildRecommendationsConfig.getRecommendations() != null ? buildRecommendationsConfig.getRecommendations().size() : 0);
+                buildRecommendationsConfig.getRecommendations() != null ? buildRecommendationsConfig.getRecommendations().size() : 0,
+                achievementsConfig.getAchievements() != null ? achievementsConfig.getAchievements().size() : 0,
+                bossChallengesConfig.getGroups() != null ? bossChallengesConfig.getGroups().size() : 0);
     }
 
     // ---- 查询方法 ----
@@ -230,6 +245,26 @@ public class GameConfigRegistry {
     /** 获取推荐 Build 配置（只读使用，阶段 10）。 */
     public BuildRecommendationConfig getBuildRecommendationsConfig() {
         return buildRecommendationsConfig;
+    }
+
+    /** 获取成就配置（只读使用，阶段 11）。 */
+    public AchievementsConfig getAchievementsConfig() {
+        return achievementsConfig;
+    }
+
+    /** 获取 Boss 挑战目标配置（只读使用，阶段 11）。 */
+    public BossChallengesConfig getBossChallengesConfig() {
+        return bossChallengesConfig;
+    }
+
+    /** 根据成就 ID 获取成就配置，不存在返回 null（阶段 11）。 */
+    public AchievementsConfig.AchievementConfig getAchievement(String achievementId) {
+        return achievementId == null ? null : achievementIndex.get(achievementId);
+    }
+
+    /** 根据 Boss ID 获取 Boss 挑战目标组配置，不存在返回 null（阶段 11）。 */
+    public BossChallengesConfig.BossChallengeGroup getBossChallengeGroup(String bossId) {
+        return bossId == null ? null : bossChallengeIndex.get(bossId);
     }
 
     /** 根据任务 ID 获取任务配置，不存在返回 null（阶段 9）。 */
@@ -462,6 +497,24 @@ public class GameConfigRegistry {
                 for (QuestsConfig.NpcConfig npc : questsConfig.getNpcs()) {
                     npcIndex.put(npc.getNpcId(), npc);
                 }
+            }
+        }
+    }
+
+    private void buildAchievementIndex() {
+        achievementIndex = new LinkedHashMap<>();
+        if (achievementsConfig != null && achievementsConfig.getAchievements() != null) {
+            for (AchievementsConfig.AchievementConfig ach : achievementsConfig.getAchievements()) {
+                achievementIndex.put(ach.getId(), ach);
+            }
+        }
+    }
+
+    private void buildBossChallengeIndex() {
+        bossChallengeIndex = new LinkedHashMap<>();
+        if (bossChallengesConfig != null && bossChallengesConfig.getGroups() != null) {
+            for (BossChallengesConfig.BossChallengeGroup group : bossChallengesConfig.getGroups()) {
+                bossChallengeIndex.put(group.getBossId(), group);
             }
         }
     }

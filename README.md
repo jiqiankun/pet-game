@@ -117,11 +117,11 @@ pet-game/
 
 ## 开发进度
 
-当前阶段：**阶段 10（效率、经济与随机内容系统）— 已完成**
+当前阶段：**阶段 11（成就、统计与完成度系统）— 已完成**
 
-已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8、阶段 9、阶段 10
+已完成阶段：阶段 0、阶段 1、阶段 2、阶段 3、阶段 4、阶段 5、阶段 6、阶段 7、阶段 8、阶段 9、阶段 10、阶段 11
 
-下一阶段：阶段 11（以规划文档为准）
+下一阶段：阶段 12（以规划文档为准）
 
 详细的阶段划分与进度跟踪见 [`AGENTS.md`](AGENTS.md) §6「当前阶段状态」。
 
@@ -286,6 +286,18 @@ pet-game/
 - **战斗加速**：BattleView 速度控制 1x/2x/3x + 自动播放（Boss 战可用）
 - **配置校验**：GameConfigValidator 新增 validateShop/validateRandomEvents/validateBuildRecommendations
 - 单元测试：ShopServiceTest/RandomEventServiceTest/Phase10ConfigValidateTest + PetServiceTest 技能书排序回归；E2E 脚本 `e2e-phase10-test.ps1`；未实现自动战斗策略预设（用户明确排除）
+
+### 阶段 11 完成内容
+
+- **Flyway V10 迁移**：3 张表（player_achievement 成就 / player_statistic 玩家统计 / player_boss_challenge Boss 挑战完成）+ ALTER player_pet 表新增 captured_map_id / captured_at 履历字段
+- **成就系统**：achievements.yml 24 成就（7 分类：探索/捕捉/培养/战斗/Boss/图鉴/特殊）；事件记录驱动，20 种条件类型（REGION_UNLOCK_COUNT/CAPTURE_SPECIES_COUNT/PET_LEVEL_*/STAT_GE/BOSS_DEFEAT_COUNT/BOSS_CHALLENGE_COUNT/QUEST_COMPLETE_COUNT 等）；奖励含金币/经验/捕捉球/材料/称号/头像/徽章；隐藏成就支持；一次性发放防重复；AchievementService/AchievementController + 前端成就页
+- **玩家统计**：StatisticsService 23 个统计键（BATTLES_WON/TOTAL_KILLS/MAX_DAMAGE/BOSS_DEFEATED/ELITE_CAPTURED/GOLD_EARNED/EXP_EARNED 等），increment/setMax/getAllStats/computeMostUsed；`GET /api/statistics`；前端统计页
+- **Boss 挑战目标**：boss-challenges.yml 5 主 Boss × 4 目标（TURN_LIMIT/NO_RECOVERY_ITEM/NO_PET_FAINTED/MULTI_ELEMENT）；仅在击败场次判定、任意难度计入；单目标首次完成发成就 + 一次性奖励，集齐某 Boss 目标授予专属称号；BossChallengeService/BossChallengeController + 前端 Boss 挑战页
+- **游戏完成度**：CompletionService 8 项权重加权（主线 20% + 区域 10% + 发现 10% + 捕捉 25% + 图鉴研究 10% + Boss 15% + 隐藏区域 5% + 支线 5%），返回分项 progress/contribution 与整体 overall；`GET /api/completion`；前端完成度面板
+- **宠物履历**：PetHistoryService 按战斗事件聚合玩家宠物战斗记录（出战/获胜/击败/捕捉归队等），记录只存引用不复制配置
+- **事件钩子接入**：Battle/Map/Quest/Pet/Storage 结算点统一以 REQUIRES_NEW 传播接入统计与成就检查，失败仅告警不阻断主流程
+- **配置校验**：GameConfigValidator 新增 validateAchievements（条件类型/统计键/奖励引用/隐藏）与 validateBossChallenges（Boss 引用/目标类型/物品引用/称号引用）
+- 单元测试 424 个全量通过（新增 StatisticsServiceTest/AchievementServiceTest/BossChallengeServiceTest/CompletionServiceTest 4 类 28 用例）；前端 `npm run build` 构建通过
 
 ---
 

@@ -59,6 +59,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.petgame.quest.service.QuestService;
+import com.petgame.statistics.service.StatisticsService;
 
 /**
  * 战斗服务（阶段 3 起提供战斗流程；阶段 4 接入结算）。
@@ -96,6 +97,10 @@ public class BattleService {
     private final com.petgame.map.service.MapExplorationService mapExplorationService;
     private final PokedexService pokedexService;
     private final QuestService questService;
+    private final com.petgame.statistics.service.StatisticsService statisticsService;
+    private final com.petgame.pet.service.PetHistoryService petHistoryService;
+    private final com.petgame.boss.service.BossChallengeService bossChallengeService;
+    private final com.petgame.achievement.service.AchievementService achievementService;
     /** 玩家侧自动战斗决策器（阶段 10；手动战斗时不使用）。 */
     private final com.petgame.battle.ai.AutoBattleDecisionProvider autoDecisionProvider;
 
@@ -120,7 +125,11 @@ public class BattleService {
                          TeamService teamService,
                          com.petgame.map.service.MapExplorationService mapExplorationService,
                          PokedexService pokedexService,
-                         @Lazy QuestService questService) {
+                         @Lazy QuestService questService,
+                         com.petgame.statistics.service.StatisticsService statisticsService,
+                         com.petgame.pet.service.PetHistoryService petHistoryService,
+                         com.petgame.boss.service.BossChallengeService bossChallengeService,
+                         com.petgame.achievement.service.AchievementService achievementService) {
         this.registry = registry;
         this.engine = new BattleEngine(registry, enemyDecisionProvider);
         this.bossEngine = new BattleEngine(registry, bossDecisionProvider);
@@ -137,6 +146,10 @@ public class BattleService {
         this.mapExplorationService = mapExplorationService;
         this.pokedexService = pokedexService;
         this.questService = questService;
+        this.statisticsService = statisticsService;
+        this.petHistoryService = petHistoryService;
+        this.bossChallengeService = bossChallengeService;
+        this.achievementService = achievementService;
     }
 
     /**
@@ -573,6 +586,39 @@ public class BattleService {
                 settlement.getExpGained(), settlement.getGoldGained(),
                 settlement.getDrops().size(), settlement.getCapturedPets().size(), hpWritebacks.size());
 
+        // ===== 阶段 11 事件钩子（REQUIRES_NEW，失败不阻断主流程）=====
+        String saveId = player.getSaveId();
+        // 2.8 玩家统计：战斗总数/胜负/逃跑
+        if (statisticsService != null) {
+            statisticsService.increment(saveId, StatisticsService.ST_BATTLES_TOTAL, 1);
+            if (playerWon) {
+                statisticsService.increment(saveId, StatisticsService.ST_BATTLES_WON, 1);
+            } else if (ctx.isFled()) {
+                statisticsService.increment(saveId, StatisticsService.ST_FLED, 1);
+            } else {
+                statisticsService.increment(saveId, StatisticsService.ST_BATTLES_LOST, 1);
+            }
+            // Boss 击败统计
+            if ("BOSS".equals(ctx.getBattleType()) && playerWon) {
+                statisticsService.increment(saveId, StatisticsService.ST_BOSS_DEFEATED, 1);
+            }
+        }
+
+        // 2.9 宠物履历记录（伤害/承伤/治疗/击败数 + 玩家统计聚合）
+        if (petHistoryService != null) {
+            petHistoryService.recordBattleSummary(saveId, ctx, playerWon);
+        }
+
+        // 2.10 Boss 挑战目标判定（仅 Boss 战斗且胜利）
+        if (bossChallengeService != null) {
+            bossChallengeService.recordBossBattle(saveId, ctx, playerWon);
+        }
+
+        // 2.11 成就检查（所有战斗类型）
+        if (achievementService != null) {
+            achievementService.checkAchievements(saveId);
+        }
+
         return settlement;
     }
 
@@ -702,6 +748,18 @@ public class BattleService {
             pet.setWinCount(0);
             playerPetMapper.insert(pet);
 
+            // 阶段 11：捕获统计（成功次数 / 精英 / 特殊外观）
+            if (statisticsService != null) {
+                statisticsService.increment(player.getSaveId(), StatisticsService.ST_CAPTURES_SUCCESS, 1);
+                if (wd.isElite()) {
+                    statisticsService.increment(player.getSaveId(), StatisticsService.ST_ELITE_CAPTURED, 1);
+                }
+                if (wd.getSpecialAppearance() != null && !wd.getSpecialAppearance().isBlank()) {
+                    statisticsService.increment(player.getSaveId(),
+                            StatisticsService.ST_SPECIAL_APPEARANCE_CAPTURED, 1);
+                }
+            }
+
             // 已解锁种族技能：按配置槽位自动装备
             for (PetSpeciesConfig.SpeciesSkillSlot slot : species.getSkills()) {
                 if (slot.getUnlockLevel() > captured.getLevel()) {
@@ -785,6 +843,11 @@ public class BattleService {
             } else {
                 inv.setQuantity(remaining);
                 playerInventoryMapper.updateById(inv);
+            }
+            // 阶段 11：捕捉球消耗统计
+            if (statisticsService != null) {
+                statisticsService.increment(player.getSaveId(),
+                        StatisticsService.ST_CAPTURE_BALLS_USED, entry.getValue());
             }
         }
     }

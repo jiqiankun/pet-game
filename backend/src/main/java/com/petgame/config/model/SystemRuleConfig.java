@@ -234,6 +234,11 @@ public class SystemRuleConfig {
     /** 图鉴研究值配置（阶段 8）。 */
     private PokedexRuleConfig pokedex = new PokedexRuleConfig();
 
+    // ---- 游戏完成度（阶段 11，口径严格按需求 §138）----
+
+    /** 游戏完成度各部分权重配置（阶段 11）。 */
+    private CompletionConfig completion = new CompletionConfig();
+
     /**
      * Boss AI 决策参数（阶段 7 Boss AI 改造）。
      * <p>
@@ -466,5 +471,33 @@ public class SystemRuleConfig {
 
         /** 资质预估等级标签：key=等级标签(S/A/B/C/D)，value=最低综合资质。默认 S=90/A=80/B=65/C=50。 */
         private java.util.Map<String, Integer> aptitudeGrades = new java.util.LinkedHashMap<>();
+    }
+
+    /**
+     * 游戏完成度配置（阶段 11，需求 §111/§138）。
+     * <p>
+     * 完成度由主线、区域、宠物发现/捕获、图鉴研究、Boss、隐藏区域、主要支线组成，
+     * 各分项权重之和应为 100。100% 不要求 S 资质、特殊外观、稀有技能或 Boss 噩梦全通。
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    public static class CompletionConfig {
+
+        /** 主线权重（完成主线进度比例）。默认 20。 */
+        private double mainQuestWeight = 20.0;
+        /** 区域权重（已发现/解锁实施区域比例）。默认 10.0。 */
+        private double regionWeight = 10.0;
+        /** 宠物发现权重（已发现种族 / 27）。默认 10.0。 */
+        private double discoveryWeight = 10.0;
+        /** 宠物捕获权重（已捕获种族 / 27）。默认 25.0。 */
+        private double captureWeight = 25.0;
+        /** 图鉴研究权重（全部种族平均研究等级 / 5）。默认 10.0。 */
+        private double researchWeight = 10.0;
+        /** Boss 权重（主 Boss 普通难度首通比例）。默认 15.0。 */
+        private double bossWeight = 15.0;
+        /** 隐藏区域权重（已发现隐藏区域比例）。默认 5.0。 */
+        private double hiddenRegionWeight = 5.0;
+        /** 主要支线权重（主线通关后主要支线完成比例）。默认 5.0。 */
+        private double sideQuestWeight = 5.0;
     }
 }

@@ -41,3 +41,32 @@ export interface AutoChallengeResult {
   totalDrops: Array<{ itemId: string; qty: number; rarity: string }>
   finalLuck: number
 }
+
+// ==================== Boss 挑战目标（阶段 11） ====================
+
+/** 单个 Boss 挑战目标。 */
+export interface BossChallengeItem {
+  challengeId: string
+  type: string
+  name: string
+  description: string
+  value: number
+  completed: boolean
+  achievementId: string | null
+}
+
+/** 某 Boss 的一组挑战目标。 */
+export interface BossChallengeGroup {
+  bossId: string
+  completionTitleId: string | null
+  allCompleted: boolean
+  challenges: BossChallengeItem[]
+}
+
+/** 挑战目标类型中文名。 */
+export const CHALLENGE_TYPE_LABELS: Record<string, string> = {
+  TURN_LIMIT: '速战速决',
+  NO_RECOVERY_ITEM: '不用恢复道具',
+  NO_PET_FAINTED: '无宠物倒下',
+  MULTI_ELEMENT: '多属性阵容',
+}

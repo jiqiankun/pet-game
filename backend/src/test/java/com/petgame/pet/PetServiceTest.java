@@ -52,6 +52,8 @@ class PetServiceTest {
     private PokedexService pokedexService;
     @Mock
     private PlayerInventoryMapper inventoryMapper;
+    @Mock
+    private com.petgame.achievement.service.AchievementService achievementService;
 
     private PetGrowthService growthService;
     private GameConfigRegistry registry;
@@ -71,7 +73,7 @@ class PetServiceTest {
 
         // 重新构建 PetService（@InjectMocks 无法注入构造参数中非 Mock 的 growthService/registry）
         petService = new PetService(playerMapper, playerPetMapper, playerPetSkillMapper,
-                growthService, registry, pokedexService, inventoryMapper);
+                growthService, registry, pokedexService, inventoryMapper, achievementService);
     }
 
     // ==================== 升级 ====================
