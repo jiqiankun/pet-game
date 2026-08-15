@@ -116,7 +116,8 @@ pet-game/
 │   ├── architecture/  #   架构与代码目录说明
 │   ├── planning/      #   开发阶段与规划
 │   ├── development/   #   开发规范与状态
-│   ├── guide/         #   安装运行与玩法指南
+│   ├── deployment/    #   部署指南（唯一主要部署文档）
+│   ├── guide/         #   快速开始与玩法指南
 │   ├── prompts/       #   AI 开发提示词
 │   └── art/           #   美术生产规范与资源
 ├── scripts/           # 构建/启动脚本 + E2E 验收脚本
@@ -129,34 +130,29 @@ pet-game/
 
 完整目录职责与模块说明见 [docs/architecture/PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md)，文档总索引见 [docs/README.md](docs/README.md)。
 
-## 快速开始
+## 部署与运行
+
+> 完整的环境准备、数据库初始化、构建发布、Windows 注意事项、故障排查与部署前检查清单，统一见 [部署指南](docs/deployment/DEPLOYMENT.md)（唯一主要部署文档）；最简启动见 [快速开始](docs/guide/QUICK_START.md)。
+
+**开发模式**（需要 Java 21 + MySQL 8.4 + Node 18+）：
 
 ```bash
-# 1. 准备 MySQL 8.4，创建数据库 pet_game
+# 1. 准备 MySQL 8.4，创建数据库 pet_game（utf8mb4）
 # 2. 启动后端（默认 127.0.0.1:8080，Flyway 自动建表）
-# 3. 前端开发模式
-cd frontend
-npm install
-npm run dev        # Vite 代理 /api → localhost:8080
+cd backend && mvn spring-boot:run
+# 3. 另开终端，前端开发模式
+cd frontend && npm install && npm run dev   # http://localhost:5173，代理 /api → :8080
 ```
 
-完整安装与配置见 [docs/guide/QUICK_START.md](docs/guide/QUICK_START.md)。
-
-## 构建与运行
+**正式运行**（只需 Java 21 + MySQL 8.4 + pet-game.jar）：
 
 ```bash
-# 正式构建（前端 build → 复制静态资源 → Maven package → release 目录）
-scripts/build.bat    # Windows
+scripts/build.bat    # Windows（构建：前端 build → 复制静态资源 → Maven package → release）
 scripts/build.sh     # Linux / macOS
 
-# 启动
-java -jar pet-game.jar
-# 或使用启动脚本
-scripts/start.bat    # Windows
-scripts/start.sh     # Linux / macOS
+java -jar release/pet-game.jar              # 访问 http://localhost:8080
+# 或 scripts/start.bat / scripts/start.sh
 ```
-
-访问 `http://localhost:8080`。
 
 ## 开发进度
 
@@ -181,7 +177,8 @@ scripts/start.sh     # Linux / macOS
 
 ### 玩家指南
 
-- [快速开始](docs/guide/QUICK_START.md) — 安装与运行
+- [部署指南](docs/deployment/DEPLOYMENT.md) — 唯一主要部署文档：环境准备、数据库初始化、构建发布、故障排查
+- [快速开始](docs/guide/QUICK_START.md) — 最简启动路径
 - [游戏玩法说明](docs/guide/GAMEPLAY.md) — 怎么玩
 
 ### 架构与结构

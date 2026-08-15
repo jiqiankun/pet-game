@@ -29,7 +29,7 @@
 | `docs/architecture/PROJECT_STRUCTURE.md` | 实际代码目录与模块职责 |
 | `docs/development/DEVELOPMENT_STATUS.md` | 当前开发状态、历史阶段记录、遗留问题、临时技术债务 |
 
-> 安装运行见 `docs/guide/QUICK_START.md`；玩家玩法说明见 `docs/guide/GAMEPLAY.md`。
+> 安装运行与部署见 `docs/guide/QUICK_START.md`（快速开始）与 `docs/deployment/DEPLOYMENT.md`（完整部署）；玩家玩法说明见 `docs/guide/GAMEPLAY.md`。
 
 **文档优先级：** 用户当前明确要求 > 需求/技术文档 > 分阶段开发规划 > 本文件其余内容 > 历史结论。文档之间出现冲突时，**必须上报并等待确认，禁止自行选择一方并隐式修改需求**。
 
@@ -61,7 +61,7 @@
 - 正式运行只需 Java 21 + MySQL 8.4 + `pet-game.jar`；玩家环境不需要 Node。
 - 数据库结构变更只允许通过 Flyway 迁移文件，**禁止手工改表**。
 
-> 详细安装与运行步骤见 `docs/guide/QUICK_START.md`。
+> 详细安装与运行步骤见 `docs/guide/QUICK_START.md`；完整部署细节见 `docs/deployment/DEPLOYMENT.md`。
 
 ## 5. 分阶段开发规则
 

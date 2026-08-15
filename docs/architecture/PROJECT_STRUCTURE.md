@@ -114,7 +114,9 @@ docs/
 │   ├── FRONTEND_STANDARDS.md
 │   ├── BACKEND_STANDARDS.md
 │   └── TESTING_STANDARDS.md
-├── guide/                      # 安装运行与玩法指南
+├── deployment/                 # 部署指南（唯一主要部署文档）
+│   └── DEPLOYMENT.md
+├── guide/                      # 快速开始与玩法指南
 │   ├── QUICK_START.md
 │   └── GAMEPLAY.md
 ├── prompts/                    # AI 开发提示词
