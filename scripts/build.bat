@@ -9,7 +9,7 @@
 setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
-set PROJECT_ROOT=%SCRIPT_DIR%..
+set PROJECT_ROOT=%SCRIPT_DIR%..\
 set FRONTEND_DIR=%PROJECT_ROOT%frontend
 set BACKEND_DIR=%PROJECT_ROOT%backend
 set RELEASE_DIR=%PROJECT_ROOT%release

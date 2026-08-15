@@ -9,7 +9,7 @@
 setlocal
 
 set SCRIPT_DIR=%~dp0
-set PROJECT_ROOT=%SCRIPT_DIR%..
+set PROJECT_ROOT=%SCRIPT_DIR%..\
 set JAR_PATH=%PROJECT_ROOT%release\pet-game.jar
 
 if not exist "%JAR_PATH%" (
