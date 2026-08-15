@@ -553,10 +553,11 @@ Port 5173 already in use
 对《宠物精灵》项目，重点检查资源路径：
 
 - 图片 / 地图 / tileset / 战斗特效路径是否正确（`frontend/public/assets/**`，构建后进入 `static/assets/**`）；
+- **静态资源缺失时的返回码**：本项目 Spring Boot 对不存在的静态资源默认返回 **HTTP 500**（而非 404），浏览器控制台表现为 `Failed to load resource: ... 500`，排查时以实际返回码为准；
 - 资源文件名**大小写**问题：
   - Windows 文件系统通常**大小写不敏感**，而 Linux 部署环境通常**大小写敏感**；
-  - 例如 `Pet.png` 与 `pet.png`、`tileset.png` 与 `Tileset.png` 在 Windows 能加载、在 Linux 可能 404；
-  - 排查：核对 `frontend/public/assets/` 中的实际文件名与代码引用是否完全一致（含目录名）。
+  - 例如 `Pet.png` 与 `pet.png`、`tileset.png` 与 `Tileset.png` 在 Windows 能加载、在 Linux 可能返回 500 / 加载失败；
+  - 排查：核对 `frontend/public/assets/` 中的实际文件名与代码引用是否完全一致（含目录名）；
 - 是否重新构建过前端：修改资源后未执行 `npm run build` 并重新打包 JAR，旧静态资源不会更新；
 - 是否以根路径访问（Hash 路由下直接打开深层路径可能导致资源相对路径错乱）。
 
@@ -566,7 +567,7 @@ Port 5173 already in use
 
 1. 正式模式是否先执行了构建脚本（`backend/src/main/resources/static/` 是否为空）——**未构建前端就 `java -jar` 会拿到空壳**；
 2. 是否以根路径 `http://localhost:8080` 访问（Hash 路由）；
-3. 浏览器控制台是否有 JS 报错 / 资源 404。
+3. 浏览器控制台是否有 JS 报错 / 资源加载失败（本项目缺失静态资源返回 500，见 [§15.7](#157-游戏资源加载失败)）。
 
 ---
 

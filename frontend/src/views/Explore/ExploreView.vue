@@ -1,27 +1,37 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import type Phaser from 'phaser'
 import { createPhaserGame } from '../../game/PhaserGame'
 import {
   gameBridge,
   type ExitTouchPayload,
   type MapSceneData,
+  type PlayerPositionPayload,
   type WildTouchPayload,
 } from '../../game/bridge/GameBridge'
 import { useMapStore } from '../../stores/map'
 import { useBattleStore } from '../../stores/battle'
 import { useGameStore } from '../../stores/game'
 import { useQuestStore } from '../../stores/quest'
+import { useOverlayStore, type OverlayType } from '../../stores/overlay'
+import { useUiStore } from '../../stores/ui'
 import { apiGet, apiPost } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
 import type { RewardResultView } from '../../types/map'
+import BattleOverlay from '../Battle/components/BattleOverlay.vue'
+import RewardPopup from '../../components/feedback/RewardPopup.vue'
+import ExplorationHUD from '../../components/hud/ExplorationHUD.vue'
+import ContextInteractionPanel from '../../components/hud/ContextInteractionPanel.vue'
 
-const router = useRouter()
 const mapStore = useMapStore()
 const battleStore = useBattleStore()
 const gameStore = useGameStore()
 const questStore = useQuestStore()
+const overlayStore = useOverlayStore()
+const uiStore = useUiStore()
+
+/** 战斗浮层是否打开（主场景常驻，战斗作为全屏浮层叠加，不进行路由跳转）。 */
+const battleOpen = ref(false)
 
 // ---- Phaser 实例 ----
 const phaserContainer = ref<HTMLElement | null>(null)
@@ -32,10 +42,8 @@ const encounterReq = ref<WildTouchPayload | null>(null)
 const campDialogId = ref<string | null>(null)
 const exitReq = ref<ExitTouchPayload | null>(null)
 const rewardPopup = ref<RewardResultView | null>(null)
-const toast = ref('')
 const busy = ref(false)
 const actionError = ref('')
-let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 // 随机事件（阶段 10）
 const randomEvent = ref<{
@@ -52,7 +60,6 @@ const eventResult = ref<{
   encounterGroupId?: string
 } | null>(null)
 
-const regionName = computed(() => mapStore.currentMap?.name ?? '')
 const dialogOpen = computed(
   () => encounterReq.value !== null || campDialogId.value !== null || exitReq.value !== null || randomEvent.value !== null || eventResult.value !== null,
 )
@@ -77,9 +84,7 @@ function buildSceneData(): MapSceneData | null {
 }
 
 function showToast(message: string) {
-  toast.value = message
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toast.value = '' }, 3200)
+  uiStore.toast(message)
 }
 
 function syncInputLock() {
@@ -128,22 +133,28 @@ function registerBridgeHandlers() {
       actionError.value = ''
       syncInputLock()
     }),
-    // Boss 入口（阶段 7）：导航到 Boss 页面并携带 bossId
+    // Boss 入口（阶段 7 / Overlay 架构 P1）：打开 Boss 浮层，不离开地图
     gameBridge.on('boss:touch', (payload) => {
-      router.push({ path: '/boss', query: { bossId: payload.id } })
+      overlayStore.open('BOSS', { bossId: payload.id })
     }),
     gameBridge.on('npc:touch', async (payload) => {
+      // NPC 对话接入 Overlay 栈：打开 NPC_DIALOG 浮层（暂停玩家输入），再加载对话内容
+      overlayStore.open('NPC_DIALOG')
       await questStore.talkNpc(payload.id)
     }),
     gameBridge.on('hidden:touch', () => {
       showToast('这里似乎藏着什么……（隐藏遭遇内容将在后续阶段开放）')
+    }),
+    // 玩家坐标写回 useMapStore（节流上报，保证 Overlay 关闭后上下文稳定）
+    gameBridge.on('player:position', (payload: PlayerPositionPayload) => {
+      mapStore.setPlayerPosition({ x: payload.x, y: payload.y })
     }),
   )
 }
 
 // ==================== 交互动作 ====================
 
-/** 遭遇确认 → 开始地图遭遇战斗。 */
+/** 遭遇确认 → 开始地图遭遇战斗（战斗浮层化：不路由跳转，底层地图保留）。 */
 async function startEncounter() {
   if (!encounterReq.value || busy.value) return
   busy.value = true
@@ -154,13 +165,31 @@ async function startEncounter() {
     await battleStore.startMapEncounter(payload.groupId)
     mapStore.activeEncounterSpawnId = payload.spawnId
     encounterReq.value = null
-    await router.push('/battle')
+    openBattleOverlay()
   } catch (e) {
     actionError.value = battleStore.error || '遭遇发起失败'
   } finally {
     busy.value = false
     syncInputLock()
   }
+}
+
+/** 打开战斗浮层并暂停地图探索。 */
+function openBattleOverlay() {
+  battleOpen.value = true
+  overlayStore.open('BATTLE')
+  syncInputLock()
+}
+
+/** 战斗浮层关闭：恢复地图探索，结算后刷新首页数据。 */
+async function handleBattleClose() {
+  battleOpen.value = false
+  overlayStore.close('BATTLE')
+  if (battleStore.settlement) {
+    await gameStore.loadBootstrap()
+  }
+  battleStore.leaveBattle()
+  syncInputLock()
 }
 
 function closeEncounter() {
@@ -227,10 +256,6 @@ function closeRewardPopup() {
   rewardPopup.value = null
 }
 
-function openWorldMap() {
-  router.push('/world-map')
-}
-
 // ==================== 随机事件（阶段 10） ====================
 
 /** 尝试触发随机事件（进入区域后调用）。 */
@@ -261,12 +286,12 @@ async function resolveEvent(optionId: string) {
     randomEvent.value = null
     // 刷新玩家金币等状态
     await gameStore.loadBootstrap()
-    // 如果触发了战斗/捕捉，跳转战斗页
+    // 如果触发了战斗/捕捉，打开战斗浮层
     if (result.type === 'TRIGGER_BATTLE' && result.encounterGroupId) {
       try {
         await battleStore.startMapEncounter(result.encounterGroupId)
         eventResult.value = null
-        await router.push('/battle')
+        openBattleOverlay()
       } catch {
         showToast('战斗触发失败')
       }
@@ -281,6 +306,12 @@ async function resolveEvent(optionId: string) {
 
 function closeEventResult() {
   eventResult.value = null
+  syncInputLock()
+}
+
+/** 打开功能浮层（地图保留，暂停探索；浮层 UI 由 MainLayout 的 OverlayLayer 统一渲染）。 */
+function openFeature(type: OverlayType) {
+  overlayStore.open(type)
   syncInputLock()
 }
 
@@ -308,7 +339,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   for (const unsub of unsubscribers) unsub()
   unsubscribers.length = 0
-  if (toastTimer) clearTimeout(toastTimer)
   if (game) {
     game.destroy(true)
     game = null
@@ -318,13 +348,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="explore-view">
-    <div class="explore-header">
-      <h2>区域探索 <span v-if="regionName" class="region-badge">{{ regionName }}</span></h2>
-      <button class="btn-world-map" @click="openWorldMap">大地图</button>
+    <!-- 地图舞台：Phaser 画布 + 探索 HUD + 情境交互（Overlay 架构 P1） -->
+    <div class="map-stage">
+      <div ref="phaserContainer" class="phaser-container"></div>
+      <ExplorationHUD />
+      <ContextInteractionPanel />
     </div>
-
-    <!-- Phaser 画布容器 -->
-    <div ref="phaserContainer" class="phaser-container"></div>
 
     <p v-if="mapStore.error && !mapStore.currentMap" class="error-text">{{ mapStore.error }}</p>
 
@@ -339,7 +368,7 @@ onBeforeUnmount(() => {
         </p>
         <p v-if="actionError" class="error-text">{{ actionError }}</p>
         <div class="modal-actions">
-          <RouterLink to="/team" class="btn-secondary">调整首发</RouterLink>
+          <button class="btn-secondary" @click="openFeature('TEAM')">调整首发</button>
           <button class="btn-secondary" :disabled="busy" @click="closeEncounter">绕开</button>
           <button class="btn-primary" :disabled="busy" @click="startEncounter">
             {{ busy ? '遭遇中...' : '开始战斗' }}
@@ -381,22 +410,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- 奖励弹窗 -->
-    <div v-if="rewardPopup" class="modal-mask" @click.self="closeRewardPopup">
-      <div class="modal-card">
-        <h3>{{ rewardPopup.objectName }}：获得奖励</h3>
-        <ul class="reward-list">
-          <li v-if="rewardPopup.goldGained > 0">金币 +{{ rewardPopup.goldGained }}</li>
-          <li v-for="item in rewardPopup.items" :key="item.itemId">
-            {{ item.name }} ×{{ item.quantity }}
-          </li>
-          <li v-if="rewardPopup.goldGained === 0 && rewardPopup.items.length === 0">（空）</li>
-        </ul>
-        <div class="modal-actions">
-          <button class="btn-primary" @click="closeRewardPopup">收下</button>
-        </div>
-      </div>
-    </div>
+    <!-- 奖励弹窗（统一 RewardPopup） -->
+    <RewardPopup v-if="rewardPopup" :reward="rewardPopup" @close="closeRewardPopup" />
 
     <!-- 随机事件对话框（阶段 10） -->
     <div v-if="randomEvent" class="modal-mask">
@@ -430,8 +445,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- 轻提示 -->
-    <div v-if="toast" class="toast">{{ toast }}</div>
+    <!-- 轻提示（全局 GlobalToast，MainLayout 挂载） -->
+
+    <!-- 战斗浮层（战斗体验优化 P0：全屏覆盖地图，关闭后恢复探索，不重新加载地图） -->
+    <BattleOverlay v-if="battleOpen" @close="handleBattleClose" />
   </div>
 </template>
 
@@ -462,6 +479,29 @@ onBeforeUnmount(() => {
   color: #fff;
   padding: 2px 10px;
   border-radius: var(--radius-sm);
+}
+
+.explore-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-feature {
+  padding: 8px 14px;
+  background-color: rgba(74, 144, 217, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(74, 144, 217, 0.3);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-feature:hover {
+  background-color: var(--color-primary);
+  color: #fff;
 }
 
 .btn-world-map {
@@ -569,20 +609,6 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
   font-size: 14px;
   line-height: 1.9;
-}
-
-.toast {
-  position: fixed;
-  bottom: 96px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(20, 26, 34, 0.92);
-  color: #fff;
-  padding: 10px 18px;
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  z-index: 300;
-  max-width: 80vw;
 }
 
 .error-text {

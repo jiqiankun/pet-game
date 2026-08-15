@@ -70,6 +70,15 @@ export default class MapScene extends Phaser.Scene {
   private wilds: WildActor[] = []
   private interactives: InteractiveObject[] = []
   private inputLocked = false
+  /** 探索暂停等级（GamePauseLevel）：0=不暂停；1=锁输入但环境动画/野怪继续；2=暂停探索逻辑；3=战斗锁定。 */
+  private pauseLevel = 0
+  /** 玩家位置上报节流（每 250ms 写回 useMapStore，稳定会话上下文）。 */
+  private lastPosSyncAt = -1
+  private reportedX = -1
+  private reportedY = -1
+  /** 附近对象上报节流（供情境交互层 ContextInteractionPanel）。 */
+  private lastNearbySyncAt = -1
+  private reportedNearbyType = ''
   private hint!: Phaser.GameObjects.Text
   private unsubscribers: Array<() => void> = []
 
@@ -86,6 +95,12 @@ export default class MapScene extends Phaser.Scene {
     this.wilds = []
     this.interactives = []
     this.inputLocked = false
+    this.pauseLevel = 0
+    this.lastPosSyncAt = -1
+    this.reportedX = -1
+    this.reportedY = -1
+    this.lastNearbySyncAt = -1
+    this.reportedNearbyType = ''
 
     const map = this.make.tilemap({ key: `map_${this.sceneData.mapFile}` })
     this.mapWidthPx = map.widthInPixels
@@ -190,6 +205,9 @@ export default class MapScene extends Phaser.Scene {
       gameBridge.on('cmd:set-input-lock', (payload) => {
         this.inputLocked = payload.locked
       }),
+      gameBridge.on('cmd:set-pause-level', (payload) => {
+        this.pauseLevel = payload.level
+      }),
       gameBridge.on('cmd:remove-wild', (payload) => {
         const idx = this.wilds.findIndex((w) => w.spawnId === payload.id)
         const wild = idx >= 0 ? this.wilds[idx] : undefined
@@ -215,12 +233,26 @@ export default class MapScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    // 探索暂停分级（PauseLevel）
+    // 3=战斗锁定：停止全部探索逻辑
+    // 2=暂停探索逻辑：停止玩家移动/野怪 AI/接触检测（队伍/背包/仓库等管理浮层）
+    // 1=锁玩家输入：禁止移动与交互键，但环境动画/野怪 AI 继续（NPC 对话等）
+    // 0=正常探索
+    if (this.pauseLevel >= 3) { this.syncPosition(time); return }
+    if (this.pauseLevel >= 2) { this.syncPosition(time); return }
+    if (this.pauseLevel >= 1) {
+      this.updateWilds(time, delta)
+      this.syncPosition(time)
+      return
+    }
     if (!this.inputLocked) {
       this.movePlayer(delta)
       this.updateWilds(time, delta)
       this.checkContacts()
       this.checkInteractions()
+      this.syncNearbyObject(time)
     }
+    this.syncPosition(time)
   }
 
   // ==================== 玩家移动 ====================
@@ -455,6 +487,55 @@ export default class MapScene extends Phaser.Scene {
   }
 
   // ==================== 工具 ====================
+
+  /** 节流上报玩家坐标（写回 useMapStore，保证 Overlay 关闭后上下文稳定）。 */
+  private syncPosition(time: number): void {
+    if (!this.player) return
+    if (time - this.lastPosSyncAt < 250) return
+    const x = Math.round(this.player.x)
+    const y = Math.round(this.player.y)
+    if (x === this.reportedX && y === this.reportedY) return
+    this.reportedX = x
+    this.reportedY = y
+    this.lastPosSyncAt = time
+    gameBridge.emit('player:position', { x, y })
+  }
+
+  /** 节流上报附近交互对象（供情境交互层 ContextInteractionPanel 展示动作按钮）。 */
+  private syncNearbyObject(time: number): void {
+    if (!this.player) return
+    if (time - this.lastNearbySyncAt < 200) return
+    this.lastNearbySyncAt = time
+    // 找 60px 内最近的交互对象（出口自动触发，不参与情境按钮）
+    let nearest: InteractiveObject | null = null
+    let nearestDist = 60
+    for (const obj of this.interactives) {
+      if (obj.objectType === 'exit') continue
+      const dist = Phaser.Math.Distance.Between(obj.x, obj.y, this.player.x, this.player.y)
+      if (dist < nearestDist) {
+        nearest = obj
+        nearestDist = dist
+      }
+    }
+    const type = nearest?.objectType ?? ''
+    if (type === this.reportedNearbyType) return
+    this.reportedNearbyType = type
+    // 与 checkInteractions 保持一致的触发 id（优先取业务 prop id，如 npcId/campId）
+    let actionId = nearest?.objectId ?? ''
+    switch (nearest?.objectType) {
+      case 'camp': actionId = nearest.props.campId ?? nearest.objectId; break
+      case 'gather': actionId = nearest.props.gatherId ?? nearest.objectId; break
+      case 'chest': actionId = nearest.props.chestId ?? nearest.objectId; break
+      case 'boss_entrance': actionId = nearest.props.bossId ?? nearest.objectId; break
+      case 'npc': actionId = nearest.props.npcId ?? nearest.objectId; break
+      case 'hidden_spot': actionId = nearest.props.hiddenId ?? nearest.objectId; break
+    }
+    gameBridge.emit('object:proximity', {
+      type,
+      label: nearest ? (OBJECT_VISUALS[nearest.objectType]?.label ?? nearest.objectType) : '',
+      id: actionId,
+    })
+  }
 
   /** 读取 Tiled 对象属性为字符串字典。 */
   private readProps(tiledObj: Phaser.Types.Tilemaps.TiledObject): Record<string, string> {

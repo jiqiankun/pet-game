@@ -26,6 +26,10 @@ export interface UnitSnapshot {
   actualLevel: number
   /** 本场参与战斗计算的等级。 */
   effectiveLevel: number
+  /** 展示资源类型：PET=宠物、BOSS=Boss 核心、null=无资源（测试敌人）。 */
+  artType?: 'PET' | 'BOSS' | null
+  /** 展示资源 ID：PET 对应 speciesId，BOSS 对应 Boss ID；无资源时为 null。 */
+  artId?: string | null
   maxHp: number
   currentHp: number
   shield: number
@@ -91,12 +95,12 @@ export interface BattleSnapshot {
 
 /** 行动意图（前端提交）。 */
 export interface BattleAction {
-  type: 'SKILL' | 'DEFEND' | 'SWITCH' | 'CAPTURE' | 'FLEE'
+  type: 'SKILL' | 'DEFEND' | 'SWITCH' | 'CAPTURE' | 'FLEE' | 'ITEM'
   petId: string
   skillId?: string
   targetId?: string
   switchPetId?: string
-  /** CAPTURE 行动使用的捕捉球道具 ID。 */
+  /** CAPTURE / ITEM 行动使用的道具 ID。 */
   itemId?: string
 }
 
@@ -115,6 +119,12 @@ export interface SkillConfigView {
   name: string
   description: string
   element: string
+  /** 稀有度：NORMAL / RARE / EXCLUSIVE（可选）。 */
+  rarity?: string
+  /** 技能来源：INNATE（自身，展示用，可选）。 */
+  source?: string
+  /** 技能类型：ACTIVE / PASSIVE（展示用，可选）。 */
+  skillType?: string
   damageType: string
   effectType: string
   target: string
@@ -122,6 +132,8 @@ export interface SkillConfigView {
   cooldown: number
   accuracy: number
   chargeTurns: number
+  /** 命中率描述（可选，前端用于展示）。 */
+  maxUsesPerBattle?: number
 }
 
 /** 技能配置根对象。 */

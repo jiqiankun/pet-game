@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { apiGet, apiPost, BusinessError } from '../api/client'
 import type { ApiResponse } from '../types/api'
 import type { PetSummaryView } from '../types/pet'
+import type { ActiveQuestSummary } from '../types/quest'
 
 /**
  * 游戏状态 Store。
@@ -17,6 +18,8 @@ export const useGameStore = defineStore('game', () => {
   const petSummaries = ref<PetSummaryView[]>([])
   const activeTeam = ref<any>(null)
   const teamMembers = ref<any[]>([])
+  /** 当前主线任务摘要（HUD 任务追踪用）。 */
+  const activeMainQuest = ref<ActiveQuestSummary | null>(null)
   const gameVersion = ref('')
   const saveVersion = ref(0)
   const developerMode = ref(false)
@@ -49,6 +52,7 @@ export const useGameStore = defineStore('game', () => {
       petSummaries.value = (data.petSummaries || []) as PetSummaryView[]
       activeTeam.value = data.activeTeam
       teamMembers.value = data.teamMembers || []
+      activeMainQuest.value = data.activeMainQuest ?? null
       gameVersion.value = data.gameVersion
       saveVersion.value = data.saveVersion
       developerMode.value = data.developerMode
@@ -82,6 +86,7 @@ export const useGameStore = defineStore('game', () => {
       petSummaries.value = (data.petSummaries || []) as PetSummaryView[]
       activeTeam.value = data.activeTeam
       teamMembers.value = data.teamMembers || []
+      activeMainQuest.value = data.activeMainQuest ?? null
       gameVersion.value = data.gameVersion
       saveVersion.value = data.saveVersion
       developerMode.value = data.developerMode
@@ -106,7 +111,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   return {
-    hasSave, player, pets, petSummaries, activeTeam, teamMembers,
+    hasSave, player, pets, petSummaries, activeTeam, teamMembers, activeMainQuest,
     gameVersion, saveVersion, developerMode, loading, error,
     checkSaveStatus, loadBootstrap, createNewGame, manualSave,
   }

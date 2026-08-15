@@ -200,6 +200,8 @@ public class WildEncounterService {
         BattleUnit unit = new BattleUnit();
         unit.setUnitId("W_" + (index + 1));
         unit.setSpeciesId(species.getId());
+        unit.setArtType("PET");
+        unit.setArtId(species.getId());
         unit.setName(species.getName());
         unit.setElement(species.getElement());
         unit.setLevel(level);

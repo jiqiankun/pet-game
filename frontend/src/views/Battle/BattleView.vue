@@ -8,6 +8,7 @@ import type { ApiResponse } from '../../types/api'
 import type { AutoStrategy, BattleAction, BattleEvent, UnitSnapshot } from '../../types/battle'
 import type { InventoryItemView, VictoryInteractionView } from '../../types/pet'
 import { elementIconUrl, itemIconUrl, skillTypeIconUrl, statusIconUrl } from '../../game-assets'
+import { elementLabel, rarityLabel } from '../../utils/labels'
 
 const battleStore = useBattleStore()
 const gameStore = useGameStore()
@@ -321,7 +322,8 @@ function playVfxForEvents(events: BattleEvent[]) {
     if (!event) continue
     const asset = resolveEventVfx(event)
     if (!asset) continue
-    const durationMs = Math.round(333 / battleSpeed.value)
+    // 阶段 14 美术验收 ART-03：基础播放时长 600ms，随 1×/2×/3× 速度缩放
+    const durationMs = Math.round(600 / battleSpeed.value)
     const key = ++vfxSequence
     activeVfx.value = { ...asset, key, durationMs }
     if (activeVfxTimer) clearTimeout(activeVfxTimer)
@@ -555,6 +557,17 @@ function hpPercent(unit: UnitSnapshot): number {
   return unit.maxHp > 0 ? Math.max(0, Math.min(100, (unit.currentHp / unit.maxHp) * 100)) : 0
 }
 
+/**
+ * 战斗单位立绘地址（阶段 14 美术验收 ART-02）。
+ * 仅当后端显式给出 artType/artId 时构造资源路径；无资源单位（测试敌人）返回 null 不渲染图片。
+ * 宠物立绘用种族 ID，Boss 核心用 Boss ID，昵称不影响图片选择。
+ */
+function unitArtUrl(unit: UnitSnapshot): string | null {
+  if (!unit.artType || !unit.artId) return null
+  if (unit.artType === 'BOSS') return `/assets/bosses/portraits/boss_${unit.artId}_portrait.png`
+  return `/assets/pets/portraits/pet_${unit.artId}_portrait.png`
+}
+
 /** 高难 Boss 战保留真实等级，并明确标出本场有效等级。 */
 function levelText(unit: UnitSnapshot): string {
   return unit.effectiveLevel < unit.actualLevel
@@ -770,7 +783,7 @@ function renderInteractionText(interaction: VictoryInteractionView): string {
         <div v-if="settlement.capturedPets.length" class="captured-section">
           <span class="captured-label">捕捉成功：</span>
           <div v-for="cp in settlement.capturedPets" :key="cp.petId" class="captured-item">
-            {{ cp.name }} Lv.{{ cp.level }}（{{ cp.rarity }}）
+            {{ cp.name }} Lv.{{ cp.level }}（{{ rarityLabel(cp.rarity) }}）
             <span v-if="cp.specialAppearance" class="tag special">特殊外观</span>
             <span v-if="cp.extraSkillIds.length" class="tag rare-skill">稀有技能</span>
             <span v-if="cp.teamPosition" class="tag team">已入队 · 位置 {{ cp.teamPosition }}</span>
@@ -843,8 +856,9 @@ function renderInteractionText(interaction: VictoryInteractionView): string {
               class="battle-vfx"
               :style="vfxStyle(activeVfx)"
             ></div>
+            <img v-if="unitArtUrl(unit)" class="unit-art" :src="unitArtUrl(unit)!" alt="" />
             <div class="unit-name">
-              {{ unit.name }} <span class="unit-element"><img :src="elementIconUrl(unit.element)" alt="" />{{ unit.element }}</span>
+              {{ unit.name }} <span class="unit-element"><img :src="elementIconUrl(unit.element)" alt="" />{{ elementLabel(unit.element) }}</span>
               <span class="unit-level" :class="{ 'effective-level': unit.effectiveLevel < unit.actualLevel }">{{ levelText(unit) }}</span>
               <span v-if="unit.elite" class="elite-badge">✨精英</span>
             </div>
@@ -893,8 +907,9 @@ function renderInteractionText(interaction: VictoryInteractionView): string {
               class="battle-vfx"
               :style="vfxStyle(activeVfx)"
             ></div>
+            <img v-if="unitArtUrl(unit)" class="unit-art" :src="unitArtUrl(unit)!" alt="" />
             <div class="unit-name">
-              {{ unit.name }} <span class="unit-element"><img :src="elementIconUrl(unit.element)" alt="" />{{ unit.element }}</span>
+              {{ unit.name }} <span class="unit-element"><img :src="elementIconUrl(unit.element)" alt="" />{{ elementLabel(unit.element) }}</span>
               <span class="unit-level" :class="{ 'effective-level': unit.effectiveLevel < unit.actualLevel }">{{ levelText(unit) }}</span>
             </div>
             <div class="hp-bar">
@@ -1521,7 +1536,19 @@ function renderInteractionText(interaction: VictoryInteractionView): string {
 
 @keyframes battle-vfx-frames {
   from { background-position: 0 0; }
-  to { background-position: -512px 0; }
+  to { background-position: -384px 0; }
+}
+
+/* 战斗单位立绘（阶段 14 美术验收 ART-02）：限制尺寸，避免影响窄屏布局 */
+.unit-art {
+  display: block;
+  width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+  object-position: center;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 @media (prefers-reduced-motion: reduce) {

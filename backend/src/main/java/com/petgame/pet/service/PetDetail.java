@@ -91,6 +91,7 @@ public class PetDetail {
     public static class LearnedSkillView {
         private String skillId;
         private String name;
+        private String description;
         private String element;
         private String damageType;
         private String effectType;
@@ -109,6 +110,7 @@ public class PetDetail {
     public static class AvailableSkillView {
         private String skillId;
         private String name;
+        private String description;
         private String element;
         private int unlockLevel;
     }
@@ -118,6 +120,7 @@ public class PetDetail {
     public static class PassiveSkillView {
         private String passiveId;
         private String name;
+        private String description;
         private int unlockLevel;
         /** 当前等级是否已解锁。 */
         private boolean unlocked;

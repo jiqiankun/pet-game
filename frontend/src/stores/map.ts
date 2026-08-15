@@ -25,6 +25,10 @@ export const useMapStore = defineStore('map', () => {
   const defeatedWildIds = ref<string[]>([])
   /** 当前正在进行的地图遭遇对应的野怪刷新点（战斗胜利后标记移除）。 */
   const activeEncounterSpawnId = ref<string | null>(null)
+  /** 玩家坐标（会话级表现态：由 MapScene 节流上报，保证 Overlay 关闭后上下文稳定）。 */
+  const playerPosition = ref<{ x: number; y: number } | null>(null)
+  /** 附近交互对象（MapScene 节流上报，供情境交互层 ContextInteractionPanel 展示动作按钮）。 */
+  const nearbyObject = ref<{ type: string; label: string; id: string } | null>(null)
   const loading = ref(false)
   const error = ref('')
 
@@ -144,9 +148,19 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  /** 更新玩家坐标（由 MapScene 节流上报）。 */
+  function setPlayerPosition(pos: { x: number; y: number }) {
+    playerPosition.value = pos
+  }
+
+  /** 更新附近交互对象（由 MapScene 节流上报；type 为空串表示无附近对象）。 */
+  function setNearbyObject(nearby: { type: string; label: string; id: string }) {
+    nearbyObject.value = nearby.type ? nearby : null
+  }
+
   return {
-    currentMap, worldMap, defeatedWildIds, activeEncounterSpawnId, loading, error,
+    currentMap, worldMap, defeatedWildIds, activeEncounterSpawnId, playerPosition, nearbyObject, loading, error,
     loadCurrentMap, loadWorldMap, enterRegion, restAtCamp,
-    teleportToCamp, gather, openChest, markWildDefeated,
+    teleportToCamp, gather, openChest, markWildDefeated, setPlayerPosition, setNearbyObject,
   }
 })

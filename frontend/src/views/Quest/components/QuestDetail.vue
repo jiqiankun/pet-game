@@ -12,6 +12,7 @@ const emit = defineEmits<{
   (e: 'choose-reward', choiceId: string, optionIndex: number): void
   (e: 'dismiss-result'): void
   (e: 'close'): void
+  (e: 'map-locate'): void
 }>()
 
 const rewardTypeLabel: Record<string, string> = {
@@ -126,6 +127,11 @@ function objectiveProgress(obj: { progress: number; targetCount: number; complet
       >
         {{ detail.objectives.some(o => !o.completed) ? '目标未完成' : '完成任务' }}
       </button>
+      <button
+        v-if="detail.regionId && detail.status === 'ACTIVE'"
+        class="btn-map"
+        @click="emit('map-locate')"
+      >📍 地图查看</button>
       <button class="btn-secondary" @click="emit('close')">关闭</button>
     </div>
 
@@ -383,6 +389,23 @@ function objectiveProgress(obj: { progress: number; targetCount: number; complet
   border-radius: var(--radius-md, 8px);
   font-size: 14px;
   cursor: pointer;
+}
+
+/* P2：地图查看按钮（打开大地图并高亮任务目标区域） */
+.btn-map {
+  padding: 8px 20px;
+  background-color: rgba(230, 168, 23, 0.12);
+  color: #7a4a00;
+  border: 1px solid #e6a817;
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-map:hover {
+  background-color: rgba(230, 168, 23, 0.22);
 }
 
 .complete-result {

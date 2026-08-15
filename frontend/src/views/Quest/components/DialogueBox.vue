@@ -1,13 +1,33 @@
 <script setup lang="ts">
-import { watch, ref } from 'vue'
+import { watch, ref, computed } from 'vue'
 import { useQuestStore } from '../../../stores/quest'
+import { useOverlayStore } from '../../../stores/overlay'
+
+const props = withDefaults(
+  defineProps<{
+    /** embedded：作为 NPC_DIALOG Overlay 内容嵌入（Overlay 栈统一管理遮罩/层级），关闭时同步关闭 NPC_DIALOG 浮层。 */
+    embedded?: boolean
+    /** 层级 z-index（由 OverlayLayer 按栈位置传入；独立模式使用默认值）。 */
+    zIndex?: number
+  }>(),
+  { embedded: false, zIndex: 250 },
+)
 
 const questStore = useQuestStore()
+const overlayStore = useOverlayStore()
 const typing = ref(false)
 const displayText = ref('')
 let typeTimer: ReturnType<typeof setInterval> | null = null
 
-const dialogue = questStore.currentDialogue
+// 用 computed 保持响应式：直接取 questStore.currentDialogue 会得到一次性快照（Pinia 自动解包），导致对话框永不更新
+const dialogue = computed(() => questStore.currentDialogue)
+
+/** 旅行商人 NPC：对话结束后提供「打开商店」入口（前端按 NPC 类型映射，最小改动，不改后端）。 */
+const SHOP_NPC_IDS = ['NPC_FOREST_MERCHANT']
+const canOpenShop = computed(() => {
+  const d = dialogue.value
+  return !!d && SHOP_NPC_IDS.includes(d.npcId) && !d.hasMore
+})
 
 /** 逐字打字效果。 */
 function startTyping(text: string) {
@@ -31,12 +51,12 @@ function stopTyping() {
     typeTimer = null
   }
   typing.value = false
-  if (dialogue) {
-    displayText.value = dialogue.text
+  if (dialogue.value) {
+    displayText.value = dialogue.value.text
   }
 }
 
-watch(() => dialogue?.text, (newText) => {
+watch(() => dialogue.value?.text, (newText) => {
   if (newText) startTyping(newText)
 }, { immediate: true })
 
@@ -45,16 +65,30 @@ function handleClick() {
     stopTyping()
     return
   }
-  if (dialogue?.hasMore) {
+  if (dialogue.value?.hasMore) {
     questStore.continueDialogue()
   } else {
-    questStore.closeDialogue()
+    closeDialogue()
+  }
+}
+
+function closeDialogue() {
+  stopTyping()
+  questStore.closeDialogue()
+  // embedded（Overlay 栈）模式下同步关闭 NPC_DIALOG 浮层
+  if (props.embedded) {
+    overlayStore.close('NPC_DIALOG')
   }
 }
 
 function handleClose() {
-  stopTyping()
-  questStore.closeDialogue()
+  closeDialogue()
+}
+
+/** 打开商店（NPC 对话 → SHOP 二级联动）。 */
+function openShop() {
+  if (!dialogue.value) return
+  overlayStore.open('SHOP', { npcId: dialogue.value.npcId })
 }
 
 function getNpcPortraitUrl(npcId: string): string {
@@ -63,7 +97,7 @@ function getNpcPortraitUrl(npcId: string): string {
 </script>
 
 <template>
-  <div v-if="dialogue" class="dialogue-overlay" @click.self="handleClose">
+  <div v-if="dialogue" class="dialogue-overlay" :style="{ zIndex: props.zIndex }" @click.self="handleClose">
     <div class="dialogue-box" @click="handleClick">
       <div class="dialogue-header">
         <div class="npc-heading">
@@ -80,6 +114,7 @@ function getNpcPortraitUrl(npcId: string): string {
         <span v-if="typing" class="hint">点击跳过</span>
         <span v-else-if="dialogue.hasMore" class="hint">点击继续 ▸</span>
         <span v-else class="hint">点击关闭</span>
+        <button v-if="canOpenShop" class="shop-btn" @click.stop="openShop">🛒 打开商店</button>
       </div>
     </div>
   </div>
@@ -172,5 +207,22 @@ function getNpcPortraitUrl(npcId: string): string {
 .hint {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.shop-btn {
+  margin-left: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 14px;
+  background-color: var(--color-primary, #4a90d9);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.shop-btn:hover {
+  opacity: 0.85;
 }
 </style>

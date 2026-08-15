@@ -256,7 +256,7 @@
         },
         {
           "id": 14,
-          "name": "NPC_THUNDER_1",
+          "name": "NPC_THUNDER_SAGE",
           "type": "npc",
           "x": 320,
           "y": 384,
@@ -265,7 +265,7 @@
           "visible": true,
           "rotation": 0,
           "properties": [
-            { "name": "npcId", "value": "NPC_THUNDER_1" }
+            { "name": "npcId", "value": "NPC_THUNDER_SAGE" }
           ]
         }
       ]

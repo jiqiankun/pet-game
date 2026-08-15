@@ -44,6 +44,24 @@ export interface InputLockPayload {
   locked: boolean
 }
 
+/** 地图暂停等级载荷（GamePauseLevel：0=不暂停；1=锁玩家输入；2=暂停探索逻辑；3=战斗锁定）。 */
+export interface PauseLevelPayload {
+  level: number
+}
+
+/** 玩家位置上报载荷（Phaser → Vue，节流，坐标写回 useMapStore 以稳定会话上下文）。 */
+export interface PlayerPositionPayload {
+  x: number
+  y: number
+}
+
+/** 附近交互对象上报载荷（Phaser → Vue，供情境交互层 ContextInteractionPanel 展示按钮）。type 为空串表示附近无交互对象。 */
+export interface NearbyObjectPayload {
+  type: string
+  label: string
+  id: string
+}
+
 /** 全部桥接事件类型约定。 */
 export interface BridgeEventMap {
   // ---- Phaser → Vue（交互事件） ----
@@ -63,6 +81,10 @@ export interface BridgeEventMap {
   'npc:touch': IdPayload
   /** 隐藏点占位交互（阶段 10 完善）。 */
   'hidden:touch': IdPayload
+  /** 玩家位置上报（节流，Vue 写回 useMapStore）。 */
+  'player:position': PlayerPositionPayload
+  /** 附近交互对象上报（节流，供情境交互层展示按钮）。 */
+  'object:proximity': NearbyObjectPayload
 
   // ---- Vue → Phaser（命令） ----
   /** 重启地图场景（区域切换 / 营地休息刷新后）。 */
@@ -73,6 +95,8 @@ export interface BridgeEventMap {
   'cmd:remove-object': IdPayload
   /** 锁定/解锁输入（Vue 弹层打开时暂停移动与交互）。 */
   'cmd:set-input-lock': InputLockPayload
+  /** 设置地图暂停等级（GamePauseLevel：0=不暂停；1=锁输入；2=暂停探索逻辑；3=战斗锁定）。 */
+  'cmd:set-pause-level': PauseLevelPayload
 }
 
 type Handler<T> = (payload: T) => void

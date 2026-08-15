@@ -102,6 +102,8 @@ Boss 配置（2 Boss × 3 难度）；控制抗性与连续衰减；阶段机制
 
 **E2E 测试脚本增强**：重写 `scripts/e2e/e2e-phase14-test.ps1`，覆盖九大核心场景 API 级验收——场景一（新游戏：重置→创建→Bootstrap 验证）、场景二（野外捕捉：遭遇→行动→捕捉→结算）、场景三（培养：升级→加点→洗点→技能装备）、场景四（3V3 战斗：完整测试战斗流程）、场景五（探索持续性：多场战斗 HP 消耗→营地恢复）、场景六（Boss：挑战→自动挑战）、场景七（自动战斗：配置自动→自动回合→结算）、场景八（重复捕捉：仓库筛选→放生预览→批量放生）、场景九（存档：导出→手动备份→备份列表→导入→数据恢复验证）。脚本含 PASS/FAIL 计数与汇总输出。
 
+**美术资源接入（阶段 14 美术验收回归）**：按《美术资源接入与战斗表现修复计划.md》完成总验收回归修复。① 战斗快照展示标识——`BattleUnit` / `UnitSnapshot` 新增 `artType` / `artId`（仅用于资源定位，不参与战斗计算；PET=宠物、BOSS=Boss 核心、null=无资源测试敌人），`BattleService` / `BossEncounterSnapshotService` / `WildEncounterService` 分别映射玩家宠、Boss 核心、Boss 支援与野生单位；`UnitSnapshotMappingTest`（4 用例）覆盖宠物 / Boss 核心 / Boss 支援 / 无资源测试敌人。② 战斗立绘与特效——`BattleView` 按 `artType/artId` 渲染宠物或 Boss 立绘（无资源时保留文字卡片，不请求不存在路径）；四帧特效精灵图动画终点由 `-512px` 修正为 `-384px`，基础时长由 333ms 调整为 600ms 并随 1×/2×/3× 速度缩放，最后一帧不闪空白。③ 缺失道具图标——补齐 10 张被动技能书图标（`ITEM_SKILL_BOOK_VANGUARD/FORTIFY/ENTRY_BOOST/STURDY/RECUPERATE/ON_KILL_ATK/DEATH_FIRE/THORN_AURA/LAST_STAND/AVENGE`），统一转为 `item_{ID}.png` 命名，背包与商店无 404。④ 核心页面资源复用——`game-assets.ts` 新增 `petIconUrl` / `petPortraitUrl` 辅助函数；首页队伍条目（ART-05）、队伍六个槽位（ART-06）显示 64px 宠物图标，新游戏初始宠物卡片（ART-07）与宠物详情首屏（ART-08）显示宠物立绘，均与 `speciesId` 对应。资源一致性检查通过（27 种族图标 / 27 立绘 / 8 Boss 立绘 / 45 道具图标全部存在）。
+
 **测试验证**：后端 507 项测试全部通过（Failures: 0, Errors: 0, Skipped: 0），Java 21 + Maven Surefire；前端 `vue-tsc -b` 类型检查通过（零错误），`vite build` 生产构建通过（5.93s）。
 
 ## 4. 遗留问题与已知限制

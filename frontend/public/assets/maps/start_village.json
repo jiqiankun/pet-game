@@ -590,7 +590,7 @@
         },
         {
           "id": 5,
-          "name": "NPC_VILLAGE_1",
+          "name": "NPC_VILLAGE_ELDER",
           "type": "npc",
           "x": 256,
           "y": 192,
@@ -601,7 +601,7 @@
           "properties": [
             {
               "name": "npcId",
-              "value": "NPC_VILLAGE_1"
+              "value": "NPC_VILLAGE_ELDER"
             }
           ]
         }

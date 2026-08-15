@@ -240,7 +240,7 @@
         },
         {
           "id": 13,
-          "name": "NPC_RUINS_1",
+          "name": "NPC_RUINS_GUIDE",
           "type": "npc",
           "x": 320,
           "y": 480,
@@ -249,7 +249,7 @@
           "visible": true,
           "rotation": 0,
           "properties": [
-            { "name": "npcId", "value": "NPC_RUINS_1" }
+            { "name": "npcId", "value": "NPC_RUINS_GUIDE" }
           ]
         },
         {

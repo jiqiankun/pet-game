@@ -133,6 +133,8 @@ frontend/
 - **移动端适配**：底部导航、弹层、折叠信息；核心玩法全部可用。
 - **色彩体系**：严格遵循《宠物精灵游戏第一阶段 UI 设计文档》定义的色彩体系（品牌色、功能色、属性色、稀有度色、背景色、文字色）。
 - **资源命名**：统一使用 ID，禁止中文文件名。示例：`pets/fire/PET_FIRE_001.png`、`skills/fire/FIRE_BLAZE_CLAW.png`。
+- **宠物资源路径约定（阶段 14 美术验收）**：图标 `public/assets/pets/icons/pet_{speciesId}_icon_{64|128|256}.png`，立绘 `public/assets/pets/portraits/pet_{speciesId}_portrait.png`；Boss 立绘 `public/assets/bosses/portraits/boss_{bossId}_portrait.png`；道具图标 `public/assets/items/item_{itemId}.png`。前端统一通过 `src/game-assets.ts` 的 `petIconUrl` / `petPortraitUrl` / `itemIconUrl` 等辅助函数构造路径，禁止在组件内硬编码资源路径。
+- **战斗展示标识**：后端 `UnitSnapshot` 显式下发 `artType` / `artId`（PET / BOSS / null），前端仅据此构造立绘 URL，不从名称或 unitId 猜测；无资源单位（null）不请求路径，保留文字卡片。
 - **不开发独立 App**。
 
 ---
@@ -336,3 +338,12 @@ frontend/
 - Boss 页通过 `GET /api/bosses/{bossId}/encounter-snapshot?difficulty=...` 展示已锁定遭遇；只有后端返回 `canReset=true` 时显示重置按钮，并在点击前要求用户明确确认。
 - `UnitSnapshot.actualLevel/effectiveLevel` 仅用于展示。有效等级低于真实等级时统一展示为 `Lv.真实 → 有效`，不得在前端自行按比例重算 HP、属性、技能或自由点。
 - Boss 快照为空时仅提示「首次挑战后固定」；全局难度与快照难度不一致时必须明确告知「本次仍按旧快照挑战」。
+
+## 21. 枚举中文展示规范（阶段 15 起，全站强制）
+
+- 所有从后端返回的枚举值（属性、稀有度、伤害类型、效果类型、技能类型、技能来源、六维属性等）在页面展示与下拉选项中**一律转换为中文**，禁止直接展示枚举原文（如 `FIRE`、`COMMON`、`PHYSICAL`）。
+- 枚举 → 中文映射统一集中定义在 `frontend/src/utils/labels.ts`，提供 `elementLabel / rarityLabel / rarityColor / damageTypeLabel / effectTypeLabel / skillTypeLabel / sourceLabel / STAT_LABELS` 等函数与常量。
+- **禁止在各页面内重复定义映射表**；页面仅负责从 `utils/labels.ts` 导入使用。已废弃的本地映射（各页面的 `elementLabels`、`rarityLabels`、`rarityColors`、`RARITY_NAMES` 等）一律删除，统一改用 `utils/labels.ts`。
+- 下拉选项（如仓库筛选、加点维度）同样使用映射函数展示中文，但提交给后端的 value 仍为原始枚举值。
+- 六维属性统一使用 `STAT_LABELS`（HP=生命、STRENGTH=力量、SPIRIT=灵力、DEFENSE=防御、RESISTANCE=抗性、SPEED=速度）。
+- 新增枚举类型时，先在 `utils/labels.ts` 补充映射与函数，再在各页面使用；不得绕过该文件直接硬编码中文。

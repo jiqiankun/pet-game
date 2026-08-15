@@ -79,7 +79,8 @@ namespace PetGameArt {
         }
       }
       if (maxX < 0) throw new InvalidOperationException("抠图后没有检测到主体。");
-      if (minX == 0 || minY == 0 || maxX == input.Width - 1 || maxY == input.Height - 1) {
+      // 绿幕贴边通常表示主体不完整；原生 Alpha 图会保留完整画布并缩小留边，可安全处理。
+      if (!useInputAlpha && (minX == 0 || minY == 0 || maxX == input.Width - 1 || maxY == input.Height - 1)) {
         throw new InvalidOperationException("主体贴边，无法保证完整裁切。");
       }
 

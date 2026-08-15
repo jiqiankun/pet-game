@@ -15,6 +15,9 @@ import type {
 } from '../types/battle'
 import type { BattleSettlement } from '../types/pet'
 
+/** 属性克制关系（前端技能预览用，由 elements 配置构建）。 */
+export type ElementRelation = 'ADVANTAGE' | 'DISADVANTAGE' | 'NEUTRAL'
+
 /**
  * 战斗 Store（阶段 3）。
  * 管理战斗快照、技能配置缓存、事件日志与行动意图收集。
@@ -39,6 +42,38 @@ export const useBattleStore = defineStore('battle', () => {
   const autoEnabled = ref(false)
   /** 玩家自动战斗偏好（面板初始化）。 */
   const autoPreference = ref<AutoPreference | null>(null)
+
+  // ---- 元素克制（技能预览用，战斗体验优化） ----
+  /** 属性互相克制关系：attacker → defender → 是否克制生效。 */
+  const advantageMap = ref<Record<string, boolean>>({})
+  /** 属性本属性加成（技能属性 = 宠物体，×1.20）。 */
+  const sameElementBonus = 1.2
+
+  /** 加载元素克制配置，构建克制关系表（仅用于前端技能预览，不参与任何计算）。 */
+  async function loadElementsConfig() {
+    try {
+      const res = await apiGet<{ configVersion: number; elements: Array<{ id: string }>; advantages: Array<{ attacker: string; defender: string }> }>(
+        '/api/game/config/elements',
+      )
+      const data = (res as ApiResponse<{ configVersion: number; elements: Array<{ id: string }>; advantages: Array<{ attacker: string; defender: string }> }>).data
+      const map: Record<string, boolean> = {}
+      for (const adv of data.advantages || []) {
+        map[`${adv.attacker}->${adv.defender}`] = true
+      }
+      advantageMap.value = map
+    } catch {
+      // 加载失败不影响战斗，技能预览降级为无克制标记
+      advantageMap.value = {}
+    }
+  }
+
+  /** 计算攻击属性对防御属性的克制关系。 */
+  function elementRelation(attacker: string, defender: string): ElementRelation {
+    if (!attacker || !defender || attacker === defender) return 'NEUTRAL'
+    if (advantageMap.value[`${attacker}->${defender}`]) return 'ADVANTAGE'
+    if (advantageMap.value[`${defender}->${attacker}`]) return 'DISADVANTAGE'
+    return 'NEUTRAL'
+  }
 
   const inBattle = computed(() => snapshot.value !== null && !snapshot.value.finished)
 
@@ -401,7 +436,10 @@ export const useBattleStore = defineStore('battle', () => {
     captureRates,
     autoEnabled,
     autoPreference,
+    sameElementBonus,
     loadSkillConfig,
+    loadElementsConfig,
+    elementRelation,
     startTestBattle,
     startWildBattle,
     startMapEncounter,

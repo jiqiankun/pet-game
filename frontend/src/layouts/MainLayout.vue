@@ -1,9 +1,38 @@
 <script setup lang="ts">
-import DialogueBox from '../views/Quest/components/DialogueBox.vue'
+import { onBeforeUnmount } from 'vue'
 import TutorialOverlay from '../views/Quest/components/TutorialOverlay.vue'
+import GlobalToast from '../components/feedback/GlobalToast.vue'
+import ErrorFeedback from '../components/feedback/ErrorFeedback.vue'
+import OverlayLayer from '../components/overlay/OverlayLayer.vue'
 import { useGameStore } from '../stores/game'
+import { useOverlayStore } from '../stores/overlay'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 
 const gameStore = useGameStore()
+const overlayStore = useOverlayStore()
+
+// ---- 键盘快捷键（P3：T/B/I/M/Q/P/G/S 打开对应浮层）----
+useKeyboardShortcuts()
+
+// ---- 统一返回行为（Overlay 架构 P0）----
+// 返回 = 只关闭最上层 Overlay；战斗不通过返回键退出。
+function handleEscape() {
+  overlayStore.handleBack()
+}
+
+function handlePopState() {
+  // Android / 浏览器返回键：若存在浮层则关闭最上层并保持当前 hash，不触发路由回退
+  if (overlayStore.handleBack()) {
+    window.history.pushState(null, '', window.location.href)
+  }
+}
+
+window.addEventListener('keydown', handleEscape)
+window.addEventListener('popstate', handlePopState)
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleEscape)
+  window.removeEventListener('popstate', handlePopState)
+})
 </script>
 
 <template>
@@ -41,10 +70,14 @@ const gameStore = useGameStore()
       <slot />
     </main>
 
-    <!-- 全局 NPC 对话框 -->
-    <DialogueBox />
     <!-- 全局新手教学浮层 -->
     <TutorialOverlay />
+    <!-- 统一浮层渲染层（OverlayLayer：按 overlay 栈渲染功能浮层，含 NPC 对话） -->
+    <OverlayLayer />
+    <!-- 全局轻提示（GlobalFeedbackLayer） -->
+    <GlobalToast />
+    <!-- 全局错误反馈条（GlobalFeedbackLayer） -->
+    <ErrorFeedback />
   </div>
 </template>
 

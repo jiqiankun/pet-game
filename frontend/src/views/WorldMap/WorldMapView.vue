@@ -1,17 +1,31 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMapStore } from '../../stores/map'
+import { useOverlayStore } from '../../stores/overlay'
 import type { CampView, RegionView } from '../../types/map'
 
 /**
  * 大地图页面雏形（阶段 6，需求 §116）。
  * 展示：区域、推荐等级、Boss 状态（占位）、营地、传送；激活营地可快速传送。
+ * Overlay 架构 P1：作为 WorldMapOverlay 内容嵌入（进入/传送后关闭浮层，回到地图）。
+ * Overlay 架构 P2：支持「高亮目标区域」（图鉴栖息地 / 任务地图定位），通过 highlightRegionId 传入。
  */
+const props = defineProps<{
+  /** 高亮/定位的目标区域 mapId（图鉴栖息地、任务地图查看时传入）。 */
+  highlightRegionId?: string
+}>()
+
 const router = useRouter()
 const mapStore = useMapStore()
+const overlayStore = useOverlayStore()
 const busyKey = ref('')
 const error = ref('')
+
+/** 高亮的目标区域（mapId 命中则返回对应区域，用于顶栏提示与卡片高亮）。 */
+const highlightRegion = computed(
+  () => mapStore.worldMap?.regions.find((r) => r.mapId === props.highlightRegionId) ?? null,
+)
 const regionThumbnailByMapId: Record<string, string> = {
   MAP_START_VILLAGE: 'village',
   MAP_AREA_MEADOW: 'meadow',
@@ -41,6 +55,7 @@ async function enterRegion(region: RegionView) {
   error.value = ''
   try {
     await mapStore.enterRegion(region.mapId)
+    overlayStore.close('WORLD_MAP')
     router.push('/explore')
   } catch (e) {
     error.value = mapStore.error || '进入区域失败'
@@ -56,6 +71,7 @@ async function teleport(camp: CampView) {
   error.value = ''
   try {
     await mapStore.teleportToCamp(camp.campId)
+    overlayStore.close('WORLD_MAP')
     router.push('/explore')
   } catch (e) {
     error.value = mapStore.error || '传送失败'
@@ -79,12 +95,25 @@ function goExplore() {
     <p v-if="error" class="error-text">{{ error }}</p>
     <div v-if="!mapStore.worldMap" class="loading-text">加载中...</div>
 
-    <div v-else class="region-grid">
+    <!-- 目标定位提示（图鉴栖息地 / 任务地图查看） -->
+    <div v-if="mapStore.worldMap && highlightRegion" class="locate-banner">
+      <span class="locate-icon">📍</span>
+      <span class="locate-text">
+        目标区域：{{ highlightRegion.name }}
+        <template v-if="!highlightRegion.unlocked">（未解锁，需先推进主线）</template>
+      </span>
+    </div>
+
+    <div v-if="mapStore.worldMap" class="region-grid">
       <div
         v-for="region in mapStore.worldMap.regions"
         :key="region.mapId"
         class="region-card"
-        :class="{ current: region.current, locked: !region.unlocked }"
+        :class="{
+          current: region.current,
+          locked: !region.unlocked,
+          highlight: props.highlightRegionId === region.mapId,
+        }"
       >
         <img class="region-thumb" :src="regionThumbnailUrl(region.mapId)" :alt="`${region.name}缩略图`" />
         <div class="region-title">
@@ -186,6 +215,31 @@ function goExplore() {
 
 .region-card.locked {
   opacity: 0.55;
+}
+
+/* P2：目标定位（图鉴栖息地 / 任务地图）高亮卡片 */
+.region-card.highlight {
+  border-color: #e6a817;
+  box-shadow: 0 0 0 3px rgba(230, 168, 23, 0.35);
+  background-color: rgba(230, 168, 23, 0.06);
+}
+
+.locate-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 16px;
+  background-color: rgba(230, 168, 23, 0.12);
+  border: 1px solid #e6a817;
+  border-radius: var(--radius-md);
+  color: #7a4a00;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.locate-icon {
+  font-size: 16px;
 }
 
 .region-title {

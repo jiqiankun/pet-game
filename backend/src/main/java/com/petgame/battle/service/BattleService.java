@@ -1043,6 +1043,8 @@ public class BattleService {
         unit.setUnitId("P_" + pet.getId());
         unit.setPetDbId(pet.getId());
         unit.setSpeciesId(species.getId());
+        unit.setArtType("PET");
+        unit.setArtId(species.getId());
         unit.setName(pet.getNickname() != null && !pet.getNickname().isBlank()
                 ? pet.getNickname() : species.getName());
         unit.setElement(species.getElement());
@@ -1186,6 +1188,8 @@ public class BattleService {
         snapshot.setUnitId(unit.getUnitId());
         snapshot.setName(unit.getName());
         snapshot.setElement(unit.getElement());
+        snapshot.setArtType(unit.getArtType());
+        snapshot.setArtId(unit.getArtId());
         snapshot.setLevel(unit.getLevel());
         snapshot.setActualLevel(unit.getActualLevel() > 0 ? unit.getActualLevel() : unit.getLevel());
         snapshot.setEffectiveLevel(unit.getEffectiveLevel() > 0 ? unit.getEffectiveLevel() : unit.getLevel());
@@ -1551,6 +1555,14 @@ public class BattleService {
             BattleUnit unit = new BattleUnit();
             unit.setUnitId(data.getUnitId());
             unit.setSpeciesId(data.getSpeciesId());
+            // 展示标识：Boss 核心用 Boss 立绘，支援单位用宠物立绘；旧快照缺失 bossId 时从 unitId 回退解析
+            if ("CORE".equals(data.getRole())) {
+                unit.setArtType("BOSS");
+                unit.setArtId(encounter.getBossId() != null ? encounter.getBossId() : bossIdFromCoreUnitId(data.getUnitId()));
+            } else if (data.getSpeciesId() != null) {
+                unit.setArtType("PET");
+                unit.setArtId(data.getSpeciesId());
+            }
             unit.setName(data.getName());
             unit.setElement(data.getElement());
             unit.setLevel(data.getLevel());
@@ -1581,6 +1593,18 @@ public class BattleService {
             side.getUnits().add(unit);
         }
         return side;
+    }
+
+    /**
+     * 从 Boss 核心单位 unitId 回退解析 Boss ID。
+     * unitId 格式形如 "BOSS_BOSS_MEADOW_GUARDIAN_NORMAL_CORE"，取第二段为 Boss ID。
+     */
+    private static String bossIdFromCoreUnitId(String unitId) {
+        String[] parts = unitId == null ? new String[0] : unitId.split("_");
+        if (parts.length >= 2 && "BOSS".equals(parts[0])) {
+            return parts[1];
+        }
+        return null;
     }
 
     private String gameDifficultyOf(PlayerEntity player) {

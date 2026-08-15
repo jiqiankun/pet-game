@@ -27,6 +27,14 @@ public class BattleUnit {
     /** 种族 ID（玩家单位为其宠物种族，野生单位为物种配置 ID）。 */
     private String speciesId;
 
+    // ---- 展示标识（阶段 14 美术验收，仅用于资源定位，不参与战斗计算）----
+
+    /** 展示资源类型：PET=宠物立绘/图标、BOSS=Boss 核心、null=无资源（测试敌人）。 */
+    private String artType;
+
+    /** 展示资源 ID：PET 对应 speciesId，BOSS 对应 Boss ID；无资源时为 null。 */
+    private String artId;
+
     /** 是否已被捕捉（捕捉成功后立即退出敌方队伍，不再参与战斗）。 */
     private boolean captured;
 

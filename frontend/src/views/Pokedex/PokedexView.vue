@@ -1,25 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { usePokedexStore } from '../../stores/pokedex'
+import { useOverlayStore } from '../../stores/overlay'
 import type { PokedexDetail, PokedexEntry } from '../../types/pokedex'
+import { elementLabel, rarityLabel, rarityColor } from '../../utils/labels'
 
 const pokedexStore = usePokedexStore()
+const overlayStore = useOverlayStore()
 
 const selectedSpecies = ref<PokedexDetail | null>(null)
 const showDetail = ref(false)
-
-const elementLabels: Record<string, string> = {
-  NONE: '无', FIRE: '火', WATER: '水', WOOD: '木', METAL: '金',
-  EARTH: '土', WIND: '风', THUNDER: '雷', LIGHT: '光', DARK: '暗',
-}
-
-const rarityLabels: Record<string, string> = {
-  COMMON: '普通', RARE: '稀有', EPIC: '珍稀', LEGENDARY: '传说',
-}
-
-const rarityColors: Record<string, string> = {
-  COMMON: '#8b8b8b', RARE: '#4a90d9', EPIC: '#c455e8', LEGENDARY: '#f5a623',
-}
 
 const levelLabels = ['Lv.0', 'Lv.1', 'Lv.2', 'Lv.3', 'Lv.4', 'Lv.5']
 
@@ -69,6 +59,12 @@ function cardClass(entry: PokedexEntry): string {
   if (entry.seen) return 'card-seen'
   return 'card-unknown'
 }
+
+/** 打开大地图并高亮首个栖息地（出现区域数组为 mapId 列表）。 */
+function openHabitat() {
+  if (!selectedSpecies.value?.encounterRegions?.length) return
+  overlayStore.open('WORLD_MAP', { highlightRegionId: selectedSpecies.value.encounterRegions[0] })
+}
 </script>
 
 <template>
@@ -108,7 +104,7 @@ function cardClass(entry: PokedexEntry): string {
           :key="el"
           :class="['filter-btn', { active: pokedexStore.filterElement === el }]"
           @click="setFilterElement(el)"
-        >{{ elementLabels[el] ?? el }}</button>
+        >{{ elementLabel(el) }}</button>
       </div>
     </div>
 
@@ -125,8 +121,8 @@ function cardClass(entry: PokedexEntry): string {
       >
         <div class="card-header">
           <span class="card-level">{{ levelLabels[entry.researchLevel] }}</span>
-          <span v-if="entry.rarity" class="card-rarity" :style="{ color: rarityColors[entry.rarity] ?? '#8b8b8b' }">
-            {{ rarityLabels[entry.rarity] ?? entry.rarity }}
+          <span v-if="entry.rarity" class="card-rarity" :style="{ color: rarityColor(entry.rarity) }">
+            {{ rarityLabel(entry.rarity) }}
           </span>
         </div>
         <div class="card-icon">
@@ -137,7 +133,7 @@ function cardClass(entry: PokedexEntry): string {
           {{ entry.researchLevel >= 1 ? entry.name : '???' }}
         </div>
         <div class="card-element" v-if="entry.element">
-          {{ elementLabels[entry.element] ?? entry.element }}
+          {{ elementLabel(entry.element) }}
         </div>
         <div class="card-progress">
           <div class="progress-bar">
@@ -191,7 +187,7 @@ function cardClass(entry: PokedexEntry): string {
         <div v-if="selectedSpecies.researchLevel >= 1" class="info-section">
           <h4>基本信息</h4>
           <div class="info-row">
-            <span>属性: {{ elementLabels[selectedSpecies.element ?? ''] ?? selectedSpecies.element }}</span>
+            <span>属性: {{ elementLabel(selectedSpecies.element) }}</span>
           </div>
           <p class="description">{{ selectedSpecies.description }}</p>
         </div>
@@ -201,8 +197,8 @@ function cardClass(entry: PokedexEntry): string {
           <h4>捕获信息</h4>
           <div class="info-row">
             <span>稀有度:
-              <span :style="{ color: rarityColors[selectedSpecies.rarity ?? ''] ?? '#8b8b8b' }">
-                {{ rarityLabels[selectedSpecies.rarity ?? ''] ?? selectedSpecies.rarity }}
+              <span :style="{ color: rarityColor(selectedSpecies.rarity) }">
+                {{ rarityLabel(selectedSpecies.rarity) }}
               </span>
             </span>
             <span>基础捕获率: {{ ((selectedSpecies.captureRate ?? 0) * 100).toFixed(0) }}%</span>
@@ -255,6 +251,11 @@ function cardClass(entry: PokedexEntry): string {
             <span v-for="r in selectedSpecies.encounterRegions" :key="r" class="tag region">{{ r }}</span>
           </div>
           <span v-else class="no-data">无已知区域</span>
+          <button
+            v-if="selectedSpecies.encounterRegions?.length"
+            class="habitat-btn"
+            @click="openHabitat"
+          >📍 查看栖息地</button>
         </div>
 
         <!-- Lv.5: 历史记录 -->
@@ -744,6 +745,27 @@ function cardClass(entry: PokedexEntry): string {
 .no-data {
   font-size: 13px;
   color: var(--text-secondary);
+}
+
+/* P2：查看栖息地按钮（打开大地图并高亮目标区域） */
+.habitat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 6px 14px;
+  border: 1px solid #e6a817;
+  background-color: rgba(230, 168, 23, 0.12);
+  color: #7a4a00;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.habitat-btn:hover {
+  background-color: rgba(230, 168, 23, 0.22);
 }
 
 /* 历史记录 */

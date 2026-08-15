@@ -23,6 +23,12 @@ public class UnitSnapshot {
     private int actualLevel;
     private int effectiveLevel;
 
+    /** 展示资源类型：PET=宠物、BOSS=Boss 核心、null=无资源（测试敌人）。 */
+    private String artType;
+
+    /** 展示资源 ID：PET 对应 speciesId，BOSS 对应 Boss ID；无资源时为 null。 */
+    private String artId;
+
     private int maxHp;
     private int currentHp;
     private int shield;

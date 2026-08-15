@@ -52,6 +52,7 @@ export interface SpeciesView {
 export interface LearnedSkillView {
   skillId: string
   name: string
+  description?: string
   element: string
   damageType: string
   effectType: string
@@ -69,6 +70,7 @@ export interface LearnedSkillView {
 export interface AvailableSkillView {
   skillId: string
   name: string
+  description?: string
   element: string
   unlockLevel: number
 }
@@ -77,6 +79,7 @@ export interface AvailableSkillView {
 export interface PassiveSkillView {
   passiveId: string
   name: string
+  description?: string
   unlockLevel: number
   /** 当前等级是否已解锁。 */
   unlocked: boolean
@@ -114,6 +117,22 @@ export interface PetDetail {
   /** 剩余可分配自由点数 = 已获得 - 已消耗。 */
   freePointsAvailable: number
   expToNextLevel: number
+}
+
+/** 推荐 Build 视图（后端已将技能 ID 映射为名称与描述）。 */
+export interface BuildRecommendationView {
+  name: string
+  description: string
+  statPriority: string[]
+  skillPriority: SkillRefView[]
+}
+
+/** 技能引用视图（推荐 Build 用）。 */
+export interface SkillRefView {
+  skillId: string
+  name: string
+  description?: string
+  element: string
 }
 
 /** 玩家宠物存档实体（与后端 PlayerPetEntity 对应）。 */
@@ -242,6 +261,8 @@ export interface PetSummaryView {
   speciesName: string
   element: string
   rarity: string
+  /** 面板属性（含 maxHp，HUD/快捷队伍恢复展示用）。 */
+  panelStats?: { maxHp: number }
   equippedSkills: EquippedSkillSummary[]
 }
 

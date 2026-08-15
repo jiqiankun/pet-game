@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useGameStore } from '../../stores/game'
 import { useBattleStore } from '../../stores/battle'
 import { apiGet, apiPost, BusinessError } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
-import type { PetDetail, LevelUpPreview } from '../../types/pet'
-import { elementIconUrl, skillTypeIconUrl } from '../../game-assets'
+import type { PetDetail, LevelUpPreview, BuildRecommendationView } from '../../types/pet'
+import { elementIconUrl, skillTypeIconUrl, petPortraitUrl } from '../../game-assets'
+import {
+  elementLabel, rarityLabel, damageTypeLabel, effectTypeLabel,
+  sourceLabel, STAT_LABELS,
+} from '../../utils/labels'
 
 const gameStore = useGameStore()
 const battleStore = useBattleStore()
+
+/**
+ * 可选初始宠物 ID（Overlay 二级联动：如 队伍 → 宠物详情 直接聚焦某只宠物）。
+ * 独立路由模式不传，默认聚焦第一只。
+ */
+const props = defineProps<{ initialPetId?: number }>()
 
 // 选中的宠物详情
 const detail = ref<PetDetail | null>(null)
@@ -25,8 +35,7 @@ const previewTargetLevel = ref<number | null>(null)
 const allocateStat = ref('')
 const allocatePoints = ref(1)
 
-// 自定义升级输入
-const customExp = ref(0)
+// 目标等级（预览用）
 const targetLevelInput = ref(1)
 
 // 标签页
@@ -37,23 +46,47 @@ const learnBookItemId = ref('')
 const learnForgetSkillId = ref<string | null>(null)
 
 // 推荐 Build（阶段 10）
-const builds = ref<BuildRecommendation[]>([])
+const builds = ref<BuildRecommendationView[]>([])
 const buildsLoaded = ref(false)
 
 const inBattle = computed(() => battleStore.inBattle)
 
 const STAT_KEYS = ['HP', 'STRENGTH', 'SPIRIT', 'DEFENSE', 'RESISTANCE', 'SPEED'] as const
-const STAT_LABELS: Record<string, string> = {
-  HP: '生命', STRENGTH: '力量', SPIRIT: '灵力',
-  DEFENSE: '防御', RESISTANCE: '抗性', SPEED: '速度',
+
+// 技能描述浮层（阶段 15 交互优化）：当前悬浮/点击的技能描述
+const hoverSkill = ref<{ name: string; description: string; sub?: string } | null>(null)
+
+// 升级确认框（阶段 15 防误触）
+const confirmUpgrade = ref<{ mode: string; targetLevel?: number; exp?: number; label: string } | null>(null)
+
+// 目标等级规格提示（短暂悬浮，避免常驻文字）
+const levelHint = ref('')
+let levelHintTimer: ReturnType<typeof setTimeout> | null = null
+
+/** 短暂显示等级规格提示。 */
+function showLevelHint(msg: string) {
+  levelHint.value = msg
+  if (levelHintTimer) clearTimeout(levelHintTimer)
+  levelHintTimer = setTimeout(() => { levelHint.value = '' }, 2500)
 }
 
 onMounted(async () => {
   await gameStore.loadBootstrap()
-  if (gameStore.pets.length > 0) {
-    await loadDetail(gameStore.pets[0].id)
+  const pid = props.initialPetId ?? gameStore.pets[0]?.id
+  if (pid) {
+    await loadDetail(pid)
   }
 })
+
+// 二级联动：initialPetId 变化时聚焦对应宠物（如 队伍 → 宠物详情 切换）
+watch(
+  () => props.initialPetId,
+  async (pid) => {
+    if (typeof pid === 'number' && pid !== detail.value?.pet.id) {
+      await loadDetail(pid)
+    }
+  },
+)
 
 async function loadDetail(petId: number) {
   loading.value = true
@@ -63,6 +96,8 @@ async function loadDetail(petId: number) {
   try {
     const res = await apiGet<PetDetail>(`/api/pets/${petId}`)
     detail.value = (res as ApiResponse<PetDetail>).data
+    // 阶段 15：预览目标等级最小为当前等级高一级
+    targetLevelInput.value = Math.min(50, detail.value.pet.level + 1)
     activeTab.value = 'basic'
     buildsLoaded.value = false
     builds.value = []
@@ -73,9 +108,20 @@ async function loadDetail(petId: number) {
   }
 }
 
-/** 加载升级预览。 */
+/** 加载升级预览（阶段 15：目标等级须 > 当前等级且 <= 上限，否则短暂提示）。 */
 async function loadPreview(toLevel: number) {
   if (!detail.value) return
+  const cur = detail.value.pet.level
+  if (toLevel <= cur) {
+    showLevelHint(`目标等级须大于当前等级（Lv.${cur}）`)
+    preview.value = null
+    return
+  }
+  if (toLevel > 50) {
+    showLevelHint(`目标等级不能超过上限 Lv.50`)
+    preview.value = null
+    return
+  }
   actionLoading.value = true
   actionError.value = ''
   try {
@@ -85,16 +131,41 @@ async function loadPreview(toLevel: number) {
     preview.value = (res as ApiResponse<LevelUpPreview>).data
     previewTargetLevel.value = toLevel
   } catch (e: any) {
-    actionError.value = e.message || '预览失败'
+    actionError.value = e instanceof BusinessError ? e.message : (e.message || '预览失败')
+    // 后端规格错误（目标等级须在当前等级+1 ~ 上限之间）改为短暂提示，不常驻
+    if (e instanceof BusinessError && /目标等级|targetLevel/.test(e.message)) {
+      showLevelHint(e.message)
+      actionError.value = ''
+    } else {
+      actionError.value = e.message || '预览失败'
+    }
     preview.value = null
   } finally {
     actionLoading.value = false
   }
 }
 
-/** 执行升级。 */
+/** 执行升级（阶段 15：先弹确认框防误触）。 */
+function askLevelUp(mode: string, targetLevel?: number, exp?: number) {
+  if (!detail.value || inBattle.value) return
+  const cur = detail.value.pet.level
+  // 已达上限时直接提示
+  if (cur >= 50) {
+    showLevelHint('该宠物已达最高等级 Lv.50')
+    return
+  }
+  let label = ''
+  if (mode === 'ONE') label = '升 1 级'
+  else if (mode === 'FIVE') label = '升 5 级'
+  else if (mode === 'TO_CAP') label = '升到上限'
+  else if (mode === 'TO_LEVEL') label = `升到 Lv.${targetLevel}`
+  confirmUpgrade.value = { mode, targetLevel, exp, label }
+}
+
+/** 确认执行升级。 */
 async function doLevelUp(mode: string, targetLevel?: number, exp?: number) {
   if (!detail.value || inBattle.value) return
+  confirmUpgrade.value = null
   actionLoading.value = true
   actionError.value = ''
   try {
@@ -107,7 +178,11 @@ async function doLevelUp(mode: string, targetLevel?: number, exp?: number) {
     // 刷新首页数据（经验池已扣减）
     await gameStore.loadBootstrap()
   } catch (e: any) {
-    actionError.value = e instanceof BusinessError ? e.message : (e.message || '升级失败')
+    if (e instanceof BusinessError && /目标等级/.test(e.message)) {
+      showLevelHint(e.message)
+    } else {
+      actionError.value = e instanceof BusinessError ? e.message : (e.message || '升级失败')
+    }
   } finally {
     actionLoading.value = false
   }
@@ -196,17 +271,45 @@ function slotLabel(slot: number | null): string {
   return slot ? `槽${slot}` : '未装备'
 }
 
+/** 技能悬浮浮层：显示技能名称、类型标签与描述。 */
+function tipSub(skill: {
+  element?: string
+  damageType?: string
+  effectType?: string
+  cooldown?: number
+  sourceType?: string
+}): string {
+  const parts: string[] = []
+  if (skill.element) parts.push(elementLabel(skill.element))
+  if (skill.damageType) parts.push(damageTypeLabel(skill.damageType))
+  if (skill.effectType) parts.push(effectTypeLabel(skill.effectType))
+  if (skill.cooldown && skill.cooldown > 0) parts.push(`冷却 ${skill.cooldown}`)
+  if (skill.sourceType === 'SKILL_BOOK') parts.push('技能书')
+  return parts.filter((s) => s && s !== '—').join(' · ')
+}
+function showSkillTip(skill: { name: string; description?: string; element?: string; damageType?: string; effectType?: string; cooldown?: number; sourceType?: string }) {
+  hoverSkill.value = {
+    name: skill.name,
+    sub: tipSub(skill),
+    description: skill.description || '暂无描述',
+  }
+}
+function hideSkillTip() {
+  hoverSkill.value = null
+}
+/** 推荐 Build 技能引用浮层。 */
+function showBuildSkillTip(s: { name: string; description?: string; element?: string }) {
+  hoverSkill.value = {
+    name: s.name,
+    sub: s.element ? elementLabel(s.element) : '',
+    description: s.description || '暂无描述',
+  }
+}
+
 /** 当前已装备的主动技能数（REV-017）。 */
 function equippedCount(): number {
   if (!detail.value) return 0
   return detail.value.learnedSkills.filter(s => s.slot != null).length
-}
-
-/** 被动来源标识（REV-017）。 */
-function sourceLabel(source: string): string {
-  if (source === 'BOOK') return '📖技能书'
-  if (source === 'SPECIAL') return '✨特殊'
-  return '自身'
 }
 
 /** 解锁技能显示名（REV-013：优先名称，兼容旧数据）。 */
@@ -215,13 +318,6 @@ function u2label(s: { skillId: string; name?: string }): string {
 }
 
 // ==================== 技能书管理（阶段 10） ====================
-
-interface BuildRecommendation {
-  name: string
-  description: string
-  statPriority: string[]
-  skillPriority: string[]
-}
 
 /** 使用技能书学习技能。 */
 async function doLearnBook() {
@@ -337,10 +433,10 @@ async function doUnequipBookPassive(bookSlot: number) {
 async function loadBuilds() {
   if (!detail.value || buildsLoaded.value) return
   try {
-    const res = await apiGet<BuildRecommendation[]>(
+    const res = await apiGet<BuildRecommendationView[]>(
       `/api/pets/${detail.value.pet.id}/build-recommendations`,
     )
-    builds.value = (res as ApiResponse<BuildRecommendation[]>).data ?? []
+    builds.value = (res as ApiResponse<BuildRecommendationView[]>).data ?? []
     buildsLoaded.value = true
   } catch {
     builds.value = []
@@ -417,22 +513,27 @@ function formatDate(iso: string | null): string {
 
           <!-- 基础标签 -->
           <div v-if="activeTab === 'basic'" class="tab-content">
+            <img
+              class="detail-portrait"
+              :src="petPortraitUrl(detail.pet.speciesId)"
+              alt=""
+            />
             <div class="info-grid">
               <div class="info-item">
                 <span class="info-label">昵称</span>
-                <span class="info-value">{{ detail.pet.nickname }}</span>
+                <span class="info-value">{{ detail.pet.nickname || '未命名' }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">种族</span>
-                <span class="info-value">{{ detail.species.name }} ({{ detail.pet.speciesId }})</span>
+                <span class="info-value">{{ detail.species.name }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">属性</span>
-                <span class="info-value">{{ detail.species.element }}</span>
+                <span class="info-value">{{ elementLabel(detail.species.element) }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">稀有度</span>
-                <span class="info-value" :class="rarityClass(detail.species.rarity)">{{ detail.species.rarity }}</span>
+                <span class="info-value" :class="rarityClass(detail.species.rarity)">{{ rarityLabel(detail.species.rarity) }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">等级</span>
@@ -490,21 +591,21 @@ function formatDate(iso: string | null): string {
               </tbody>
             </table>
 
-            <!-- 升级区域 -->
+            <!-- 升级区域（阶段 15 交互优化：确认框防误触 + 提示浮层） -->
             <div class="action-section">
               <h4>升级</h4>
               <div class="upgrade-buttons">
-                <button class="btn-action" :disabled="actionLoading || inBattle || detail.expToNextLevel === 0" @click="doLevelUp('ONE')">升 1 级</button>
-                <button class="btn-action" :disabled="actionLoading || inBattle || detail.expToNextLevel === 0" @click="doLevelUp('FIVE')">升 5 级</button>
-                <button class="btn-action" :disabled="actionLoading || inBattle || detail.expToNextLevel === 0" @click="doLevelUp('TO_CAP')">升到上限</button>
+                <button class="btn-action" :disabled="actionLoading || inBattle || detail.expToNextLevel === 0" @click="askLevelUp('ONE')">升 1 级</button>
+                <button class="btn-action" :disabled="actionLoading || inBattle || detail.expToNextLevel === 0" @click="askLevelUp('FIVE')">升 5 级</button>
+                <button class="btn-action" :disabled="actionLoading || inBattle || detail.expToNextLevel === 0" @click="askLevelUp('TO_CAP')">升到上限</button>
               </div>
               <div class="upgrade-custom">
                 <button class="btn-action" :disabled="actionLoading || inBattle" @click="loadPreview(targetLevelInput)">预览升到 Lv.{{ targetLevelInput }}</button>
-                <input v-model.number="targetLevelInput" type="number" min="1" max="50" class="input-small" />
+                <input v-model.number="targetLevelInput" type="number" :min="detail.pet.level + 1" max="50" class="input-small" />
+                <span v-if="detail.pet.level >= 50" class="hint-text">已达最高等级 Lv.50</span>
               </div>
               <div class="upgrade-custom">
-                <button class="btn-action" :disabled="actionLoading || inBattle" @click="doLevelUp('CUSTOM_EXP', undefined, customExp)">投入经验升级</button>
-                <input v-model.number="customExp" type="number" min="1" class="input-small" />
+                <span class="hint-text">升级所需经验：下一级需 {{ detail.expToNextLevel > 0 ? detail.expToNextLevel : '—' }}（当前经验池 {{ detail.expPool }}）</span>
               </div>
 
               <!-- 升级预览结果 -->
@@ -567,12 +668,13 @@ function formatDate(iso: string | null): string {
             <div class="skill-list-section">
               <h4>技能库（非战斗状态可自由装配/替换）</h4>
               <div v-if="detail.learnedSkills.length === 0" class="empty-text">暂无已学习技能</div>
-              <div v-for="skill in detail.learnedSkills" :key="skill.skillId" class="skill-card">
+              <div v-for="skill in detail.learnedSkills" :key="skill.skillId" class="skill-card"
+                   @mouseenter="showSkillTip(skill)" @mouseleave="hideSkillTip">
                 <div class="skill-info">
                   <img class="skill-art-icon" :src="skillTypeIconUrl(skill)" alt="" />
                   <span class="skill-name">{{ skill.name }}<span v-if="skill.signature" class="skill-type">★特色</span></span>
-                  <span class="skill-element"><img v-if="skill.element !== 'NONE'" :src="elementIconUrl(skill.element)" alt="" />{{ skill.element }}</span>
-                  <span class="skill-type">{{ skill.damageType }} / {{ skill.effectType }}</span>
+                  <span class="skill-element"><img v-if="skill.element !== 'NONE'" :src="elementIconUrl(skill.element)" alt="" />{{ elementLabel(skill.element) }}</span>
+                  <span class="skill-type">{{ damageTypeLabel(skill.damageType) }} / {{ effectTypeLabel(skill.effectType) }}</span>
                   <span v-if="skill.cooldown > 0" class="skill-cd">CD {{ skill.cooldown }}</span>
                   <span v-if="skill.sourceType === 'SKILL_BOOK'" class="skill-type">技能书</span>
                   <span class="skill-slot-tag" :class="{ equipped: skill.slot }">{{ slotLabel(skill.slot) }}</span>
@@ -591,7 +693,9 @@ function formatDate(iso: string | null): string {
               <div class="passive-sub" style="margin-bottom: 10px">
                 <h5 style="margin: 6px 0 4px; font-size: 13px; color: var(--text-secondary)">固有被动（自动生效）</h5>
                 <div v-if="!(detail.passives ?? []).some(p => p.source !== 'BOOK')" class="empty-text">暂无固有被动</div>
-                <div v-for="p in detail.passives.filter(p => p.source !== 'BOOK')" :key="p.passiveId" class="skill-card" :class="{ locked: !p.unlocked }">
+                <div v-for="p in detail.passives.filter(p => p.source !== 'BOOK')" :key="p.passiveId"
+                   class="skill-card" :class="{ locked: !p.unlocked }"
+                   @mouseenter="showSkillTip(p)" @mouseleave="hideSkillTip">
                   <div class="skill-info">
                     <img class="skill-art-icon" :src="skillTypeIconUrl(p)" alt="" />
                     <span class="skill-name">{{ p.name }}<span v-if="p.signature" class="skill-type">★特色</span></span>
@@ -619,7 +723,8 @@ function formatDate(iso: string | null): string {
                 已学习被动技能书（已启用 {{ (detail.passives ?? []).filter(p => p.source === 'BOOK' && p.slot).length }} / 2）
               </h5>
               <div v-if="!(detail.passives ?? []).some(p => p.source === 'BOOK')" class="empty-text">暂无被动技能书（可在商店购买）</div>
-              <div v-for="p in detail.passives.filter(p => p.source === 'BOOK')" :key="p.passiveId" class="skill-card">
+              <div v-for="p in detail.passives.filter(p => p.source === 'BOOK')" :key="p.passiveId" class="skill-card"
+                 @mouseenter="showSkillTip(p)" @mouseleave="hideSkillTip">
                 <div class="skill-info">
                   <img class="skill-art-icon" :src="skillTypeIconUrl(p)" alt="" />
                   <span class="skill-name">{{ p.name }}</span>
@@ -636,11 +741,12 @@ function formatDate(iso: string | null): string {
             <!-- 待解锁技能（主动） -->
             <div v-if="detail.availableSkills.length > 0" class="skill-list-section">
               <h4>待解锁技能</h4>
-              <div v-for="skill in detail.availableSkills" :key="skill.skillId" class="skill-card locked">
+              <div v-for="skill in detail.availableSkills" :key="skill.skillId" class="skill-card locked"
+                 @mouseenter="showSkillTip(skill)" @mouseleave="hideSkillTip">
                 <div class="skill-info">
                   <img class="skill-art-icon" :src="skillTypeIconUrl(skill)" alt="" />
                   <span class="skill-name">{{ skill.name }}</span>
-                  <span class="skill-element"><img v-if="skill.element !== 'NONE'" :src="elementIconUrl(skill.element)" alt="" />{{ skill.element }}</span>
+                  <span class="skill-element"><img v-if="skill.element !== 'NONE'" :src="elementIconUrl(skill.element)" alt="" />{{ elementLabel(skill.element) }}</span>
                   <span class="unlock-level">Lv.{{ skill.unlockLevel }} 解锁</span>
                 </div>
               </div>
@@ -674,12 +780,13 @@ function formatDate(iso: string | null): string {
 
               <!-- 已学技能书列表 -->
               <div v-if="!(detail.learnedBookSkills ?? []).length" class="empty-text">暂无已学技能书技能（可在商店购买技能书）</div>
-              <div v-for="skill in detail.learnedBookSkills" :key="skill.skillId" class="skill-card">
+              <div v-for="skill in detail.learnedBookSkills" :key="skill.skillId" class="skill-card"
+                 @mouseenter="showSkillTip(skill)" @mouseleave="hideSkillTip">
                 <div class="skill-info">
                   <img class="skill-art-icon" :src="skillTypeIconUrl(skill)" alt="" />
                   <span class="skill-name">{{ skill.name }}</span>
-                  <span class="skill-element"><img v-if="skill.element !== 'NONE'" :src="elementIconUrl(skill.element)" alt="" />{{ skill.element }}</span>
-                  <span class="skill-type">{{ skill.damageType }} / {{ skill.effectType }}</span>
+                  <span class="skill-element"><img v-if="skill.element !== 'NONE'" :src="elementIconUrl(skill.element)" alt="" />{{ elementLabel(skill.element) }}</span>
+                  <span class="skill-type">{{ damageTypeLabel(skill.damageType) }} / {{ effectTypeLabel(skill.effectType) }}</span>
                   <span v-if="skill.cooldown > 0" class="skill-cd">CD {{ skill.cooldown }}</span>
                   <span class="skill-type">技能书</span>
                   <span class="skill-slot-tag" :class="{ equipped: skill.slot }">{{ skill.slot ? `书槽${skill.slot}` : '未装备' }}</span>
@@ -714,7 +821,13 @@ function formatDate(iso: string | null): string {
               </div>
               <div class="build-row">
                 <span class="build-label">推荐技能：</span>
-                <span v-for="skillId in build.skillPriority" :key="skillId" class="skill-tag">{{ skillId }}</span>
+                <span
+                  v-for="s in build.skillPriority"
+                  :key="s.skillId"
+                  class="skill-tag clickable"
+                  @mouseenter="showBuildSkillTip(s)"
+                  @mouseleave="hideSkillTip"
+                >{{ s.name }}</span>
               </div>
             </div>
           </div>
@@ -771,6 +884,31 @@ function formatDate(iso: string | null): string {
         </template>
 
         <div v-else-if="!loading && !error" class="empty-text">选择左侧宠物查看详情</div>
+      </div>
+    </div>
+
+    <!-- 技能描述浮层（阶段 15）：悬浮/点击技能展示 -->
+    <div v-if="hoverSkill" class="skill-tooltip" @mouseleave="hideSkillTip">
+      <div class="tooltip-name">{{ hoverSkill.name }}</div>
+      <div v-if="hoverSkill.sub" class="tooltip-sub">{{ hoverSkill.sub }}</div>
+      <div class="tooltip-desc">{{ hoverSkill.description }}</div>
+    </div>
+
+    <!-- 等级规格短暂提示浮层（阶段 15）：不常驻，自动消失 -->
+    <transition name="fade">
+      <div v-if="levelHint" class="level-hint">{{ levelHint }}</div>
+    </transition>
+
+    <!-- 升级确认框（阶段 15 防误触） -->
+    <div v-if="confirmUpgrade" class="modal-mask" @click.self="confirmUpgrade = null">
+      <div class="modal-card">
+        <h4>确认升级</h4>
+        <p class="modal-text">确定要让「{{ detail?.pet.nickname || detail?.species.name }}」{{ confirmUpgrade.label }}吗？</p>
+        <p v-if="confirmUpgrade.exp" class="modal-text small">投入经验：{{ confirmUpgrade.exp }}</p>
+        <div class="modal-actions">
+          <button class="btn-action" :disabled="actionLoading" @click="doLevelUp(confirmUpgrade.mode, confirmUpgrade.targetLevel, confirmUpgrade.exp)">确认</button>
+          <button class="btn-action reset" :disabled="actionLoading" @click="confirmUpgrade = null">取消</button>
+        </div>
       </div>
     </div>
   </div>
@@ -881,6 +1019,18 @@ function formatDate(iso: string | null): string {
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-bottom: 12px;
+}
+
+/* 详情首屏宠物立绘（阶段 14 美术验收 ART-08）：随选中宠物切换，限制尺寸避免窄屏错乱 */
+.detail-portrait {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  object-position: center;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .info-item {
@@ -1077,6 +1227,16 @@ function formatDate(iso: string | null): string {
   border-radius: 10px;
   background-color: #f1f5f9;
   color: var(--text-secondary);
+}
+
+.skill-tag.clickable {
+  cursor: pointer;
+  background-color: rgba(74, 144, 217, 0.1);
+  color: var(--color-primary);
+}
+
+.skill-tag.clickable:hover {
+  background-color: rgba(74, 144, 217, 0.2);
 }
 
 .select-stat {
@@ -1323,9 +1483,123 @@ function formatDate(iso: string | null): string {
   font-size: 14px;
 }
 
+/* ==================== 阶段 15 交互优化：浮层 / 提示 / 确认框 ==================== */
+
+/* 技能描述浮层 */
+.skill-tooltip {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 260px;
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2, 0 4px 16px rgba(0, 0, 0, 0.12));
+  padding: 12px;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.tooltip-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.tooltip-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.tooltip-desc {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* 等级规格短暂提示浮层 */
+.level-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #f0c36d;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  z-index: 40;
+  box-shadow: var(--shadow-1);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 确认框 */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal-card {
+  background-color: #fff;
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  width: 320px;
+  box-shadow: var(--shadow-2, 0 8px 24px rgba(0, 0, 0, 0.2));
+}
+
+.modal-card h4 {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.modal-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.modal-text.small {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
 @media (max-width: 768px) {
   .pet-layout {
     grid-template-columns: 1fr;
+  }
+
+  .skill-tooltip {
+    position: fixed;
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: auto;
   }
 }
 </style>

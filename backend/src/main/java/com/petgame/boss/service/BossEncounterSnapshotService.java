@@ -131,6 +131,7 @@ public class BossEncounterSnapshotService {
         EncounterData data = new EncounterData();
         data.setGameDifficulty(gameDifficulty.toUpperCase());
         data.setBossDifficulty(bossDifficultyKey);
+        data.setBossId(boss.getId());
         data.setGeneratedLevel(generatedLevel);
         data.setPlayerLevelCap(playerLevelCap);
         data.setBossAiLevel(profile.getBossAiLevel());
@@ -380,6 +381,8 @@ public class BossEncounterSnapshotService {
     @Data
     public static class EncounterData {
         private Long snapshotId;
+        /** Boss ID（阶段 14 美术验收：Boss 核心单位展示立绘用）。 */
+        private String bossId;
         private String gameDifficulty;
         private String bossDifficulty;
         private int generatedLevel;

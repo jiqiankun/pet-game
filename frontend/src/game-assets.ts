@@ -37,6 +37,16 @@ export function itemIconUrl(itemId: string): string {
   return `/assets/items/item_${itemId}.png`
 }
 
+/** 宠物图标（阶段 14 美术验收 ART-05~08）：按种族 ID 与尺寸构造路径。 */
+export function petIconUrl(speciesId: string, size: 64 | 128 | 256 = 64): string {
+  return `/assets/pets/icons/pet_${speciesId}_icon_${size}.png`
+}
+
+/** 宠物立绘（阶段 14 美术验收 ART-07/ART-08）：按种族 ID 构造路径。 */
+export function petPortraitUrl(speciesId: string): string {
+  return `/assets/pets/portraits/pet_${speciesId}_portrait.png`
+}
+
 export function skillTypeIconUrl(skill: SkillIconSource): string {
   const id = (skill.id ?? skill.skillId ?? skill.passiveId ?? '').toUpperCase()
   let type = skill.skillType === 'PASSIVE' || skill.passiveId ? 'passive_badge' : ''

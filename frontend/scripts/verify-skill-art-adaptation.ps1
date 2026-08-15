@@ -20,9 +20,11 @@ function Assert-Contains([string]$Text, [string]$Needle, [string]$Message) {
 }
 
 $skillsPath = Join-Path $ProjectRoot 'backend/src/main/resources/game-config/skills/skills.yml'
+$itemsPath = Join-Path $ProjectRoot 'backend/src/main/resources/game-config/items/items.yml'
 $battleViewPath = Join-Path $ProjectRoot 'frontend/src/views/Battle/BattleView.vue'
 $assetHelperPath = Join-Path $ProjectRoot 'frontend/src/game-assets.ts'
 $skillsText = Get-Content -Raw $skillsPath
+$itemsText = Get-Content -Raw $itemsPath
 $battleViewText = Get-Content -Raw $battleViewPath
 $assetHelperText = Get-Content -Raw $assetHelperPath
 
@@ -35,7 +37,7 @@ $idPattern = '(?m)^\s*-\s+id:\s*(\S+)\s*$'
 $activeIds = @([regex]::Matches($activeSection.Groups['content'].Value, $idPattern) | ForEach-Object { $_.Groups[1].Value })
 $passiveIds = @([regex]::Matches($passiveSection.Groups['content'].Value, $idPattern) | ForEach-Object { $_.Groups[1].Value })
 Assert-True ($activeIds.Count -eq 85) "主动技能数量应为 85，实际为 $($activeIds.Count)。"
-Assert-True ($passiveIds.Count -eq 24) "被动技能数量应为 24（14 个固有/升级被动 + 10 个技能书被动），实际为 $($passiveIds.Count)。"
+Assert-True ($passiveIds.Count -eq 51) "被动技能数量应为 51（41 个固有/升级被动 + 10 个技能书被动），实际为 $($passiveIds.Count)。"
 
 $newActiveIds = @(
   'SKILL_MAGMA_CLASH', 'SKILL_INFERNO', 'SKILL_WATER_WHIP', 'SKILL_TORRENT',
@@ -61,6 +63,33 @@ foreach ($id in $newActiveIds) {
 }
 foreach ($id in $newInnatePassiveIds + $bookPassiveIds) {
   Assert-True ($passiveIds -contains $id) "缺少新增被动技能：$id"
+}
+
+$bookPassiveItems = [ordered]@{
+  ITEM_SKILL_BOOK_VANGUARD = 'PASSIVE_BOOK_VANGUARD'
+  ITEM_SKILL_BOOK_FORTIFY = 'PASSIVE_BOOK_FORTIFY'
+  ITEM_SKILL_BOOK_ENTRY_BOOST = 'PASSIVE_BOOK_ENTRY_BOOST'
+  ITEM_SKILL_BOOK_STURDY = 'PASSIVE_BOOK_STURDY'
+  ITEM_SKILL_BOOK_RECUPERATE = 'PASSIVE_BOOK_RECUPERATE'
+  ITEM_SKILL_BOOK_ON_KILL_ATK = 'PASSIVE_BOOK_ON_KILL_ATK'
+  ITEM_SKILL_BOOK_DEATH_FIRE = 'PASSIVE_BOOK_DEATH_FIRE'
+  ITEM_SKILL_BOOK_THORN_AURA = 'PASSIVE_BOOK_THORN_AURA'
+  ITEM_SKILL_BOOK_LAST_STAND = 'PASSIVE_BOOK_LAST_STAND'
+  ITEM_SKILL_BOOK_AVENGE = 'PASSIVE_BOOK_AVENGE'
+}
+Add-Type -AssemblyName System.Drawing
+foreach ($entry in $bookPassiveItems.GetEnumerator()) {
+  Assert-Contains $itemsText "id: $($entry.Key)" "缺少被动技能书道具配置：$($entry.Key)"
+  Assert-Contains $itemsText "skillId: $($entry.Value)" "被动技能书未引用对应被动：$($entry.Key)"
+  $iconPath = Join-Path $ProjectRoot "frontend/public/assets/items/item_$($entry.Key).png"
+  Assert-True (Test-Path -LiteralPath $iconPath) "缺少被动技能书图标：$($entry.Key)"
+  $icon = [System.Drawing.Bitmap]::FromFile($iconPath)
+  try {
+    Assert-True ($icon.Width -eq 256 -and $icon.Height -eq 256) "被动技能书图标尺寸必须为 256×256：$($entry.Key)"
+    Assert-True ($icon.GetPixel(0, 0).A -le 5) "被动技能书图标左上角必须透明：$($entry.Key)"
+  } finally {
+    $icon.Dispose()
+  }
 }
 
 $vfxBySkill = [ordered]@{
@@ -125,4 +154,4 @@ foreach ($entry in @(
   Assert-Contains $assetHelperText $entry "技能 UI 回退映射缺失：$entry"
 }
 
-Write-Output "技能视觉资源检查通过：$($activeIds.Count) 个主动技能、$($passiveIds.Count) 个被动技能（14 个固有/升级 + 10 个技能书）；新增 $($newActiveIds.Count) 个主动、$($newInnatePassiveIds.Count) 个固有被动与 $($bookPassiveIds.Count) 个技能书被动均已覆盖。"
+Write-Output "技能视觉资源检查通过：$($activeIds.Count) 个主动技能、$($passiveIds.Count) 个被动技能（41 个固有/升级 + 10 个技能书）；新增 $($newActiveIds.Count) 个主动、$($newInnatePassiveIds.Count) 个固有被动与 $($bookPassiveIds.Count) 个技能书被动均已覆盖，10 本被动技能书图标均为 256px 透明 PNG。"

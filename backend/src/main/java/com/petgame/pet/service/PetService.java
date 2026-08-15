@@ -759,6 +759,7 @@ public class PetService {
                     PetDetail.PassiveSkillView pv = new PetDetail.PassiveSkillView();
                     pv.setPassiveId(passive.getId());
                     pv.setName(passive.getName());
+                    pv.setDescription(passive.getDescription());
                     pv.setUnlockLevel(1);
                     pv.setUnlocked(true);
                     pv.setSource("BOOK");
@@ -773,6 +774,7 @@ public class PetService {
             PetDetail.LearnedSkillView view = new PetDetail.LearnedSkillView();
             view.setSkillId(skill.getId());
             view.setName(skill.getName());
+            view.setDescription(skill.getDescription());
             view.setElement(skill.getElement());
             view.setDamageType(skill.getDamageType());
             view.setEffectType(skill.getEffectType());
@@ -837,6 +839,7 @@ public class PetService {
             PetDetail.LearnedSkillView view = new PetDetail.LearnedSkillView();
             view.setSkillId(skill.getId());
             view.setName(skill.getName());
+            view.setDescription(skill.getDescription());
             view.setElement(skill.getElement());
             view.setDamageType(skill.getDamageType());
             view.setEffectType(skill.getEffectType());
@@ -872,6 +875,7 @@ public class PetService {
             PetDetail.PassiveSkillView view = new PetDetail.PassiveSkillView();
             view.setPassiveId(passive.getId());
             view.setName(passive.getName());
+            view.setDescription(passive.getDescription());
             view.setUnlockLevel(slot.getUnlockLevel());
             view.setUnlocked(slot.getUnlockLevel() <= level);
             view.setSource("INNATE");
@@ -900,6 +904,7 @@ public class PetService {
             PetDetail.AvailableSkillView view = new PetDetail.AvailableSkillView();
             view.setSkillId(skill.getId());
             view.setName(skill.getName());
+            view.setDescription(skill.getDescription());
             view.setElement(skill.getElement());
             view.setUnlockLevel(slot.getUnlockLevel());
             list.add(view);

@@ -2,6 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useGameStore } from '../../stores/game'
 import { useBattleStore } from '../../stores/battle'
+import { useOverlayStore } from '../../stores/overlay'
 import { apiGet, apiPut, apiPost, BusinessError } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
 import type {
@@ -9,13 +10,16 @@ import type {
   TeamMemberEntry,
   PetSummaryView,
 } from '../../types/pet'
+import { petIconUrl } from '../../game-assets'
 
 /**
  * 队伍页（阶段 6 完善）：5 套预设、切换、拖拽调整、技能查看、快速打开宠物详情。
  * 编辑结果整体提交 PUT /api/team/members（可指定预设）；战斗中禁止编辑与切换。
+ * Overlay 架构 P1：点击「详情」打开 PET 二级浮层（宠物详情），不再使用页面内弹层。
  */
 const gameStore = useGameStore()
 const battleStore = useBattleStore()
+const overlayStore = useOverlayStore()
 
 const presets = ref<TeamPresetView[]>([])
 const selectedTeamId = ref<number | null>(null)
@@ -194,9 +198,49 @@ function petSkills(petId: number | null): string[] {
   return (summary?.equippedSkills ?? []).map((s) => s.name)
 }
 
-/** 移除槽位中的宠物。 */
+/** 槽位宠物种族 ID（用于渲染宠物图标，阶段 14 美术验收 ART-06）。 */
+function petSpeciesId(petId: number | null): string {
+  if (!petId) return ''
+  const pet = availablePets.value.find((p) => p.id === petId)
+  return pet?.speciesId ?? ''
+}
+
+/** 移除槽位中的宠物：首发移除自动转移至候补，候补满员则替换最后一位。 */
 function clearSlot(pos: number) {
+  if (inBattle.value) return
+  const petId = editSlots.value[pos]
+  if (!petId) return
+  // 首发（位置 1~3）移除 → 转移到候补（位置 4~6）
+  if (pos <= 3) {
+    const benchSlots = [4, 5, 6]
+    const emptyBench = benchSlots.find((b) => !editSlots.value[b])
+    if (emptyBench) {
+      editSlots.value[emptyBench] = petId
+      editSlots.value[pos] = null
+      return
+    }
+    // 候补已满：替换候补最后一位，被替换宠物回到待选池
+    const replacedId = editSlots.value[6] ?? null
+    editSlots.value[6] = petId
+    editSlots.value[pos] = null
+    if (replacedId) {
+      teamHint.value = `${petName(replacedId)} 已从候补移出，等待重新编入`
+    } else {
+      teamHint.value = '候补已满，已替换最后一位候补'
+    }
+    return
+  }
+  // 候补（位置 4~6）移除 → 直接清空槽位
   editSlots.value[pos] = null
+}
+
+// ==================== 宠物详情二级联动（Overlay 架构 P1） ====================
+
+const teamHint = ref('')
+
+/** 打开宠物详情（PET 二级浮层，聚焦该宠物；关闭后返回队伍浮层）。 */
+function openDetail(petId: number) {
+  overlayStore.open('PET', { petId })
 }
 </script>
 
@@ -257,16 +301,24 @@ function clearSlot(pos: number) {
                 @dragstart="onDragStart(pos)"
                 @dragend="onDragEnd"
               >
-                <div class="pet-line">
-                  <span class="pet-name">{{ petName(editSlots[pos]) }}</span>
-                  <span class="pet-sub">{{ petLevel(editSlots[pos]) }} · {{ petHp(editSlots[pos]) }}</span>
-                </div>
-                <div v-if="petSkills(editSlots[pos]).length" class="pet-skills">
-                  技能：{{ petSkills(editSlots[pos]).join(' / ') }}
-                </div>
-                <div class="pet-actions">
-                  <RouterLink to="/pets" class="btn-link">详情</RouterLink>
-                  <button class="btn-link danger" :disabled="inBattle" @click="clearSlot(pos)">移除</button>
+                <img
+                  v-if="petSpeciesId(editSlots[pos])"
+                  class="pet-chip-icon"
+                  :src="petIconUrl(petSpeciesId(editSlots[pos]))"
+                  alt=""
+                />
+                <div class="pet-chip-content">
+                  <div class="pet-line">
+                    <span class="pet-name">{{ petName(editSlots[pos]) }}</span>
+                    <span class="pet-sub">{{ petLevel(editSlots[pos]) }} · {{ petHp(editSlots[pos]) }}</span>
+                  </div>
+                  <div v-if="petSkills(editSlots[pos]).length" class="pet-skills">
+                    技能：{{ petSkills(editSlots[pos]).join(' / ') }}
+                  </div>
+                  <div class="pet-actions">
+                    <button class="btn-link" @click="openDetail(editSlots[pos])">详情</button>
+                    <button class="btn-link danger" :disabled="inBattle" @click="clearSlot(pos)">移除</button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -309,16 +361,24 @@ function clearSlot(pos: number) {
                 @dragstart="onDragStart(pos)"
                 @dragend="onDragEnd"
               >
-                <div class="pet-line">
-                  <span class="pet-name">{{ petName(editSlots[pos]) }}</span>
-                  <span class="pet-sub">{{ petLevel(editSlots[pos]) }} · {{ petHp(editSlots[pos]) }}</span>
-                </div>
-                <div v-if="petSkills(editSlots[pos]).length" class="pet-skills">
-                  技能：{{ petSkills(editSlots[pos]).join(' / ') }}
-                </div>
-                <div class="pet-actions">
-                  <RouterLink to="/pets" class="btn-link">详情</RouterLink>
-                  <button class="btn-link danger" :disabled="inBattle" @click="clearSlot(pos)">移除</button>
+                <img
+                  v-if="petSpeciesId(editSlots[pos])"
+                  class="pet-chip-icon"
+                  :src="petIconUrl(petSpeciesId(editSlots[pos]))"
+                  alt=""
+                />
+                <div class="pet-chip-content">
+                  <div class="pet-line">
+                    <span class="pet-name">{{ petName(editSlots[pos]) }}</span>
+                    <span class="pet-sub">{{ petLevel(editSlots[pos]) }} · {{ petHp(editSlots[pos]) }}</span>
+                  </div>
+                  <div v-if="petSkills(editSlots[pos]).length" class="pet-skills">
+                    技能：{{ petSkills(editSlots[pos]).join(' / ') }}
+                  </div>
+                  <div class="pet-actions">
+                    <button class="btn-link" @click="openDetail(editSlots[pos])">详情</button>
+                    <button class="btn-link danger" :disabled="inBattle" @click="clearSlot(pos)">移除</button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -341,7 +401,8 @@ function clearSlot(pos: number) {
         </div>
       </div>
 
-      <p class="drag-hint">提示：可拖拽宠物卡片到其他槽位交换位置；下拉框也可调整。</p>
+      <p class="drag-hint">提示：可拖拽宠物卡片到其他槽位交换位置；首发移除自动转入候补，候补满员则替换最后一位。</p>
+      <p v-if="teamHint" class="team-hint">{{ teamHint }}</p>
 
       <!-- 操作 -->
       <div class="team-actions">
@@ -496,6 +557,25 @@ function clearSlot(pos: number) {
   margin-bottom: 8px;
   cursor: grab;
   background-color: var(--bg-main);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 队伍槽位宠物图标（阶段 14 美术验收 ART-06）：64px 固定尺寸 */
+.pet-chip-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.pet-chip-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .pet-chip:active {
@@ -612,6 +692,16 @@ function clearSlot(pos: number) {
   margin-top: 12px;
   color: #d32f2f;
   font-size: 14px;
+}
+
+.team-hint {
+  font-size: 12px;
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #f0c36d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
 }
 
 @media (max-width: 768px) {

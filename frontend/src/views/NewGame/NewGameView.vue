@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router'
 import { apiGet } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
 import { useGameStore } from '../../stores/game'
-import { elementIconUrl } from '../../game-assets'
+import { elementIconUrl, petPortraitUrl } from '../../game-assets'
+import { elementLabel } from '../../utils/labels'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -71,11 +72,7 @@ async function confirmCreate() {
 }
 
 function getElementName(elementId: string): string {
-  const map: Record<string, string> = {
-    METAL: '金', WOOD: '木', WATER: '水', FIRE: '火', EARTH: '土',
-    WIND: '风', THUNDER: '雷', LIGHT: '光', DARK: '暗',
-  }
-  return map[elementId] || elementId
+  return elementLabel(elementId)
 }
 
 </script>
@@ -131,6 +128,11 @@ function getElementName(elementId: string): string {
             :class="{ selected: selectedPetIndex === index }"
             @click="selectPet(index)"
           >
+            <img
+              class="pet-portrait"
+              :src="petPortraitUrl(pet.speciesId)"
+              alt=""
+            />
             <div class="pet-header">
               <img class="pet-element" :src="elementIconUrl(pet.element)" :alt="`${getElementName(pet.element)}属性`" />
               <span class="pet-name">{{ pet.name }}</span>
@@ -286,6 +288,18 @@ function getElementName(elementId: string): string {
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
+}
+
+/* 初始宠物立绘（阶段 14 美术验收 ART-07）：限制尺寸避免撑破卡片 */
+.pet-portrait {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  object-position: center;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm, 6px);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .pet-element {

@@ -90,6 +90,7 @@
 ## Batch 7 / 道具、背景与事件
 
 - 已导出 35 个 `256×256` 透明道具图标；7 个底图源文件保留在 `docs/art/item-candidates/bases/`，最终变体位于 `assets/items/`。
+- 2026-08-15：`ITEM_SKILL_BOOK_AVENGE` 至 `ITEM_SKILL_BOOK_VANGUARD` 共 10 张被动技能书图标已重新生成；原始候选图保存在 `docs/art/item-candidates/passive-skill-books/*_v02.png`，正式文件均为 `256×256` 透明 PNG。旧版 `1920×1920` 不透明且含水印的文件已按用户要求替换。
 - 已导出 6 张 `1920×1080` 区域战斗背景与 1 张同规格主页背景，并由战斗背景派生 6 张 `256×256` 区域缩略图。
 - 已导出 6 张 `512×512` 随机事件插画；源图分别保留在 `docs/art/background-candidates/` 与 `docs/art/event-candidates/`。
 - `BattleView` 按当前地图切换背景，`HomeView` 使用主页背景，`WorldMapView` 使用区域缩略图，`ExploreView` 在随机事件弹窗中显示对应插画。

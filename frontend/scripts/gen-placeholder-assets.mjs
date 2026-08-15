@@ -233,7 +233,7 @@ objectId = 0
       exitId: 'EXIT_VILLAGE_TO_MEADOW', targetMapId: 'MAP_AREA_MEADOW',
     }),
     obj('CAMP_VILLAGE_1', 'camp', 12, 6, { campId: 'CAMP_VILLAGE_1' }),
-    obj('NPC_VILLAGE_1', 'npc', 8, 6, { npcId: 'NPC_VILLAGE_1' }),
+    obj('NPC_VILLAGE_ELDER', 'npc', 8, 6, { npcId: 'NPC_VILLAGE_ELDER' }),
   ]))
 }
 
@@ -261,7 +261,7 @@ objectId = 0
     obj('GATHER_MEADOW_3', 'gather', 10, 14, { gatherId: 'GATHER_MEADOW_3' }),
     obj('CHEST_MEADOW_HIDDEN_1', 'chest', 20, 3, { chestId: 'CHEST_MEADOW_HIDDEN_1' }),
     obj('BOSS_MEADOW', 'boss_entrance', 12, 2, { bossId: 'BOSS_MEADOW' }),
-    obj('NPC_MEADOW_1', 'npc', 5, 12, { npcId: 'NPC_MEADOW_1' }),
+    obj('NPC_MEADOW_SCOUT', 'npc', 5, 12, { npcId: 'NPC_MEADOW_SCOUT' }),
     obj('HIDDEN_MEADOW_1', 'hidden_spot', 21, 15, { hiddenId: 'HIDDEN_MEADOW_1' }),
     obj('WILD_MEADOW_1', 'wild_spawn', 7, 7, { spawnId: 'WILD_MEADOW_1', groupId: 'ENCOUNTER_MEADOW', behavior: 'WANDER' }),
     obj('WILD_MEADOW_2', 'wild_spawn', 15, 12, { spawnId: 'WILD_MEADOW_2', groupId: 'ENCOUNTER_MEADOW', behavior: 'TIMID' }),
@@ -292,7 +292,7 @@ objectId = 0
     obj('GATHER_FOREST_2', 'gather', 17, 13, { gatherId: 'GATHER_FOREST_2' }),
     obj('CHEST_FOREST_HIDDEN_1', 'chest', 21, 4, { chestId: 'CHEST_FOREST_HIDDEN_1' }),
     obj('BOSS_FOREST', 'boss_entrance', 12, 2, { bossId: 'BOSS_FOREST' }),
-    obj('NPC_FOREST_1', 'npc', 6, 13, { npcId: 'NPC_FOREST_1' }),
+    obj('NPC_FOREST_HERMIT', 'npc', 6, 13, { npcId: 'NPC_FOREST_HERMIT' }),
     obj('HIDDEN_FOREST_1', 'hidden_spot', 22, 14, { hiddenId: 'HIDDEN_FOREST_1' }),
     obj('WILD_FOREST_1', 'wild_spawn', 8, 7, { spawnId: 'WILD_FOREST_1', groupId: 'ENCOUNTER_FOREST', behavior: 'WANDER' }),
     obj('WILD_FOREST_2', 'wild_spawn', 14, 5, { spawnId: 'WILD_FOREST_2', groupId: 'ENCOUNTER_FOREST', behavior: 'AGGRESSIVE' }),

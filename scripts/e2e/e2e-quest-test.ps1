@@ -44,7 +44,7 @@ if ($firstAvailable) {
 }
 
 # 6. NPC 对话
-$npcId = 'NPC_VILLAGE_1'
+$npcId = 'NPC_VILLAGE_ELDER'
 $talk = Invoke-RestMethod -Uri "$base/api/npcs/$npcId/talk" -Method Post
 Write-Output ("6. NPC 对话 success=" + $talk.success)
 if ($talk.data) {

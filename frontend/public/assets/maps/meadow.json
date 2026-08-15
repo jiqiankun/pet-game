@@ -708,7 +708,7 @@
         },
         {
           "id": 12,
-          "name": "NPC_MEADOW_1",
+          "name": "NPC_MEADOW_SCOUT",
           "type": "npc",
           "x": 160,
           "y": 384,
@@ -719,7 +719,7 @@
           "properties": [
             {
               "name": "npcId",
-              "value": "NPC_MEADOW_1"
+              "value": "NPC_MEADOW_SCOUT"
             }
           ]
         },

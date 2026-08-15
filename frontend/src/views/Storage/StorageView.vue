@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useStorageStore } from '../../stores/storage'
 import { useGameStore } from '../../stores/game'
 import type { ReleasePreview, StoragePetView } from '../../types/storage'
+import { elementLabel, rarityLabel } from '../../utils/labels'
 
 const storageStore = useStorageStore()
 const gameStore = useGameStore()
@@ -191,7 +192,7 @@ function giftName(type: string, itemId: string | null): string {
       <input v-model="query.name" type="text" class="filter-input" placeholder="名称/昵称搜索" @keyup.enter="loadStorage" />
       <select v-model="query.element" class="filter-select">
         <option value="">全部属性</option>
-        <option v-for="el in ELEMENTS" :key="el" :value="el">{{ el }}</option>
+        <option v-for="el in ELEMENTS" :key="el" :value="el">{{ elementLabel(el) }}</option>
       </select>
       <select v-model="query.rarity" class="filter-select">
         <option value="">全部稀有度</option>
@@ -289,10 +290,10 @@ function giftName(type: string, itemId: string | null): string {
           </label>
           <img class="pet-icon" :src="`/assets/pets/icons/pet_${pet.speciesId}_icon_64.png`" :alt="pet.speciesName" />
           <span class="pet-name">{{ displayName(pet) }}</span>
-          <span class="pet-rarity" :class="pet.rarity.toLowerCase()">{{ RARITY_NAMES[pet.rarity] ?? pet.rarity }}</span>
+          <span class="pet-rarity" :class="pet.rarity.toLowerCase()">{{ rarityLabel(pet.rarity) }}</span>
         </div>
         <div class="pet-info">
-          <span>{{ pet.element }} · Lv.{{ pet.level }}</span>
+          <span>{{ elementLabel(pet.element) }} · Lv.{{ pet.level }}</span>
           <span>综合资质 {{ pet.aptitudeTotal }}（均值 {{ pet.aptitudeAverage }}）</span>
           <span>HP {{ pet.currentHp }}</span>
         </div>

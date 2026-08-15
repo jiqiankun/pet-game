@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useBossStore } from '../../stores/boss'
+import { useOverlayStore } from '../../stores/overlay'
 import { CHALLENGE_TYPE_LABELS, type BossInfo, type DifficultyInfo } from '../../types/boss'
+import { elementLabel, rarityLabel, rarityColor } from '../../utils/labels'
+import BattleOverlay from '../Battle/components/BattleOverlay.vue'
 
 const route = useRoute()
-const router = useRouter()
 const bossStore = useBossStore()
+const overlayStore = useOverlayStore()
+
+/**
+ * 初始 Boss ID（Overlay 架构 P1：地图 boss 入口打开 BossOverlay 时聚焦指定 Boss）。
+ * 独立路由模式不传，回退读取 route.query.bossId。
+ */
+const props = defineProps<{ initialBossId?: string }>()
+
+/** 战斗浮层是否打开（Boss 页面常驻，战斗作为全屏浮层叠加）。 */
+const battleOpen = ref(false)
 
 const selectedBoss = ref<BossInfo | null>(null)
 const selectedDifficulty = ref<string>('NORMAL')
@@ -23,36 +35,29 @@ const gameDifficultyLabels: Record<string, string> = {
   NORMAL: '普通', ELITE: '精英', NIGHTMARE: '噩梦', HELL: '地狱',
 }
 
-const rarityLabels: Record<string, string> = {
-  COMMON: '普通',
-  RARE: '稀有',
-  EPIC: '珍稀',
-  LEGENDARY: '传说',
-}
-
-const rarityColors: Record<string, string> = {
-  COMMON: '#8b8b8b',
-  RARE: '#4a90d9',
-  EPIC: '#c455e8',
-  LEGENDARY: '#f5a623',
-}
-
-const elementLabels: Record<string, string> = {
-  NONE: '无', FIRE: '火', WATER: '水', WOOD: '木', METAL: '金',
-  EARTH: '土', WIND: '风', THUNDER: '雷', LIGHT: '光', DARK: '暗',
-}
-
 onMounted(async () => {
   await bossStore.loadBosses()
   await bossStore.loadChallenges()
-  // 从地图入口携带的 bossId 参数预选 Boss
-  const queryBossId = route.query.bossId as string | undefined
-  if (queryBossId && bossStore.bosses.some(b => b.bossId === queryBossId)) {
-    selectBoss(queryBossId)
-  } else if (bossStore.bosses.length > 0) {
+  // 优先取 Overlay 传入的 initialBossId，回退地图入口携带的 route.query.bossId
+  const queryBossId = props.initialBossId ?? (route.query.bossId as string | undefined)
+  focusBoss(queryBossId)
+})
+
+// Overlay 二级联动：initialBossId 变化时聚焦对应 Boss
+watch(
+  () => props.initialBossId,
+  (bossId) => focusBoss(bossId),
+)
+
+/** 聚焦指定 Boss；未命中或未传则回退首个 Boss。 */
+function focusBoss(bossId?: string) {
+  if (!bossStore.bosses.length) return
+  if (bossId && bossStore.bosses.some((b) => b.bossId === bossId)) {
+    selectBoss(bossId)
+  } else {
     selectBoss(bossStore.bosses[0]!.bossId)
   }
-})
+}
 
 async function selectBoss(bossId: string) {
   bossStore.currentBossId = bossId
@@ -78,7 +83,20 @@ async function startBattle() {
     selectedBoss.value.bossId, selectedDifficulty.value
   )
   if (battleId) {
-    router.push('/battle')
+    // 战斗浮层化：不路由跳转，Boss 页面保留，战斗作为全屏浮层叠加
+    battleOpen.value = true
+    overlayStore.open('BATTLE')
+  }
+}
+
+/** 战斗浮层关闭：恢复 Boss 页面。 */
+async function handleBattleClose() {
+  battleOpen.value = false
+  overlayStore.close('BATTLE')
+  // 刷新 Boss 击败记录与详情
+  await bossStore.loadBosses()
+  if (selectedBoss.value) {
+    selectedBoss.value = await bossStore.loadBoss(selectedBoss.value.bossId) ?? null
   }
 }
 
@@ -136,7 +154,7 @@ function getBossPortraitUrl(bossId: string): string {
         >
           <div class="boss-name">{{ boss.name }}</div>
           <div class="boss-meta">
-            <span class="element-tag">{{ elementLabels[boss.element] ?? boss.element }}</span>
+            <span class="element-tag">{{ elementLabel(boss.element) }}</span>
             <span class="level-tag">Lv.{{ boss.recommendedLevel }}</span>
           </div>
           <div class="boss-stats">
@@ -155,7 +173,7 @@ function getBossPortraitUrl(bossId: string): string {
         />
         <h3>{{ selectedBoss.name }}</h3>
         <div class="info-row">
-          <span>属性: {{ elementLabels[selectedBoss.element] ?? selectedBoss.element }}</span>
+          <span>属性: {{ elementLabel(selectedBoss.element) }}</span>
           <span>推荐等级: {{ selectedBoss.recommendedLevel }}</span>
           <span>幸运值: {{ selectedBoss.luckValue }}</span>
         </div>
@@ -207,8 +225,8 @@ function getBossPortraitUrl(bossId: string): string {
         <div class="drop-info" v-if="currentDifficulty">
           <h4>掉落情报</h4>
           <div v-for="tier in currentDifficulty.dropInfo" :key="tier.rarity" class="drop-tier">
-            <div class="tier-header" :style="{ color: rarityColors[tier.rarity] }">
-              {{ rarityLabels[tier.rarity] ?? tier.rarity }}
+            <div class="tier-header" :style="{ color: rarityColor(tier.rarity) }">
+              {{ rarityLabel(tier.rarity) }}
               <span v-if="!tier.unlocked" class="locked-tag">未解锁</span>
             </div>
             <div v-if="tier.unlocked" class="tier-items">
@@ -269,7 +287,7 @@ function getBossPortraitUrl(bossId: string): string {
           <div v-if="bossStore.autoResult.totalDrops.length > 0" class="result-drops">
             <div v-for="(drop, i) in bossStore.autoResult.totalDrops" :key="i">
               {{ drop.itemId }} ×{{ drop.qty }}
-              <span :style="{ color: rarityColors[drop.rarity] }">({{ rarityLabels[drop.rarity] ?? drop.rarity }})</span>
+              <span :style="{ color: rarityColor(drop.rarity) }">({{ rarityLabel(drop.rarity) }})</span>
             </div>
           </div>
         </div>
@@ -303,6 +321,9 @@ function getBossPortraitUrl(bossId: string): string {
         </div>
       </div>
     </div>
+
+    <!-- 战斗浮层（战斗体验优化 P0：全屏叠加，关闭后恢复 Boss 页面） -->
+    <BattleOverlay v-if="battleOpen" @close="handleBattleClose" />
   </div>
 </template>
 

@@ -256,7 +256,7 @@
         },
         {
           "id": 14,
-          "name": "NPC_WATERS_1",
+          "name": "NPC_WATERS_KEEPER",
           "type": "npc",
           "x": 288,
           "y": 384,
@@ -265,7 +265,7 @@
           "visible": true,
           "rotation": 0,
           "properties": [
-            { "name": "npcId", "value": "NPC_WATERS_1" }
+            { "name": "npcId", "value": "NPC_WATERS_KEEPER" }
           ]
         }
       ]

@@ -7,6 +7,7 @@ import { useQuestStore } from '../../stores/quest'
 import { apiGet } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
 import type { ActiveQuestSummary } from '../../types/quest'
+import { petIconUrl } from '../../game-assets'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -99,6 +100,7 @@ async function handleSave() {
         <h3>当前队伍</h3>
         <div v-if="gameStore.pets.length > 0" class="team-pets">
           <div v-for="pet in gameStore.pets" :key="pet.id" class="pet-item">
+            <img class="pet-icon" :src="petIconUrl(pet.speciesId)" alt="" />
             <span class="pet-species">{{ pet.speciesId }}</span>
             <span class="pet-level">Lv.{{ pet.level }}</span>
             <span class="pet-hp">HP {{ pet.currentHp }}</span>
@@ -219,6 +221,16 @@ async function handleSave() {
   padding: 8px;
   background-color: var(--bg-secondary, #f5f5f5);
   border-radius: 6px;
+}
+
+/* 首页队伍宠物图标（阶段 14 美术验收 ART-05）：64px 固定尺寸 */
+.pet-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .pet-species {

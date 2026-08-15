@@ -2,13 +2,9 @@ package com.petgame.config.controller;
 
 import com.petgame.common.ApiResponse;
 import com.petgame.config.GameConfigRegistry;
-import com.petgame.config.model.GameElementConfig;
-import com.petgame.config.model.ItemsConfig;
-import com.petgame.config.model.SkillsConfig;
-import com.petgame.config.model.SystemRuleConfig;
+import com.petgame.config.model.*;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,11 +23,18 @@ public class GameConfigController {
     }
 
     /**
-     * 获取全部属性列表。
+     * 获取属性体系配置（属性列表 + 克制关系）。
+     * <p>
+     * 返回结构与前端技能克制预览所需一致：{ configVersion, elements, advantages }。
      */
     @GetMapping("/elements")
-    public ApiResponse<List<GameElementConfig>> getElements() {
-        return ApiResponse.success(registry.getElementsConfig().getElements());
+    public ApiResponse<Map<String, Object>> getElements() {
+        GameElementsConfig cfg = registry.getElementsConfig();
+        return ApiResponse.success(Map.of(
+                "configVersion", cfg.getConfigVersion(),
+                "elements", cfg.getElements(),
+                "advantages", cfg.getAdvantages()
+        ));
     }
 
     /**

@@ -3,12 +3,14 @@ package com.petgame.pet.controller;
 import com.petgame.common.ApiResponse;
 import com.petgame.config.GameConfigRegistry;
 import com.petgame.config.model.BuildRecommendationConfig;
+import com.petgame.config.model.SkillConfig;
 import com.petgame.pet.domain.PetGrowthService;
 import com.petgame.pet.service.PetDetail;
 import com.petgame.pet.service.PetService;
 import lombok.Data;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -163,9 +165,10 @@ public class PetController {
 
     /**
      * 查询宠物种族推荐 Build 方案（纯展示，不修改数据）。
+     * skillPriority 由 skillId 映射为带名称与描述的技能视图，供前端中文展示与悬浮描述。
      */
     @GetMapping("/{petId}/build-recommendations")
-    public ApiResponse<List<BuildRecommendationConfig.BuildConfig>> getBuildRecommendations(
+    public ApiResponse<List<BuildView>> getBuildRecommendations(
             @PathVariable Long petId) {
         PetDetail detail = petService.getPetDetail(petId);
         String speciesId = detail.getPet().getSpeciesId();
@@ -175,13 +178,63 @@ public class PetController {
         }
         for (BuildRecommendationConfig.SpeciesBuildConfig rec : config.getRecommendations()) {
             if (speciesId.equals(rec.getSpeciesId())) {
-                return ApiResponse.success(rec.getBuilds());
+                return ApiResponse.success(toBuildViews(rec.getBuilds()));
             }
         }
         return ApiResponse.success(List.of());
     }
 
+    /** 将推荐 Build 配置转换为视图（技能 ID → 技能名与描述）。 */
+    private List<BuildView> toBuildViews(List<BuildRecommendationConfig.BuildConfig> builds) {
+        List<BuildView> views = new ArrayList<>();
+        if (builds == null) {
+            return views;
+        }
+        for (BuildRecommendationConfig.BuildConfig b : builds) {
+            BuildView view = new BuildView();
+            view.setName(b.getName());
+            view.setDescription(b.getDescription());
+            view.setStatPriority(b.getStatPriority());
+            List<SkillRefView> skills = new ArrayList<>();
+            if (b.getSkillPriority() != null) {
+                for (String skillId : b.getSkillPriority()) {
+                    SkillConfig skill = registry.getSkill(skillId);
+                    if (skill == null) {
+                        continue;
+                    }
+                    SkillRefView ref = new SkillRefView();
+                    ref.setSkillId(skill.getId());
+                    ref.setName(skill.getName());
+                    ref.setDescription(skill.getDescription());
+                    ref.setElement(skill.getElement());
+                    skills.add(ref);
+                }
+            }
+            view.setSkillPriority(skills);
+            views.add(view);
+        }
+        return views;
+    }
+
     // ---- 请求 DTO ----
+
+    /** 推荐 Build 视图（技能 ID 已映射为名称与描述）。 */
+    @Data
+    public static class BuildView {
+        private String name;
+        private String description;
+        private List<String> statPriority = new ArrayList<>();
+        private List<SkillRefView> skillPriority = new ArrayList<>();
+    }
+
+    /** 技能引用视图（推荐 Build 用）。 */
+    @Data
+    public static class SkillRefView {
+        private String skillId;
+        private String name;
+        private String description;
+        private String element;
+    }
 
     @Data
     public static class LevelUpRequest {

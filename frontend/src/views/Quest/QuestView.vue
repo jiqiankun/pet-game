@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useQuestStore } from '../../stores/quest'
+import { useOverlayStore } from '../../stores/overlay'
 import type { QuestSummary, QuestDetail } from '../../types/quest'
 import QuestDetailPanel from './components/QuestDetail.vue'
 
 const questStore = useQuestStore()
+const overlayStore = useOverlayStore()
 
 type Tab = 'main' | 'side' | 'completed'
 const activeTab = ref<Tab>('main')
@@ -101,6 +103,12 @@ async function chooseReward(choiceId: string, optionIndex: number) {
     await selectQuest({ questId: selectedDetail.value.questId } as QuestSummary)
   }
 }
+
+/** 地图查看：打开大地图并高亮任务目标区域（返回后保持任务上下文）。 */
+function locateOnMap() {
+  if (!selectedDetail.value?.regionId) return
+  overlayStore.open('WORLD_MAP', { highlightRegionId: selectedDetail.value.regionId })
+}
 </script>
 
 <template>
@@ -161,6 +169,7 @@ async function chooseReward(choiceId: string, optionIndex: number) {
           @choose-reward="chooseReward"
           @dismiss-result="completeResult = null"
           @close="closeDetail"
+          @map-locate="locateOnMap"
         />
       </div>
     </div>
