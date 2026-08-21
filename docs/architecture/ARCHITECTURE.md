@@ -4,6 +4,8 @@
 
 > 技术栈选型、架构边界与部署方式的**理由**与权威决策以《宠物精灵游戏第一阶段技术方案说明 V1.0.md》为准；本文档描述现状，不重复论证。
 
+> 2026-08-20 说明：第 14 节记录桌面版世界/UI 重构阶段 0/1 的实际前端结构；后续 WorldGraph、连续地图和完整浏览器验收仍未完成，不得写成现状。
+
 ---
 
 ## 1. 总体架构
@@ -61,7 +63,7 @@
 
 - 统一前缀 `/api/**`，开发者接口 `/api/dev/**`。
 - 前端经 `src/api/` 封装调用，统一处理响应结构。
-- 关键接口示例：Bootstrap（`/api/game/bootstrap`）、战斗（`/api/battles/**`）、野生（`/api/wild/battles`）、地图（`/api/map/**`）、Boss（`/api/bosses/**`）、商店（`/api/shop`）、图鉴（`/api/pokedex/**`）、任务（`/api/quests/**`）。
+- 关键接口示例：Bootstrap（`/api/game/bootstrap`）、战斗（`/api/battles/**`）、野生（`/api/wild/battles`）、地图（`/api/maps/**`）、Boss（`/api/bosses/**`）、商店（`/api/shop`）、图鉴（`/api/pokedex/**`）、任务（`/api/quests/**`）。
 
 ## 7. YAML 游戏配置体系
 
@@ -73,7 +75,7 @@
 ## 8. MySQL 玩家存档体系
 
 - 玩家数据只存**引用**（species_id、skill_id、map_id、boss_id 等），不复制配置内容。
-- 表结构由 Flyway 迁移管理（`V1`~`V10`），禁止手工改表。
+- 表结构由 Flyway 迁移管理（`V1`~`V13`），禁止手工改表。
 - 主要数据域：玩家、宠物、技能学习、队伍、背包、地图进度、Boss 进度、图鉴、任务、成就、统计、挑战等。
 
 ## 9. 战斗生命周期
@@ -111,6 +113,31 @@
 - **前端**提交意图（如「使用技能 X 攻击目标 Y」、捕捉、逃跑），展示后端返回的快照与事件。
 - **后端**计算一切结果（伤害、金币、经验、捕捉结果）。
 - 前端不得提交计算结果；后端校验所有参数，不信任前端传入数值。
+
+## 14. 桌面版世界/UI 重构当前边界（阶段 0/1）
+
+### 14.1 阶段 1 已实现的前端结构
+
+- `/explore` 路由承载 `WorldRoot`，`App.vue` 通过 `KeepAlive` 仅缓存该根；主流程从探索内打开 Context，不会因宠物、队伍、背包、任务或世界地图而卸载 Phaser。
+- `useOverlayStore` 统一管理 Context 栈。条目保留实例 ID/Key、父层、来源、阻塞等级、输入上下文、关闭策略和焦点；局部确认、奖励、NPC、功能窗口和战斗使用同一暂停/返回规则。
+- `MainLayout` 只在 Esc 时处理返回，并用 Vue Router 守卫优先消费浏览器返回；不再通过 `pushState` 抵消历史。输入框、失焦和页面隐藏会清空 Phaser 已按下键。
+- `GameBridge` 新增 `cmd:clear-input` 与 `map:ready`。MapScene 只消费 Vue 下发的暂停语义，不读取 Pinia；场景重启后由 Vue 再同步当前栈顶状态。
+- `WorldMapView` 作为 Context 使用时关闭只返回上层，只有实际传送/进入区域才重启 MapScene；旧 Hash 功能路由继续提供直接访问兼容。
+
+### 14.2 仍在后续阶段实现的边界
+
+- 当前内容层以 `Region=Map` 组织；6 个地图配置与 6 张 Tiled JSON 一一对应，尚无 `WorldGraph / Region / Map / Landmark / Transition` 分层模型。
+- 战斗支持 `ITEM` 行动并与玩家背包共享库存；后端仍需在后续战斗阶段补齐 `usableInBattle` 的权威校验。
+
+阶段 1 已确认类型、构建、后端回归及 MySQL/后端/Vite 烟测；真实浏览器运行态验收仍待浏览器连接组件恢复后补做。
+
+### 14.3 已冻结的后续目标契约
+
+- `/explore` 将演进为桌面端常驻世界根容器；功能入口默认以 Overlay / Drawer / Context 打开，旧 Hash 路由在迁移期只作兼容入口。
+- 世界数据按 `WorldGraph → Region → Map → Landmark / Transition` 分层，先保留旧 ID 兼容映射，再逐区迁移，禁止一次性替换所有地图。
+- 战斗作为地图上层 `Battle Context` 运行；开战不销毁世界，结束后恢复战前地图、位置、镜头和探索状态。
+- 只实施桌面端；手机、平板、触控导航、虚拟摇杆和 Bottom Sheet 不在本轮开发与验收范围。
+- 详细裁决、数量基线、追踪矩阵与阻断缺陷见 `docs/development/PHASE0_BASELINE.md`。
 
 ---
 

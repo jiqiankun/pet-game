@@ -44,6 +44,9 @@ export interface InputLockPayload {
   locked: boolean
 }
 
+/** 无参数桥接命令的空载荷。 */
+export type EmptyPayload = Record<string, never>
+
 /** 地图暂停等级载荷（GamePauseLevel：0=不暂停；1=锁玩家输入；2=暂停探索逻辑；3=战斗锁定）。 */
 export interface PauseLevelPayload {
   level: number
@@ -85,6 +88,8 @@ export interface BridgeEventMap {
   'player:position': PlayerPositionPayload
   /** 附近交互对象上报（节流，供情境交互层展示按钮）。 */
   'object:proximity': NearbyObjectPayload
+  /** 地图场景已创建并开始接收命令，用于重新同步当前 Context 的暂停语义。 */
+  'map:ready': EmptyPayload
 
   // ---- Vue → Phaser（命令） ----
   /** 重启地图场景（区域切换 / 营地休息刷新后）。 */
@@ -95,6 +100,8 @@ export interface BridgeEventMap {
   'cmd:remove-object': IdPayload
   /** 锁定/解锁输入（Vue 弹层打开时暂停移动与交互）。 */
   'cmd:set-input-lock': InputLockPayload
+  /** 清空 Phaser 已按下键状态，避免失焦或关闭窗口后角色持续移动。 */
+  'cmd:clear-input': EmptyPayload
   /** 设置地图暂停等级（GamePauseLevel：0=不暂停；1=锁输入；2=暂停探索逻辑；3=战斗锁定）。 */
   'cmd:set-pause-level': PauseLevelPayload
 }

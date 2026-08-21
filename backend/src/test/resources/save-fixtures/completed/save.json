@@ -1,0 +1,139 @@
+{
+  "player": {
+    "id": 103,
+    "saveId": "BASELINE_COMPLETED",
+    "saveVersion": 1,
+    "gameVersion": "1.0.0",
+    "playerName": "基线-内容完成",
+    "avatarId": "AVATAR_DEFAULT",
+    "gold": 28800,
+    "expPool": 96000,
+    "currentMapId": "MAP_AREA_RUINS",
+    "mainQuestId": "QUEST_MAIN_12",
+    "playTimeSeconds": 172800,
+    "storyCompleted": true,
+    "gameDifficulty": "ELITE",
+    "autoStrategy": "AGGRESSIVE",
+    "autoSwitch": true,
+    "autoSwitchHpThreshold": 30,
+    "autoUseRecoveryItem": true,
+    "autoRecoveryHpThreshold": 40,
+    "autoRevive": true
+  },
+  "pets": [
+    {
+      "id": 1201,
+      "saveId": "BASELINE_COMPLETED",
+      "speciesId": "PET_FIRE_001",
+      "level": 50,
+      "capturedLevel": 1,
+      "hpAptitude": 90,
+      "strengthAptitude": 95,
+      "spiritAptitude": 80,
+      "defenseAptitude": 88,
+      "resistanceAptitude": 85,
+      "speedAptitude": 92,
+      "freePointHp": 20,
+      "freePointStrength": 45,
+      "freePointSpirit": 0,
+      "freePointDefense": 20,
+      "freePointResistance": 10,
+      "freePointSpeed": 30,
+      "currentHp": 520,
+      "isStarter": true,
+      "locked": true,
+      "favorite": true,
+      "capturedMapId": "MAP_START_VILLAGE",
+      "baseHpOffset": 0,
+      "baseStrengthOffset": 0,
+      "baseSpiritOffset": 0,
+      "baseDefenseOffset": 0,
+      "baseResistanceOffset": 0,
+      "baseSpeedOffset": 0,
+      "battleCount": 220,
+      "winCount": 205,
+      "killCount": 430,
+      "bossBattleCount": 36,
+      "bossWinCount": 28,
+      "totalDamage": 580000,
+      "totalDamageTaken": 210000,
+      "totalHeal": 34000,
+      "captureAssistCount": 42
+    }
+  ],
+  "teams": [
+    {
+      "id": 2201,
+      "saveId": "BASELINE_COMPLETED",
+      "name": "终局队伍",
+      "slot": 1,
+      "isActive": true
+    }
+  ],
+  "teamMembers": [
+    {
+      "id": 3201,
+      "teamId": 2201,
+      "petId": 1201,
+      "position": 1
+    }
+  ],
+  "inventory": [
+    {
+      "id": 4201,
+      "saveId": "BASELINE_COMPLETED",
+      "itemId": "ITEM_POTION_LARGE",
+      "quantity": 25
+    },
+    {
+      "id": 4202,
+      "saveId": "BASELINE_COMPLETED",
+      "itemId": "ITEM_CAPTURE_BALL_ULTRA",
+      "quantity": 12
+    }
+  ],
+  "regionUnlocks": [
+    { "saveId": "BASELINE_COMPLETED", "regionId": "MAP_START_VILLAGE", "unlockedAt": "2026-08-17T00:00:00" },
+    { "saveId": "BASELINE_COMPLETED", "regionId": "MAP_AREA_MEADOW", "unlockedAt": "2026-08-17T01:00:00" },
+    { "saveId": "BASELINE_COMPLETED", "regionId": "MAP_AREA_FOREST", "unlockedAt": "2026-08-17T02:00:00" },
+    { "saveId": "BASELINE_COMPLETED", "regionId": "MAP_AREA_WATERS", "unlockedAt": "2026-08-17T03:00:00" },
+    { "saveId": "BASELINE_COMPLETED", "regionId": "MAP_AREA_THUNDER", "unlockedAt": "2026-08-17T04:00:00" },
+    { "saveId": "BASELINE_COMPLETED", "regionId": "MAP_AREA_RUINS", "unlockedAt": "2026-08-17T05:00:00" }
+  ],
+  "campActivations": [
+    { "saveId": "BASELINE_COMPLETED", "campId": "CAMP_VILLAGE_1", "activatedAt": "2026-08-17T00:00:00" },
+    { "saveId": "BASELINE_COMPLETED", "campId": "CAMP_RUINS_1", "activatedAt": "2026-08-17T05:30:00" }
+  ],
+  "quests": [
+    {
+      "saveId": "BASELINE_COMPLETED",
+      "questId": "QUEST_MAIN_12",
+      "status": "COMPLETED",
+      "currentObjective": 2,
+      "acceptedAt": "2026-08-17T05:00:00",
+      "completedAt": "2026-08-17T06:00:00"
+    }
+  ],
+  "mapChanges": [
+    {
+      "saveId": "BASELINE_COMPLETED",
+      "changeId": "SHORTCUT_THUNDER_1",
+      "activatedAt": "2026-08-17T04:30:00"
+    }
+  ],
+  "bossDefeatCounts": [
+    {
+      "saveId": "BASELINE_COMPLETED",
+      "bossId": "BOSS_RUINS_GUARDIAN",
+      "difficulty": "NORMAL",
+      "defeatCount": 3
+    }
+  ],
+  "achievements": [
+    {
+      "saveId": "BASELINE_COMPLETED",
+      "achievementId": "ACH_SPECIAL_QUEST_MAIN",
+      "unlockedAt": "2026-08-17T06:00:00"
+    }
+  ]
+}

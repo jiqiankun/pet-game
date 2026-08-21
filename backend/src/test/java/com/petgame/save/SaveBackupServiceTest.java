@@ -78,11 +78,14 @@ import org.mockito.quality.Strictness;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -93,7 +96,7 @@ import static org.mockito.Mockito.*;
  * SaveBackupService 单元测试（阶段 14 存档备份）。
  * <p>
  * 覆盖：存档存在性、导出（zip 含 manifest + save）、导入（版本校验 / 导入前自动备份 /
- * 失败回滚由事务保证）、自动备份、重置游戏、备份列表。
+ * 失败回滚由事务保证）、阶段 0 基线存档兼容、自动备份、重置游戏、备份列表。
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -315,9 +318,27 @@ class SaveBackupServiceTest {
         service.importSave(zip);
 
         // 导入前应自动备份当前存档
-        verify(playerPetMapper).selectList(any()); // 备份读取
+        verify(playerPetMapper, atLeastOnce()).selectList(any()); // 备份读取；清理关联技能前也会读取宠物 ID
+        // 导入前应清理旧存档，避免单主存档下并存两条 player 记录
+        verify(playerMapper).delete(any());
         // 新的玩家数据被插入
         verify(playerMapper, atLeast(1)).insert(any(PlayerEntity.class));
+    }
+
+    @Test
+    void importSave_stage0BaselineFixturesAreCompatible() throws Exception {
+        when(playerMapper.selectOne(isNull())).thenReturn(null);
+
+        List<String> fixtureNames = List.of("new-game", "mid-game", "completed");
+        for (String fixtureName : fixtureNames) {
+            byte[] zip = buildFixtureZip(fixtureName);
+            assertDoesNotThrow(() -> service.importSave(zip), "基线存档无法导入: " + fixtureName);
+        }
+
+        verify(playerMapper, times(fixtureNames.size())).insert(any(PlayerEntity.class));
+        verify(playerPetMapper, atLeastOnce()).insert(any(PlayerPetEntity.class));
+        verify(questMapper, atLeastOnce()).insert(any(PlayerQuestEntity.class));
+        verify(bossDefeatCountMapper, atLeastOnce()).insert(any(BossDefeatCountEntity.class));
     }
 
     @Test
@@ -412,7 +433,7 @@ class SaveBackupServiceTest {
 
     private byte[] buildZip(SaveManifest manifest, SaveSnapshot snapshot) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(baos)) {
+        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
             zos.putNextEntry(new ZipEntry("manifest.json"));
             zos.write(objectMapper.writeValueAsBytes(manifest));
             zos.closeEntry();
@@ -421,5 +442,24 @@ class SaveBackupServiceTest {
             zos.closeEntry();
         }
         return baos.toByteArray();
+    }
+
+    private byte[] buildFixtureZip(String fixtureName) throws Exception {
+        String fixtureRoot = "/save-fixtures/" + fixtureName + "/";
+        try (InputStream manifest = Objects.requireNonNull(
+                getClass().getResourceAsStream(fixtureRoot + "manifest.json"), "基线 manifest 缺失: " + fixtureName);
+             InputStream save = Objects.requireNonNull(
+                     getClass().getResourceAsStream(fixtureRoot + "save.json"), "基线 save 缺失: " + fixtureName);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ZipOutputStream zos = new ZipOutputStream(baos)) {
+            zos.putNextEntry(new ZipEntry("manifest.json"));
+            zos.write(manifest.readAllBytes());
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("save.json"));
+            zos.write(save.readAllBytes());
+            zos.closeEntry();
+            zos.finish();
+            return baos.toByteArray();
+        }
     }
 }

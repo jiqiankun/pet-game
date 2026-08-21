@@ -204,9 +204,14 @@ export default class MapScene extends Phaser.Scene {
       }),
       gameBridge.on('cmd:set-input-lock', (payload) => {
         this.inputLocked = payload.locked
+        if (payload.locked) this.clearInput()
       }),
       gameBridge.on('cmd:set-pause-level', (payload) => {
-        this.pauseLevel = payload.level
+        this.pauseLevel = Math.max(0, Math.min(3, payload.level))
+        if (this.pauseLevel > 0) this.clearInput()
+      }),
+      gameBridge.on('cmd:clear-input', () => {
+        this.clearInput()
       }),
       gameBridge.on('cmd:remove-wild', (payload) => {
         const idx = this.wilds.findIndex((w) => w.spawnId === payload.id)
@@ -230,6 +235,7 @@ export default class MapScene extends Phaser.Scene {
       for (const unsub of this.unsubscribers) unsub()
       this.unsubscribers = []
     })
+    gameBridge.emit('map:ready', {})
   }
 
   update(time: number, delta: number): void {
@@ -256,6 +262,19 @@ export default class MapScene extends Phaser.Scene {
   }
 
   // ==================== 玩家移动 ====================
+
+  /** 主窗口失焦或阻塞 Context 打开时，主动释放所有已按下的移动/交互键。 */
+  private clearInput(): void {
+    this.cursors?.left?.reset()
+    this.cursors?.right?.reset()
+    this.cursors?.up?.reset()
+    this.cursors?.down?.reset()
+    this.wasd?.W?.reset()
+    this.wasd?.A?.reset()
+    this.wasd?.S?.reset()
+    this.wasd?.D?.reset()
+    this.interactKey?.reset()
+  }
 
   private movePlayer(delta: number): void {
     let dx = 0

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { watch, ref, computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useQuestStore } from '../../../stores/quest'
 import { useOverlayStore } from '../../../stores/overlay'
+import { focusFirstIn, trapFocus } from '../../../utils/focus'
 
 const props = withDefaults(
   defineProps<{
@@ -9,8 +10,12 @@ const props = withDefaults(
     embedded?: boolean
     /** 层级 z-index（由 OverlayLayer 按栈位置传入；独立模式使用默认值）。 */
     zIndex?: number
+    /** 当前 NPC_DIALOG Context 实例，用于精确关闭。 */
+    contextId?: number
+    /** 当前是否为 Context 栈顶。 */
+    active?: boolean
   }>(),
-  { embedded: false, zIndex: 250 },
+  { embedded: false, zIndex: 250, contextId: undefined, active: true },
 )
 
 const questStore = useQuestStore()
@@ -18,6 +23,7 @@ const overlayStore = useOverlayStore()
 const typing = ref(false)
 const displayText = ref('')
 let typeTimer: ReturnType<typeof setInterval> | null = null
+const dialogueBox = ref<HTMLElement | null>(null)
 
 // 用 computed 保持响应式：直接取 questStore.currentDialogue 会得到一次性快照（Pinia 自动解包），导致对话框永不更新
 const dialogue = computed(() => questStore.currentDialogue)
@@ -60,6 +66,10 @@ watch(() => dialogue.value?.text, (newText) => {
   if (newText) startTyping(newText)
 }, { immediate: true })
 
+watch([dialogue, () => props.active], ([current, active]) => {
+  if (current && active) nextTick(() => focusFirstIn(dialogueBox.value))
+}, { immediate: true })
+
 function handleClick() {
   if (typing.value) {
     stopTyping()
@@ -77,7 +87,7 @@ function closeDialogue() {
   questStore.closeDialogue()
   // embedded（Overlay 栈）模式下同步关闭 NPC_DIALOG 浮层
   if (props.embedded) {
-    overlayStore.close('NPC_DIALOG')
+    overlayStore.close(props.contextId ?? 'NPC_DIALOG')
   }
 }
 
@@ -94,11 +104,29 @@ function openShop() {
 function getNpcPortraitUrl(npcId: string): string {
   return `/assets/npc/portraits/npc_${npcId}_portrait.png`
 }
+
+function handleKeydown(event: KeyboardEvent) {
+  if (props.active) trapFocus(event, dialogueBox.value)
+}
+
+onBeforeUnmount(() => {
+  stopTyping()
+  if (props.embedded && dialogue.value) questStore.closeDialogue()
+})
 </script>
 
 <template>
   <div v-if="dialogue" class="dialogue-overlay" :style="{ zIndex: props.zIndex }" @click.self="handleClose">
-    <div class="dialogue-box" @click="handleClick">
+    <div
+      ref="dialogueBox"
+      class="dialogue-box"
+      role="dialog"
+      :aria-modal="props.active ? 'true' : undefined"
+      :aria-label="`${dialogue.npcName}的对话`"
+      tabindex="-1"
+      @click="handleClick"
+      @keydown="handleKeydown"
+    >
       <div class="dialogue-header">
         <div class="npc-heading">
           <img class="npc-portrait" :src="getNpcPortraitUrl(dialogue.npcId)" :alt="dialogue.npcName" />

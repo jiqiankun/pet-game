@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMapStore } from '../../stores/map'
 import { useOverlayStore } from '../../stores/overlay'
+import { gameBridge } from '../../game/bridge/GameBridge'
+import { toMapSceneData } from '../../game/mapSceneData'
 import type { CampView, RegionView } from '../../types/map'
 
 /**
@@ -14,6 +16,10 @@ import type { CampView, RegionView } from '../../types/map'
 const props = defineProps<{
   /** 高亮/定位的目标区域 mapId（图鉴栖息地、任务地图查看时传入）。 */
   highlightRegionId?: string
+  /** 区域图对应的兼容 mapId；阶段 2 前一张兼容地图对应一个区域。 */
+  regionMapId?: string
+  /** 嵌入 Context Stack 时的实例 id；未传表示旧路由兼容入口。 */
+  contextId?: number
 }>()
 
 const router = useRouter()
@@ -26,6 +32,16 @@ const error = ref('')
 const highlightRegion = computed(
   () => mapStore.worldMap?.regions.find((r) => r.mapId === props.highlightRegionId) ?? null,
 )
+const selectedRegion = computed(
+  () => mapStore.worldMap?.regions.find((r) => r.mapId === props.regionMapId) ?? null,
+)
+const visibleRegions = computed(() => {
+  if (!mapStore.worldMap) return []
+  return selectedRegion.value ? [selectedRegion.value] : mapStore.worldMap.regions
+})
+const pageTitle = computed(() => (
+  selectedRegion.value ? `${selectedRegion.value.name}区域图` : '大地图'
+))
 const regionThumbnailByMapId: Record<string, string> = {
   MAP_START_VILLAGE: 'village',
   MAP_AREA_MEADOW: 'meadow',
@@ -55,8 +71,7 @@ async function enterRegion(region: RegionView) {
   error.value = ''
   try {
     await mapStore.enterRegion(region.mapId)
-    overlayStore.close('WORLD_MAP')
-    router.push('/explore')
+    resumeWorldAfterTravel()
   } catch (e) {
     error.value = mapStore.error || '进入区域失败'
   } finally {
@@ -71,8 +86,7 @@ async function teleport(camp: CampView) {
   error.value = ''
   try {
     await mapStore.teleportToCamp(camp.campId)
-    overlayStore.close('WORLD_MAP')
-    router.push('/explore')
+    resumeWorldAfterTravel()
   } catch (e) {
     error.value = mapStore.error || '传送失败'
   } finally {
@@ -81,15 +95,41 @@ async function teleport(camp: CampView) {
 }
 
 function goExplore() {
-  router.push('/explore')
+  closeMapContext()
+}
+
+/** 从世界图进入现有兼容地图的区域图，不触发传送或场景重启。 */
+function openRegionMap(region: RegionView) {
+  overlayStore.open('REGION_MAP', { regionMapId: region.mapId }, { source: 'CONTEXT' })
+}
+
+/** 地图已变化时才重启 Phaser 场景；单纯关闭世界地图不得重置当前探索现场。 */
+function resumeWorldAfterTravel() {
+  const sceneData = toMapSceneData(mapStore.currentMap, mapStore.defeatedWildIds)
+  if (sceneData) gameBridge.emit('cmd:restart-map', sceneData)
+  if (props.regionMapId && props.contextId !== undefined) {
+    overlayStore.close(props.contextId)
+    overlayStore.close('WORLD_MAP')
+  } else {
+    closeMapContext()
+  }
+}
+
+/** Overlay 内关闭仅返回原 Context；旧直达路由保持兼容。 */
+function closeMapContext() {
+  if (props.contextId !== undefined) {
+    overlayStore.close(props.contextId)
+  } else {
+    router.push('/explore')
+  }
 }
 </script>
 
 <template>
   <div class="world-map-view">
     <div class="wm-header">
-      <h2>大地图</h2>
-      <button class="btn-secondary" @click="goExplore">返回探索</button>
+      <h2>{{ pageTitle }}</h2>
+      <button class="btn-secondary" @click="goExplore">{{ props.contextId !== undefined ? '返回上层' : '返回探索' }}</button>
     </div>
 
     <p v-if="error" class="error-text">{{ error }}</p>
@@ -106,7 +146,7 @@ function goExplore() {
 
     <div v-if="mapStore.worldMap" class="region-grid">
       <div
-        v-for="region in mapStore.worldMap.regions"
+        v-for="region in visibleRegions"
         :key="region.mapId"
         class="region-card"
         :class="{
@@ -145,6 +185,14 @@ function goExplore() {
         </div>
 
         <div class="region-actions">
+          <button
+            v-if="!props.regionMapId"
+            class="btn-secondary"
+            :disabled="busyKey !== ''"
+            @click="openRegionMap(region)"
+          >
+            查看区域图
+          </button>
           <button
             class="btn-primary"
             :disabled="!region.unlocked || busyKey !== ''"
@@ -319,6 +367,7 @@ function goExplore() {
 
 .region-actions {
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
 }
 

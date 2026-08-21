@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import TutorialOverlay from '../views/Quest/components/TutorialOverlay.vue'
 import GlobalToast from '../components/feedback/GlobalToast.vue'
 import ErrorFeedback from '../components/feedback/ErrorFeedback.vue'
@@ -7,66 +8,115 @@ import OverlayLayer from '../components/overlay/OverlayLayer.vue'
 import { useGameStore } from '../stores/game'
 import { useOverlayStore } from '../stores/overlay'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { gameBridge } from '../game/bridge/GameBridge'
+import { isEditableTarget } from '../utils/keyboard'
 
 const gameStore = useGameStore()
 const overlayStore = useOverlayStore()
+const route = useRoute()
+const router = useRouter()
+const isWorldRoute = computed(() => route.name === 'Explore')
+const WORLD_BACK_GUARD_KEY = '__petGameWorldBackGuard'
+let restoringWorldBackGuard = false
 
-// ---- 键盘快捷键（P3：T/B/I/M/Q/P/G/S 打开对应浮层）----
-useKeyboardShortcuts()
+// ---- 桌面世界快捷键（M/Q/B/J；W/A/S/D/E 交给 Phaser）----
+useKeyboardShortcuts(isWorldRoute)
 
-// ---- 统一返回行为（Overlay 架构 P0）----
-// 返回 = 只关闭最上层 Overlay；战斗不通过返回键退出。
-function handleEscape() {
-  overlayStore.handleBack()
+// ---- 统一返回行为 ----
+// 仅 Esc 处理游戏 Context；不可取消 Context 会消费事件而不退出。
+function handleKeydown(event: KeyboardEvent) {
+  if (event.repeat || event.key !== 'Escape' || isEditableTarget(event.target)) return
+  if (overlayStore.handleBack()) event.preventDefault()
 }
 
-function handlePopState() {
-  // Android / 浏览器返回键：若存在浮层则关闭最上层并保持当前 hash，不触发路由回退
-  if (overlayStore.handleBack()) {
-    window.history.pushState(null, '', window.location.href)
+function releaseWorldInput() {
+  gameBridge.emit('cmd:clear-input', {})
+}
+
+function syncTextInputFocus() {
+  window.setTimeout(() => {
+    overlayStore.setTextInputFocused(isEditableTarget(document.activeElement))
+  }, 0)
+}
+
+/**
+ * Hash 路由的浏览器返回与普通导航共用同一规则：有 Context 时优先处理它；
+ * 栈为空时才允许真正切换路由，避免旧实现反复 pushState 造成历史死循环。
+ */
+const removeNavigationGuard = router.beforeEach((to, from) => {
+  if (to.fullPath !== from.fullPath && overlayStore.handleBack()) {
+    return false
   }
+  return true
+})
+
+/**
+ * 世界页只保留一个同 URL 的历史保护位。浏览器返回先落到该保护位：
+ * 有 Context 时关闭栈顶并前进恢复保护位；空栈时才继续返回真实路由。
+ * 不按每次打开浮层 pushState，避免形成历史循环。
+ */
+function ensureWorldBackGuard() {
+  if (!isWorldRoute.value || history.state?.[WORLD_BACK_GUARD_KEY] === 'active') return
+  history.replaceState({ ...(history.state ?? {}), [WORLD_BACK_GUARD_KEY]: 'base' }, '', location.href)
+  history.pushState({ ...(history.state ?? {}), [WORLD_BACK_GUARD_KEY]: 'active' }, '', location.href)
 }
 
-window.addEventListener('keydown', handleEscape)
-window.addEventListener('popstate', handlePopState)
+function handleWorldPopState(event: PopStateEvent) {
+  if (!isWorldRoute.value || restoringWorldBackGuard || event.state?.[WORLD_BACK_GUARD_KEY] !== 'base') return
+  if (overlayStore.handleBack()) {
+    restoringWorldBackGuard = true
+    history.go(1)
+    return
+  }
+  history.back()
+}
+
+function restoreWorldBackGuard() {
+  restoringWorldBackGuard = false
+}
+
+watch(isWorldRoute, (inWorld) => {
+  if (inWorld) ensureWorldBackGuard()
+}, { immediate: true })
+
+window.addEventListener('keydown', handleKeydown)
+window.addEventListener('popstate', handleWorldPopState, true)
+window.addEventListener('popstate', restoreWorldBackGuard)
+window.addEventListener('blur', releaseWorldInput)
+document.addEventListener('visibilitychange', releaseWorldInput)
+window.addEventListener('focusin', syncTextInputFocus)
+window.addEventListener('focusout', syncTextInputFocus)
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleEscape)
-  window.removeEventListener('popstate', handlePopState)
+  removeNavigationGuard()
+  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('popstate', handleWorldPopState, true)
+  window.removeEventListener('popstate', restoreWorldBackGuard)
+  window.removeEventListener('blur', releaseWorldInput)
+  document.removeEventListener('visibilitychange', releaseWorldInput)
+  window.removeEventListener('focusin', syncTextInputFocus)
+  window.removeEventListener('focusout', syncTextInputFocus)
 })
 </script>
 
 <template>
-  <div class="app-layout">
-    <!-- 顶部导航栏 -->
-    <header class="app-header">
+  <div class="app-layout" :class="{ 'app-layout-world': isWorldRoute }">
+    <!-- 桌面游戏壳：世界内只保留状态提示和返回首页，功能入口由 HUD/快捷键承担。 -->
+    <header class="app-header" :class="{ 'app-header-world': isWorldRoute }">
       <div class="header-brand">
         <img class="header-logo" src="/assets/ui/logo_game.png" alt="" />
         <h1 class="header-title">宠物精灵</h1>
-        <span class="header-badge">Phase 11</span>
+        <span class="header-badge">{{ isWorldRoute ? '桌面世界' : 'Phase 11' }}</span>
       </div>
       <nav class="header-nav">
         <RouterLink to="/">首页</RouterLink>
-        <RouterLink to="/explore">探索</RouterLink>
-        <RouterLink to="/world-map">大地图</RouterLink>
-        <RouterLink to="/battle">战斗</RouterLink>
-        <RouterLink to="/pets">宠物</RouterLink>
-        <RouterLink to="/team">队伍</RouterLink>
-        <RouterLink to="/storage">仓库</RouterLink>
-        <RouterLink to="/pokedex">图鉴</RouterLink>
-        <RouterLink to="/boss">Boss</RouterLink>
-        <RouterLink to="/inventory">背包</RouterLink>
-        <RouterLink to="/shop">商店</RouterLink>
-        <RouterLink to="/quest">任务</RouterLink>
-        <RouterLink to="/achievement">成就</RouterLink>
-        <RouterLink to="/statistics">统计</RouterLink>
-        <RouterLink to="/settings">设置</RouterLink>
-        <RouterLink to="/save-backup">存档备份</RouterLink>
-        <RouterLink v-if="gameStore.developerMode" to="/dev-tools">开发者工具</RouterLink>
+        <RouterLink v-if="!isWorldRoute" to="/explore">探索</RouterLink>
+        <span v-else class="world-key-hint">Q 队伍 · B 背包 · J 任务 · M 地图 · Esc 返回</span>
+        <RouterLink v-if="!isWorldRoute && gameStore.developerMode" to="/dev-tools">开发者工具</RouterLink>
       </nav>
     </header>
 
     <!-- 主内容区 -->
-    <main class="app-main">
+    <main class="app-main" :class="{ 'app-main-world': isWorldRoute }">
       <slot />
     </main>
 
@@ -107,6 +157,10 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.app-header-world {
+  height: 44px;
+}
+
 .header-logo {
   width: 32px;
   height: 32px;
@@ -131,6 +185,12 @@ onBeforeUnmount(() => {
 .header-nav {
   display: flex;
   gap: 16px;
+}
+
+.world-key-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .header-nav a {
@@ -158,6 +218,11 @@ onBeforeUnmount(() => {
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+}
+
+.app-main-world {
+  max-width: none;
+  padding: 0;
 }
 
 /* 移动端底部导航 */

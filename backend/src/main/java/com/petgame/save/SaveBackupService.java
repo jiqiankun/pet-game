@@ -305,9 +305,10 @@ public class SaveBackupService {
         // 导入前必须先自动备份当前数据
         if (oldPlayer != null) {
             createBackup("import-before");
+            deleteAll(oldPlayer.getSaveId());
         }
 
-        // 事务内导入（含旧的引数据清理 + 快照重插入）
+        // 事务内导入（含旧存档清理 + 快照重插入）
         applySnapshot(snapshot);
 
         log.info("存档导入完成：saveId={}, 玩家={}, saveVersion={}",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useBattleStore, isActiveAlive } from '../../../stores/battle'
 import { useGameStore } from '../../../stores/game'
 import { useMapStore } from '../../../stores/map'
@@ -18,6 +18,7 @@ import {
   elementRelationMark,
   skillTargetLabel,
 } from '../../../utils/labels'
+import { focusFirstIn, trapFocus } from '../../../utils/focus'
 
 /**
  * 战斗浮层（战斗体验优化，P0）。
@@ -28,6 +29,8 @@ import {
  */
 
 const emit = defineEmits<{ (e: 'close'): void }>()
+const props = withDefaults(defineProps<{ zIndex?: number }>(), { zIndex: 500 })
+const battleRoot = ref<HTMLElement | null>(null)
 
 const battleStore = useBattleStore()
 const gameStore = useGameStore()
@@ -660,8 +663,13 @@ watch(
     if (finished) {
       stopAutoPlay()
       autoPlay.value = false
+      // 非捕捉去向选择的战斗沿用独立战斗页规则：结束后立即结算。
+      if (!needDestChoice.value && !settlement.value) {
+        void battleStore.settleBattle()
+      }
     }
   },
+  { immediate: true },
 )
 
 // 结算完成后：野生胜利标记地图野怪移除
@@ -686,7 +694,14 @@ function onKeydown(ev: KeyboardEvent) {
     }
   }
 }
-onMounted(() => window.addEventListener('keydown', onKeydown))
+function handleFocusTrap(event: KeyboardEvent) {
+  trapFocus(event, battleRoot.value)
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  nextTick(() => focusFirstIn(battleRoot.value))
+})
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 // ==================== 战斗背包（仅战斗内可用物品） ====================
@@ -741,7 +756,16 @@ const victoryInteractionText = computed(() => {
 </script>
 
 <template>
-  <div class="battle-overlay">
+  <div
+    ref="battleRoot"
+    class="battle-overlay"
+    :style="{ zIndex: props.zIndex }"
+    role="dialog"
+    aria-modal="true"
+    aria-label="战斗"
+    tabindex="-1"
+    @keydown="handleFocusTrap"
+  >
     <!-- 未开始（独立模式兜底）：不渲染本体 -->
     <template v-if="snapshot">
       <!--=========== 顶部 HUD ===========-->

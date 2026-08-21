@@ -106,7 +106,7 @@ function toggleMenu() {
 /** 打开快捷队伍（BottomSheet，查看 HP/异常 + 快速恢复）。 */
 function openQuickTeam() {
   menuOpen.value = false
-  overlayStore.open('QUICK_TEAM')
+  overlayStore.open('QUICK_TEAM', undefined, { source: 'HUD' })
 }
 </script>
 

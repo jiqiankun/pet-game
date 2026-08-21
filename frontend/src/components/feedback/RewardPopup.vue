@@ -5,9 +5,11 @@
  */
 import type { RewardResultView } from '../../types/map'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   reward: RewardResultView
-}>()
+  /** 由 Context Stack 计算的层级，默认兼容旧调用。 */
+  zIndex?: number
+}>(), { zIndex: 500 })
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -15,7 +17,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="reward-mask" @click.self="emit('close')">
+  <div class="reward-mask" :style="{ zIndex: props.zIndex }" @click.self="emit('close')">
     <div class="reward-card">
       <h3>{{ reward.objectName }}：获得奖励</h3>
       <ul class="reward-list">

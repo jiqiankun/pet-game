@@ -15,17 +15,17 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 /** 菜单项：标签 + 对应 Overlay 类型 + 快捷键（P3-19 Tooltip 展示）。 */
 const MENU_ITEMS: Array<{ label: string; icon: string; type: OverlayType; key?: string }> = [
-  { label: '队伍', icon: '👥', type: 'TEAM', key: 'T' },
-  { label: '宠物', icon: '🐾', type: 'PET', key: 'P' },
+  { label: '快捷队伍', icon: '👥', type: 'QUICK_TEAM', key: 'Q' },
+  { label: '宠物', icon: '🐾', type: 'PET' },
   { label: '背包', icon: '🎒', type: 'INVENTORY', key: 'B' },
-  { label: '图鉴', icon: '📖', type: 'POKEDEX', key: 'G' },
-  { label: '任务', icon: '📜', type: 'QUEST', key: 'Q' },
+  { label: '图鉴', icon: '📖', type: 'POKEDEX' },
+  { label: '任务', icon: '📜', type: 'QUEST', key: 'J' },
   { label: '大地图', icon: '🗺️', type: 'WORLD_MAP', key: 'M' },
-  { label: '设置', icon: '⚙️', type: 'SETTINGS', key: 'S' },
+  { label: '设置', icon: '⚙️', type: 'SETTINGS' },
 ]
 
 function openMenu(type: OverlayType) {
-  overlayStore.open(type)
+  overlayStore.open(type, undefined, { source: 'HUD' })
   emit('close')
 }
 </script>

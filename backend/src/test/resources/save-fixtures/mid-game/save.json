@@ -1,0 +1,131 @@
+{
+  "player": {
+    "id": 102,
+    "saveId": "BASELINE_MID_GAME",
+    "saveVersion": 1,
+    "gameVersion": "1.0.0",
+    "playerName": "基线-主线中段",
+    "avatarId": "AVATAR_DEFAULT",
+    "gold": 3200,
+    "expPool": 4800,
+    "currentMapId": "MAP_AREA_FOREST",
+    "mainQuestId": "QUEST_MAIN_05",
+    "playTimeSeconds": 21600,
+    "storyCompleted": false,
+    "gameDifficulty": "NORMAL",
+    "autoStrategy": "BALANCED",
+    "autoSwitch": true,
+    "autoSwitchHpThreshold": 25,
+    "autoUseRecoveryItem": false,
+    "autoRecoveryHpThreshold": 35,
+    "autoRevive": false
+  },
+  "pets": [
+    {
+      "id": 1101,
+      "saveId": "BASELINE_MID_GAME",
+      "speciesId": "PET_FIRE_001",
+      "level": 22,
+      "capturedLevel": 1,
+      "hpAptitude": 75,
+      "strengthAptitude": 82,
+      "spiritAptitude": 65,
+      "defenseAptitude": 70,
+      "resistanceAptitude": 68,
+      "speedAptitude": 78,
+      "freePointHp": 5,
+      "freePointStrength": 18,
+      "freePointSpirit": 0,
+      "freePointDefense": 4,
+      "freePointResistance": 0,
+      "freePointSpeed": 6,
+      "currentHp": 240,
+      "isStarter": true,
+      "locked": true,
+      "favorite": true,
+      "capturedMapId": "MAP_START_VILLAGE",
+      "baseHpOffset": 0,
+      "baseStrengthOffset": 0,
+      "baseSpiritOffset": 0,
+      "baseDefenseOffset": 0,
+      "baseResistanceOffset": 0,
+      "baseSpeedOffset": 0,
+      "battleCount": 28,
+      "winCount": 25,
+      "killCount": 42,
+      "bossBattleCount": 2,
+      "bossWinCount": 1,
+      "totalDamage": 12500,
+      "totalDamageTaken": 6400,
+      "totalHeal": 0,
+      "captureAssistCount": 3
+    }
+  ],
+  "teams": [
+    {
+      "id": 2101,
+      "saveId": "BASELINE_MID_GAME",
+      "name": "主力队伍",
+      "slot": 1,
+      "isActive": true
+    }
+  ],
+  "teamMembers": [
+    {
+      "id": 3101,
+      "teamId": 2101,
+      "petId": 1101,
+      "position": 1
+    }
+  ],
+  "inventory": [
+    {
+      "id": 4101,
+      "saveId": "BASELINE_MID_GAME",
+      "itemId": "ITEM_POTION_MEDIUM",
+      "quantity": 8
+    },
+    {
+      "id": 4102,
+      "saveId": "BASELINE_MID_GAME",
+      "itemId": "ITEM_REVIVE",
+      "quantity": 2
+    }
+  ],
+  "regionUnlocks": [
+    {
+      "saveId": "BASELINE_MID_GAME",
+      "regionId": "MAP_START_VILLAGE",
+      "unlockedAt": "2026-08-19T00:00:00"
+    },
+    {
+      "saveId": "BASELINE_MID_GAME",
+      "regionId": "MAP_AREA_FOREST",
+      "unlockedAt": "2026-08-19T01:00:00"
+    }
+  ],
+  "campActivations": [
+    {
+      "saveId": "BASELINE_MID_GAME",
+      "campId": "CAMP_FOREST_1",
+      "activatedAt": "2026-08-19T01:30:00"
+    }
+  ],
+  "mapSessions": [
+    {
+      "saveId": "BASELINE_MID_GAME",
+      "mapId": "MAP_AREA_FOREST",
+      "sessionId": "BASELINE_SESSION_FOREST",
+      "enteredAt": "2026-08-19T02:00:00"
+    }
+  ],
+  "quests": [
+    {
+      "saveId": "BASELINE_MID_GAME",
+      "questId": "QUEST_MAIN_05",
+      "status": "ACTIVE",
+      "currentObjective": 1,
+      "acceptedAt": "2026-08-19T01:15:00"
+    }
+  ]
+}

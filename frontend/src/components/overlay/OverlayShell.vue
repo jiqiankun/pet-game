@@ -6,6 +6,9 @@
  * 遵循架构边界：本组件只负责 UI 壳与关闭生命周期，不承载具体业务逻辑。
  */
 
+import { nextTick, onMounted, ref, watch } from 'vue'
+import { focusFirstIn, trapFocus } from '../../utils/focus'
+
 /** 浮层形态：panel=居中面板；bottom-sheet=底部抽屉；drawer=右侧面板；fullscreen=全屏。 */
 export type OverlayShellVariant = 'panel' | 'bottom-sheet' | 'drawer' | 'fullscreen'
 
@@ -21,12 +24,21 @@ const props = withDefaults(
     masked?: boolean
     /** 层级 z-index（OverlayLayer 按栈位置递增传入）。 */
     zIndex?: number
+    /** 当前是否为 Context 栈顶；只有栈顶窗口接管焦点与 Tab。 */
+    active?: boolean
+    /** Context 实例 id，用于 aria 标题关联。 */
+    contextId?: number
+    /** 是否允许点击遮罩关闭。 */
+    closeOnMask?: boolean
   }>(),
   {
     variant: 'panel',
     showBack: false,
     masked: true,
     zIndex: 400,
+    active: true,
+    contextId: 0,
+    closeOnMask: true,
   },
 )
 
@@ -34,6 +46,28 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'back'): void
 }>()
+
+const panel = ref<HTMLElement | null>(null)
+const titleId = `overlay-title-${props.contextId}`
+
+function focusInitial() {
+  nextTick(() => {
+    if (props.active) focusFirstIn(panel.value)
+  })
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (props.active) trapFocus(event, panel.value)
+}
+
+function closeFromMask() {
+  if (props.closeOnMask) emit('close')
+}
+
+onMounted(focusInitial)
+watch(() => props.active, (active) => {
+  if (active) focusInitial()
+})
 </script>
 
 <template>
@@ -41,12 +75,21 @@ const emit = defineEmits<{
     class="overlay-mask"
     :class="[`ov-${variant}`, { 'ov-mask-clear': !props.masked }]"
     :style="{ zIndex: props.zIndex }"
-    @click.self="emit('close')"
+    @click.self="closeFromMask"
   >
-    <div class="overlay-panel" role="dialog" :aria-label="title">
+    <div
+      ref="panel"
+      class="overlay-panel"
+      role="dialog"
+      tabindex="-1"
+      :aria-modal="props.active ? 'true' : undefined"
+      :aria-labelledby="title ? titleId : undefined"
+      :aria-label="title || undefined"
+      @keydown="handleKeydown"
+    >
       <header class="overlay-header">
         <button v-if="showBack" class="ov-btn ov-back" aria-label="返回" @click="emit('back')">‹ 返回</button>
-        <h3 class="overlay-title">{{ title }}</h3>
+        <h3 :id="titleId" class="overlay-title">{{ title }}</h3>
         <button class="ov-btn ov-close" aria-label="关闭" @click="emit('close')">✕</button>
       </header>
       <div class="overlay-body">

@@ -1,7 +1,7 @@
 # 后端编码规范
 
-**适用项目：** 宠物精灵游戏第一阶段  
-**依据：** 《宠物精灵游戏第一阶段技术方案说明 V1.0》《宠物精灵游戏第一阶段需求设计文档 V1.0》
+**适用项目：** 宠物精灵游戏第一阶段 + 桌面版世界/UI 重构
+**依据：** 《宠物精灵_桌面版世界与UI重构_完整需求文档_V1.0》《宠物精灵游戏第一阶段技术方案说明 V1.0》《宠物精灵游戏第一阶段需求设计文档 V1.0》
 
 ---
 
@@ -107,6 +107,7 @@ pet/
 - Bootstrap 接口一次返回首页所需核心状态，避免首页连续请求十几个接口。
 - 战斗接口只接受行动意图（技能 + 目标），不返回表现层指令。
 - 所有参数后端校验；不信任前端传入的伤害、金币、经验、捕捉结果。
+- 世界/地图接口同样只接受移动或交互意图；Connection、Gateway、LocationRef、知识状态和返回位置必须由服务端配置/状态验证，客户端不得提交任意跨图坐标。
 
 ---
 
@@ -318,7 +319,7 @@ battle/service/BattleService      # 新增 settleBattle：战斗结算落库（H
 
 - 接口：`POST /api/inventory/items/{itemId}/use`，请求体 `{ petId }`。
 - `HEAL_HP`：`currentHp = min(currentHp + value, maxHp)`；`REVIVE`：仅 HP=0 可用，`currentHp = maxHp * value / 100`。
-- 战斗外使用校验 `usableOutsideBattle`；战斗内不使用恢复道具、不提供道具行动（用户裁决，见规划文档 §9.3 决策八）。
+- 战斗外使用校验 `usableOutsideBattle`。桌面重构 R-043 覆盖旧“战斗内无道具”裁决：战斗内只允许 `usableInBattle=true` 且类型为 `HEAL_HP`/`REVIVE` 的道具，探索/战斗共享玩家库存；开战时生成资源快照，战斗中仅记内存消耗，结算统一扣库。前端过滤不能替代服务端的 `usableInBattle`、类型、数量和目标校验。
 - 数量不足返回 `ITEM_NOT_ENOUGH`，宠物不存在返回 `PET_NOT_FOUND`。
 
 ### 15.8 数据库迁移（V3）
@@ -395,7 +396,7 @@ battle/service/BattleService         # 扩展 startWildBattle/getCaptureRates/se
 ```text
 map/
 ├── service/MapExplorationService      # 核心服务：区域解锁/移动/营地/采集/宝箱/遭遇/战败
-├── controller/MapController           # REST 接口：/api/map/**
+├── controller/MapController           # REST 接口：/api/maps/**
 ├── entity/                            # 5 实体（复合主键无 @TableId）
 └── mapper/                            # 5 mapper
 
@@ -708,7 +709,7 @@ config/model/SystemRuleConfig.PokedexRuleConfig  # 图鉴配置内部类（嵌�
 
 - 存档文件为自定义 `.pet-save.zip`，内部含 `manifest.json`（gameVersion / saveVersion / exportedAt / playerName）与 `save.json`（全量玩家逻辑数据），**不导出数据库物理文件、不落配置内容**，玩家数据只保存引用（species_id / skill_id 等）。
 - 版本职责分离：gameVersion 发布版本、saveVersion 存档结构版本、configVersion 配置结构版本；导入时仅校验 saveVersion（高于当前拒绝，等于 / 低于可导入）。
-- 导入流程固定为：校验文件 → 检查 saveVersion → **导入前自动备份当前存档** → 事务内导入 → 失败回滚；**导入前必须先自动备份**。
+- 导入流程固定为：校验文件 → 检查 saveVersion → **导入前自动备份当前存档** → 清理旧单主存档 → 事务内导入 → 失败回滚；备份或清理步骤不得省略。
 - 快照以 `save_id` 为键读取 / 写入；仅 `player_pet`、`player_team` 两张自增主键被他人引用的表在导入时做 id 重映射（petId / teamId / petId 引用一并重映射），其余表无需重映射。
 - 自动备份触发点：导入前（`import-before`）、重置游戏前（`reset-before`）、开发者高风险操作前（`dev-before`）；**不做定时后台备份**。
 - 备份目录由 `game.backup-dir` 配置（默认 `./data/backups`）。
@@ -726,3 +727,14 @@ config/model/SystemRuleConfig.PokedexRuleConfig  # 图鉴配置内部类（嵌�
 
 - 存档备份页 `/save-backup`：导出走浏览器直接下载（`/api/save/export` 返回二进制流，不走 JSON 拦截器）；导入走 `multipart/form-data` 上传。
 - 开发者工具页 `/dev-tools`：仅当 `gameStore.developerMode` 为真时在导航显示；未开启时页面提示需在服务端开启后重启。
+
+---
+
+## 25. 桌面版世界/UI 重构后端基线（阶段 0 起）
+
+- 世界静态事实、玩家知识、动态世界状态和临时 UI/战斗 Context 必须分层；数据库只保存玩家引用与动态状态，不复制 YAML 内容。
+- WorldGraph 是 Region、Map、Connection、Gateway、Anchor 和 Landmark 的唯一拓扑事实源；Tiled 只承载画面、碰撞和对象放置，不能独立定义业务连接。
+- 现有 Region=Map 模型先通过兼容映射读取，随后按森林纵切逐步迁移；禁止一次性改写全部旧 ID。
+- 所有存档表结构变更只新增 Flyway；当前 `saveVersion=1` 的新游戏、主线中段、内容完成三个样本位于 `backend/src/test/resources/save-fixtures`，每次调整存档结构必须做兼容导入回归。
+- 动态世界使用游戏内有限状态，不绑定现实时间；不新增后台定时基础设施、消息队列或缓存系统。
+- 需求裁决、版本边界和迁移顺序以 `docs/development/PHASE0_BASELINE.md` 为准。

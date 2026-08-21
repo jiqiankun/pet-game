@@ -14,7 +14,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/explore',
     name: 'Explore',
-    component: () => import('../views/Explore/ExploreView.vue'),
+    component: () => import('../views/Explore/WorldRoot.vue'),
   },
   {
     path: '/world-map',

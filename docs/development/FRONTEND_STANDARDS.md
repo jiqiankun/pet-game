@@ -1,7 +1,7 @@
 # 前端编码规范
 
-**适用项目：** 宠物精灵游戏第一阶段  
-**依据：** 《宠物精灵游戏第一阶段技术方案说明 V1.0》《宠物精灵游戏第一阶段 UI 设计文档 V1.0》
+**适用项目：** 宠物精灵游戏第一阶段 + 桌面版世界/UI 重构
+**依据：** 《宠物精灵_桌面版世界与UI重构_完整需求文档_V1.0》《宠物精灵游戏第一阶段技术方案说明 V1.0》
 
 ---
 
@@ -76,8 +76,21 @@ frontend/
 ## 5. 路由规范
 
 - **Hash 模式**：所有路由使用 `/#/path` 格式，简化单 JAR SPA 部署。
-- **路由命名**：与一级功能对应（`/`首页、`/explore`探索、`/pets`宠物、`/team`队伍、`/pokedex`图鉴、`/inventory`背包、`/quest`任务、`/boss`Boss、`/achievement`成就、`/statistics`统计、`/settings`设置）。
+- **桌面主流程**：有存档后以常驻 World Root 为游戏根；宠物、队伍、图鉴、背包、任务、Boss、商店、设置和战斗通过 Context/Overlay 打开，不得为了普通功能切换卸载探索地图。
+- **兼容路由**：现有 `/pets`、`/team`、`/pokedex`、`/inventory`、`/quest`、`/boss`、`/battle` 等路由在阶段 1～6 只作为直接访问、异常恢复和开发调试入口；同一业务组件必须与 Overlay 复用，不维护两套逻辑。
 - **路由守卫**：无存档时自动进入新游戏流程；有存档时恢复上次状态。
+- **返回顺序**：浏览器返回和 Esc 优先按 Context Stack 关闭最上层可关闭上下文；世界页只保留一个稳定历史保护位，禁止每次打开浮层都写入历史；Context 为空后才进行真正路由返回。
+
+### 5.1 阶段 1 常驻世界与 Context Stack 约定
+
+- `/explore` 必须由 `views/Explore/WorldRoot.vue` 承载；`App.vue` 只缓存该世界根。打开普通功能 Context 时不得卸载 `ExploreView` 或重建 Phaser。
+- `stores/overlay.ts` 是唯一的游戏内 Context 生命周期入口。每个条目至少保留 `id/key/type/parentId/source/blockLevel/inputContext/closePolicy/returnData/triggerElement`；禁止页面另建第二套全局返回或暂停状态。
+- Context 的阻塞语义固定为：`NONE` 不阻塞、`INPUT` 只清空世界输入、`WORLD` 停止玩家/野怪/接触更新、`BATTLE` 锁定最高战斗上下文。NPC 对话与所有阻塞确认使用 `WORLD`，奖励使用 `NONE`。
+- Context 输入类型固定为 `WORLD/PANEL/DIALOG/BATTLE/TEXT_INPUT`；只有 `WORLD` 可打开游戏快捷键并向 Phaser 透传移动。文本输入聚焦、窗口失焦、页面隐藏、阻塞 Context 打开时必须发送 `cmd:clear-input`。
+- 按类型关闭必须从栈顶反向查找；需要精确关闭时传 Context `id`，不得再使用数组第一个同类型条目。需要替换栈顶时使用 `replaceTop`，不得先关闭再打开而触发中间焦点恢复。`EXPLICIT` Context（战斗、不可取消事件）必须消费 Esc 与浏览器返回，不得被关闭。
+- `OverlayShell`、NPC 对话、探索确认框和战斗层必须具备初始焦点、Tab/Shift+Tab 边界、`role="dialog"`、栈顶 `aria-modal` 与关闭后的焦点恢复。子 Context 关闭后优先聚焦父 Context；栈清空后恢复原触发元素，若该元素已卸载则回退 `[data-world-focus-root]`。
+- 世界地图作为 Overlay 关闭时不得重启 MapScene；仅真正传送/进入区域时发送 `cmd:restart-map`。`REGION_MAP` 作为 `WORLD_MAP` 的子 Context，阶段 2 前仅复用现有兼容地图数据，禁止提前创建 WorldGraph 或新持久化模型。MapScene 创建后发送 `map:ready`，由 Vue 再同步当前 Context 的暂停等级。
+- 桌面默认快捷键为 W/A/S/D（移动）、E（世界交互）、Q（快捷队伍）、B（背包）、J（任务）、M（世界/区域地图）、Esc（栈顶返回）。旧 P/G/T/I/S 功能快捷键不再注册，避免与移动或上下文冲突。
 
 ---
 
@@ -127,10 +140,10 @@ frontend/
 
 ---
 
-## 9. 样式与响应式规范
+## 9. 桌面样式规范
 
-- **响应式优先级**：PC 网页优先，兼容平板与手机。
-- **移动端适配**：底部导航、弹层、折叠信息；核心玩法全部可用。
+- **当前交付范围**：只开发和验收桌面端；覆盖常见 16:9 桌面/笔记本分辨率和超宽桌面窗口。
+- **范围外**：手机、平板、触控导航、虚拟摇杆、Bottom Sheet 和移动端专项回归不在本轮范围；现有小屏样式保留但不作为桌面重构验收依据。
 - **色彩体系**：严格遵循《宠物精灵游戏第一阶段 UI 设计文档》定义的色彩体系（品牌色、功能色、属性色、稀有度色、背景色、文字色）。
 - **资源命名**：统一使用 ID，禁止中文文件名。示例：`pets/fire/PET_FIRE_001.png`、`skills/fire/FIRE_BLAZE_CLAW.png`。
 - **宠物资源路径约定（阶段 14 美术验收）**：图标 `public/assets/pets/icons/pet_{speciesId}_icon_{64|128|256}.png`，立绘 `public/assets/pets/portraits/pet_{speciesId}_portrait.png`；Boss 立绘 `public/assets/bosses/portraits/boss_{bossId}_portrait.png`；道具图标 `public/assets/items/item_{itemId}.png`。前端统一通过 `src/game-assets.ts` 的 `petIconUrl` / `petPortraitUrl` / `itemIconUrl` 等辅助函数构造路径，禁止在组件内硬编码资源路径。
@@ -217,8 +230,8 @@ frontend/
 
 ### 15.4 大地图页约定
 
-- **WorldMapView**（`/world-map`）：显示已解锁区域卡片（名称/推荐等级/解锁状态）、营地传送入口。
-- **路由**：`/world-map`，MainLayout 导航栏添加「大地图」链接。
+- **WorldMapView 当前实现**（历史）：`/world-map` 显示已解锁区域卡片和营地传送入口。
+- **桌面重构目标**：World/Region Map 作为常驻世界上的大型 Overlay，由 WorldGraph + PlayerKnowledge 驱动；打开/关闭不得重建 World Layer。旧 `/world-map` 仅保留兼容入口。
 
 ### 15.5 队伍页约定（阶段 6 重写）
 
@@ -239,8 +252,8 @@ frontend/
 ### 16.2 BossView 页面约定
 
 - **BossView**（`/boss`）：Boss 列表卡片（名称/属性/推荐等级/击败次数/幸运值）+ 难度选择（普通/困难/噩梦，未解锁灰显 + 锁定图标）+ 掉落情报（分 4 档稀有度，未解锁显示 ???）+ 操作栏（挑战/自动挑战下拉/幸运兑换）+ 战斗结算汇总面板。
-- **路由参数**：支持 `?bossId=xxx` 预选 Boss（从地图入口导航时携带）。
-- **战斗导航**：开始 Boss 战斗成功后跳转 `/battle`。
+- **兼容路由参数**：旧 `/boss?bossId=xxx` 可用于直接访问/调试；正常地图入口通过 Boss Context 传递 ID。
+- **战斗导航**：正常 Boss 战不得跳转 `/battle`；统一打开 Battle Context，结算后返回原 Boss 场或安全点。
 
 ### 16.3 BattleView Boss 战扩展
 

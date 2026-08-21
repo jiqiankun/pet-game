@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type Phaser from 'phaser'
 import { createPhaserGame } from '../../game/PhaserGame'
 import {
   gameBridge,
   type ExitTouchPayload,
-  type MapSceneData,
   type PlayerPositionPayload,
   type WildTouchPayload,
 } from '../../game/bridge/GameBridge'
+import { toMapSceneData } from '../../game/mapSceneData'
 import { useMapStore } from '../../stores/map'
 import { useBattleStore } from '../../stores/battle'
 import { useGameStore } from '../../stores/game'
@@ -22,6 +22,7 @@ import BattleOverlay from '../Battle/components/BattleOverlay.vue'
 import RewardPopup from '../../components/feedback/RewardPopup.vue'
 import ExplorationHUD from '../../components/hud/ExplorationHUD.vue'
 import ContextInteractionPanel from '../../components/hud/ContextInteractionPanel.vue'
+import { focusFirstIn, trapFocus } from '../../utils/focus'
 
 const mapStore = useMapStore()
 const battleStore = useBattleStore()
@@ -59,8 +60,10 @@ const eventResult = ref<{
   itemId?: string
   encounterGroupId?: string
 } | null>(null)
+const localDialogCard = ref<HTMLElement | null>(null)
+const worldInstanceId = ref('')
 
-const dialogOpen = computed(
+const localDialogOpen = computed(
   () => encounterReq.value !== null || campDialogId.value !== null || exitReq.value !== null || randomEvent.value !== null || eventResult.value !== null,
 )
 
@@ -69,18 +72,8 @@ function eventArtUrl(eventId: string): string {
 }
 
 /** 构建 Phaser 场景数据（业务状态全部来自后端）。 */
-function buildSceneData(): MapSceneData | null {
-  const view = mapStore.currentMap
-  if (!view) return null
-  return {
-    mapId: view.mapId,
-    mapFile: view.mapFile,
-    spawnObjectId: view.spawnObjectId,
-    consumedChestIds: [...view.consumedChestIds],
-    usedGatherIds: [...view.usedGatherIds],
-    activatedCampIds: [...view.activatedCampIds],
-    defeatedWildIds: [...mapStore.defeatedWildIds],
-  }
+function buildSceneData() {
+  return toMapSceneData(mapStore.currentMap, mapStore.defeatedWildIds)
 }
 
 function showToast(message: string) {
@@ -88,8 +81,68 @@ function showToast(message: string) {
 }
 
 function syncInputLock() {
-  gameBridge.emit('cmd:set-input-lock', { locked: dialogOpen.value || busy.value })
+  gameBridge.emit('cmd:set-input-lock', { locked: busy.value })
+  if (busy.value) gameBridge.emit('cmd:clear-input', {})
 }
+
+function openLocalContext(type: OverlayType, data?: unknown) {
+  overlayStore.open(type, data, { source: 'WORLD' })
+}
+
+function closeLocalContext(type: OverlayType) {
+  overlayStore.close(type)
+}
+
+function contextZIndex(type: OverlayType): number {
+  const index = overlayStore.stack.map((entry) => entry.type).lastIndexOf(type)
+  return 400 + Math.max(index, 0) * 100
+}
+
+function isTopContext(type: OverlayType): boolean {
+  return overlayStore.top?.type === type
+}
+
+function focusLocalDialog() {
+  nextTick(() => focusFirstIn(localDialogCard.value))
+}
+
+function trapLocalDialog(event: KeyboardEvent) {
+  const type = overlayStore.top?.type
+  if (type === 'ENCOUNTER_CONFIRM' || type === 'CAMP_CONFIRM' || type === 'EXIT_CONFIRM'
+    || type === 'RANDOM_EVENT' || type === 'EVENT_RESULT') {
+    trapFocus(event, localDialogCard.value)
+  }
+}
+
+watch(localDialogOpen, (opened) => {
+  if (opened) focusLocalDialog()
+})
+
+watch(() => overlayStore.top?.type, (type) => {
+  if (type === 'ENCOUNTER_CONFIRM' || type === 'CAMP_CONFIRM' || type === 'EXIT_CONFIRM'
+    || type === 'RANDOM_EVENT' || type === 'EVENT_RESULT') {
+    focusLocalDialog()
+  }
+})
+
+watch(() => overlayStore.isOpen('ENCOUNTER_CONFIRM'), (opened) => {
+  if (!opened) encounterReq.value = null
+})
+watch(() => overlayStore.isOpen('CAMP_CONFIRM'), (opened) => {
+  if (!opened) campDialogId.value = null
+})
+watch(() => overlayStore.isOpen('EXIT_CONFIRM'), (opened) => {
+  if (!opened) exitReq.value = null
+})
+watch(() => overlayStore.isOpen('RANDOM_EVENT'), (opened) => {
+  if (!opened) randomEvent.value = null
+})
+watch(() => overlayStore.isOpen('EVENT_RESULT'), (opened) => {
+  if (!opened) eventResult.value = null
+})
+watch(() => overlayStore.isOpen('REWARD'), (opened) => {
+  if (!opened) rewardPopup.value = null
+})
 
 // ==================== bridge 事件处理（Phaser → Vue） ====================
 
@@ -101,6 +154,7 @@ function registerBridgeHandlers() {
     gameBridge.on('encounter:touch', (payload) => {
       encounterReq.value = payload
       actionError.value = ''
+      openLocalContext('ENCOUNTER_CONFIRM', payload)
       syncInputLock()
     }),
     gameBridge.on('gather:request', async (payload) => {
@@ -108,6 +162,7 @@ function registerBridgeHandlers() {
         const reward = await mapStore.gather(payload.id)
         gameBridge.emit('cmd:remove-object', { id: payload.id })
         rewardPopup.value = reward
+        openLocalContext('REWARD', reward)
         await gameStore.loadBootstrap()
       } catch (e) {
         showToast(mapStore.error || '采集失败')
@@ -118,6 +173,7 @@ function registerBridgeHandlers() {
         const reward = await mapStore.openChest(payload.id)
         gameBridge.emit('cmd:remove-object', { id: payload.id })
         rewardPopup.value = reward
+        openLocalContext('REWARD', reward)
         await gameStore.loadBootstrap()
       } catch (e) {
         showToast(mapStore.error || '开启宝箱失败')
@@ -126,20 +182,22 @@ function registerBridgeHandlers() {
     gameBridge.on('camp:touch', (payload) => {
       campDialogId.value = payload.id
       actionError.value = ''
+      openLocalContext('CAMP_CONFIRM', payload)
       syncInputLock()
     }),
     gameBridge.on('exit:touch', (payload) => {
       exitReq.value = payload
       actionError.value = ''
+      openLocalContext('EXIT_CONFIRM', payload)
       syncInputLock()
     }),
     // Boss 入口（阶段 7 / Overlay 架构 P1）：打开 Boss 浮层，不离开地图
     gameBridge.on('boss:touch', (payload) => {
-      overlayStore.open('BOSS', { bossId: payload.id })
+      overlayStore.open('BOSS', { bossId: payload.id }, { source: 'WORLD' })
     }),
     gameBridge.on('npc:touch', async (payload) => {
       // NPC 对话接入 Overlay 栈：打开 NPC_DIALOG 浮层（暂停玩家输入），再加载对话内容
-      overlayStore.open('NPC_DIALOG')
+      overlayStore.open('NPC_DIALOG', undefined, { source: 'WORLD' })
       await questStore.talkNpc(payload.id)
     }),
     gameBridge.on('hidden:touch', () => {
@@ -148,6 +206,10 @@ function registerBridgeHandlers() {
     // 玩家坐标写回 useMapStore（节流上报，保证 Overlay 关闭后上下文稳定）
     gameBridge.on('player:position', (payload: PlayerPositionPayload) => {
       mapStore.setPlayerPosition({ x: payload.x, y: payload.y })
+    }),
+    // 场景重启后重新同步栈顶阻塞状态，避免子 Context 返回时新场景意外恢复移动。
+    gameBridge.on('map:ready', () => {
+      overlayStore.syncWorldState()
     }),
   )
 }
@@ -165,6 +227,7 @@ async function startEncounter() {
     await battleStore.startMapEncounter(payload.groupId)
     mapStore.activeEncounterSpawnId = payload.spawnId
     encounterReq.value = null
+    closeLocalContext('ENCOUNTER_CONFIRM')
     openBattleOverlay()
   } catch (e) {
     actionError.value = battleStore.error || '遭遇发起失败'
@@ -177,7 +240,7 @@ async function startEncounter() {
 /** 打开战斗浮层并暂停地图探索。 */
 function openBattleOverlay() {
   battleOpen.value = true
-  overlayStore.open('BATTLE')
+  overlayStore.open('BATTLE', undefined, { source: 'WORLD' })
   syncInputLock()
 }
 
@@ -194,6 +257,7 @@ async function handleBattleClose() {
 
 function closeEncounter() {
   encounterReq.value = null
+  closeLocalContext('ENCOUNTER_CONFIRM')
   syncInputLock()
 }
 
@@ -206,6 +270,7 @@ async function restAtCamp() {
   try {
     const rest = await mapStore.restAtCamp(campDialogId.value)
     campDialogId.value = null
+    closeLocalContext('CAMP_CONFIRM')
     await gameStore.loadBootstrap()
     // 休息触发刷新：重启地图场景（新会话）
     const data = buildSceneData()
@@ -221,6 +286,7 @@ async function restAtCamp() {
 
 function closeCampDialog() {
   campDialogId.value = null
+  closeLocalContext('CAMP_CONFIRM')
   syncInputLock()
 }
 
@@ -234,6 +300,7 @@ async function confirmExit() {
   try {
     await mapStore.enterRegion(payload.targetMapId, payload.exitId)
     exitReq.value = null
+    closeLocalContext('EXIT_CONFIRM')
     const data = buildSceneData()
     if (data) gameBridge.emit('cmd:restart-map', data)
     // 进入新区域后尝试触发随机事件
@@ -241,6 +308,7 @@ async function confirmExit() {
   } catch (e) {
     actionError.value = mapStore.error || '区域移动失败'
     exitReq.value = null // 非法出口直接关闭，避免反复触发
+    closeLocalContext('EXIT_CONFIRM')
   } finally {
     busy.value = false
     syncInputLock()
@@ -249,11 +317,13 @@ async function confirmExit() {
 
 function closeExitDialog() {
   exitReq.value = null
+  closeLocalContext('EXIT_CONFIRM')
   syncInputLock()
 }
 
 function closeRewardPopup() {
   rewardPopup.value = null
+  closeLocalContext('REWARD')
 }
 
 // ==================== 随机事件（阶段 10） ====================
@@ -265,6 +335,7 @@ async function tryRollRandomEvent() {
     const data = (res as ApiResponse<any>).data
     if (data) {
       randomEvent.value = data
+      openLocalContext('RANDOM_EVENT', data)
       syncInputLock()
     }
   } catch {
@@ -284,6 +355,8 @@ async function resolveEvent(optionId: string) {
     const result = (res as ApiResponse<any>).data
     eventResult.value = result
     randomEvent.value = null
+    closeLocalContext('RANDOM_EVENT')
+    openLocalContext('EVENT_RESULT', result)
     // 刷新玩家金币等状态
     await gameStore.loadBootstrap()
     // 如果触发了战斗/捕捉，打开战斗浮层
@@ -291,6 +364,7 @@ async function resolveEvent(optionId: string) {
       try {
         await battleStore.startMapEncounter(result.encounterGroupId)
         eventResult.value = null
+        closeLocalContext('EVENT_RESULT')
         openBattleOverlay()
       } catch {
         showToast('战斗触发失败')
@@ -306,12 +380,13 @@ async function resolveEvent(optionId: string) {
 
 function closeEventResult() {
   eventResult.value = null
+  closeLocalContext('EVENT_RESULT')
   syncInputLock()
 }
 
 /** 打开功能浮层（地图保留，暂停探索；浮层 UI 由 MainLayout 的 OverlayLayer 统一渲染）。 */
 function openFeature(type: OverlayType) {
-  overlayStore.open(type)
+  overlayStore.open(type, undefined, { source: 'WORLD' })
   syncInputLock()
 }
 
@@ -327,10 +402,13 @@ onMounted(async () => {
   }
   if (phaserContainer.value) {
     game = createPhaserGame(phaserContainer.value)
+    worldInstanceId.value = `world-${Date.now().toString(36)}`
     const data = buildSceneData()
     if (data) {
       game.scene.start('BootScene', data)
     }
+    // Context 可能在世界创建前已经打开，场景就绪后再次同步其暂停语义。
+    overlayStore.syncWorldState()
   }
   // 进入区域后尝试触发随机事件
   await tryRollRandomEvent()
@@ -349,7 +427,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="explore-view">
     <!-- 地图舞台：Phaser 画布 + 探索 HUD + 情境交互（Overlay 架构 P1） -->
-    <div class="map-stage">
+    <div class="map-stage" data-world-focus-root tabindex="-1" :data-world-instance-id="worldInstanceId">
       <div ref="phaserContainer" class="phaser-container"></div>
       <ExplorationHUD />
       <ContextInteractionPanel />
@@ -358,8 +436,12 @@ onBeforeUnmount(() => {
     <p v-if="mapStore.error && !mapStore.currentMap" class="error-text">{{ mapStore.error }}</p>
 
     <!-- 遭遇确认（可见野怪接触前可调整首发） -->
-    <div v-if="encounterReq" class="modal-mask">
-      <div class="modal-card">
+    <div
+      v-if="encounterReq && overlayStore.isOpen('ENCOUNTER_CONFIRM')"
+      class="modal-mask"
+      :style="{ zIndex: contextZIndex('ENCOUNTER_CONFIRM') }"
+    >
+      <div ref="localDialogCard" class="modal-card" role="dialog" :aria-modal="isTopContext('ENCOUNTER_CONFIRM') ? 'true' : undefined" aria-label="遭遇确认" tabindex="-1" @keydown="trapLocalDialog">
         <h3>遭遇野生宠物！</h3>
         <p v-if="encounterReq.elite" class="elite-banner">✨ 精英个体！属性更强，捕捉难度更高</p>
         <p class="modal-text">
@@ -378,8 +460,12 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 营地交互 -->
-    <div v-if="campDialogId" class="modal-mask">
-      <div class="modal-card">
+    <div
+      v-if="campDialogId && overlayStore.isOpen('CAMP_CONFIRM')"
+      class="modal-mask"
+      :style="{ zIndex: contextZIndex('CAMP_CONFIRM') }"
+    >
+      <div ref="localDialogCard" class="modal-card" role="dialog" :aria-modal="isTopContext('CAMP_CONFIRM') ? 'true' : undefined" aria-label="营地交互" tabindex="-1" @keydown="trapLocalDialog">
         <h3>营地</h3>
         <p class="modal-text">
           在营地休息可免费恢复全队 HP、复苏倒下宠物，并刷新本区域野怪与采集点。
@@ -396,8 +482,12 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 出口确认 -->
-    <div v-if="exitReq" class="modal-mask">
-      <div class="modal-card">
+    <div
+      v-if="exitReq && overlayStore.isOpen('EXIT_CONFIRM')"
+      class="modal-mask"
+      :style="{ zIndex: contextZIndex('EXIT_CONFIRM') }"
+    >
+      <div ref="localDialogCard" class="modal-card" role="dialog" :aria-modal="isTopContext('EXIT_CONFIRM') ? 'true' : undefined" aria-label="区域出口确认" tabindex="-1" @keydown="trapLocalDialog">
         <h3>区域出口</h3>
         <p class="modal-text">是否离开当前区域？离开后重新进入将刷新野怪与普通采集点。</p>
         <p v-if="actionError" class="error-text">{{ actionError }}</p>
@@ -411,11 +501,20 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 奖励弹窗（统一 RewardPopup） -->
-    <RewardPopup v-if="rewardPopup" :reward="rewardPopup" @close="closeRewardPopup" />
+    <RewardPopup
+      v-if="rewardPopup && overlayStore.isOpen('REWARD')"
+      :reward="rewardPopup"
+      :z-index="contextZIndex('REWARD')"
+      @close="closeRewardPopup"
+    />
 
     <!-- 随机事件对话框（阶段 10） -->
-    <div v-if="randomEvent" class="modal-mask">
-      <div class="modal-card">
+    <div
+      v-if="randomEvent && overlayStore.isOpen('RANDOM_EVENT')"
+      class="modal-mask"
+      :style="{ zIndex: contextZIndex('RANDOM_EVENT') }"
+    >
+      <div ref="localDialogCard" class="modal-card" role="dialog" :aria-modal="isTopContext('RANDOM_EVENT') ? 'true' : undefined" aria-label="随机事件" tabindex="-1" @keydown="trapLocalDialog">
         <img class="event-cg" :src="eventArtUrl(randomEvent.eventId)" :alt="`${randomEvent.name}插画`" />
         <h3>{{ randomEvent.name }}</h3>
         <p class="modal-text">{{ randomEvent.description }}</p>
@@ -432,8 +531,13 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 随机事件结果（阶段 10） -->
-    <div v-if="eventResult" class="modal-mask" @click.self="closeEventResult">
-      <div class="modal-card">
+    <div
+      v-if="eventResult && overlayStore.isOpen('EVENT_RESULT')"
+      class="modal-mask"
+      :style="{ zIndex: contextZIndex('EVENT_RESULT') }"
+      @click.self="closeEventResult"
+    >
+      <div ref="localDialogCard" class="modal-card" role="dialog" :aria-modal="isTopContext('EVENT_RESULT') ? 'true' : undefined" aria-label="事件结果" tabindex="-1" @keydown="trapLocalDialog">
         <h3>事件结果</h3>
         <p class="modal-text">{{ eventResult.description }}</p>
         <ul v-if="eventResult.goldGained" class="reward-list">
@@ -448,7 +552,11 @@ onBeforeUnmount(() => {
     <!-- 轻提示（全局 GlobalToast，MainLayout 挂载） -->
 
     <!-- 战斗浮层（战斗体验优化 P0：全屏覆盖地图，关闭后恢复探索，不重新加载地图） -->
-    <BattleOverlay v-if="battleOpen" @close="handleBattleClose" />
+    <BattleOverlay
+      v-if="battleOpen && overlayStore.isOpen('BATTLE')"
+      :z-index="contextZIndex('BATTLE')"
+      @close="handleBattleClose"
+    />
   </div>
 </template>
 
@@ -456,6 +564,17 @@ onBeforeUnmount(() => {
 .explore-view {
   max-width: 840px;
   margin: 0 auto;
+}
+
+.map-stage {
+  position: relative;
+  width: min(100%, 800px);
+  margin: 0 auto;
+  outline: none;
+}
+
+.map-stage:focus-visible {
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.65);
 }
 
 .explore-header {

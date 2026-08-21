@@ -1,0 +1,102 @@
+{
+  "player": {
+    "id": 101,
+    "saveId": "BASELINE_NEW_GAME",
+    "saveVersion": 1,
+    "gameVersion": "1.0.0",
+    "playerName": "基线-新游戏",
+    "avatarId": "AVATAR_DEFAULT",
+    "gold": 100,
+    "expPool": 0,
+    "currentMapId": "MAP_START_VILLAGE",
+    "mainQuestId": "QUEST_MAIN_01",
+    "playTimeSeconds": 60,
+    "storyCompleted": false,
+    "gameDifficulty": "NORMAL",
+    "autoStrategy": "BALANCED",
+    "autoSwitch": true,
+    "autoSwitchHpThreshold": 25,
+    "autoUseRecoveryItem": false,
+    "autoRecoveryHpThreshold": 35,
+    "autoRevive": false
+  },
+  "pets": [
+    {
+      "id": 1001,
+      "saveId": "BASELINE_NEW_GAME",
+      "speciesId": "PET_FIRE_001",
+      "level": 1,
+      "capturedLevel": 1,
+      "hpAptitude": 60,
+      "strengthAptitude": 60,
+      "spiritAptitude": 60,
+      "defenseAptitude": 60,
+      "resistanceAptitude": 60,
+      "speedAptitude": 60,
+      "freePointHp": 0,
+      "freePointStrength": 0,
+      "freePointSpirit": 0,
+      "freePointDefense": 0,
+      "freePointResistance": 0,
+      "freePointSpeed": 0,
+      "currentHp": 100,
+      "isStarter": true,
+      "locked": true,
+      "favorite": false,
+      "capturedMapId": "MAP_START_VILLAGE",
+      "baseHpOffset": 0,
+      "baseStrengthOffset": 0,
+      "baseSpiritOffset": 0,
+      "baseDefenseOffset": 0,
+      "baseResistanceOffset": 0,
+      "baseSpeedOffset": 0,
+      "battleCount": 0,
+      "winCount": 0,
+      "killCount": 0,
+      "bossBattleCount": 0,
+      "bossWinCount": 0,
+      "totalDamage": 0,
+      "totalDamageTaken": 0,
+      "totalHeal": 0,
+      "captureAssistCount": 0
+    }
+  ],
+  "teams": [
+    {
+      "id": 2001,
+      "saveId": "BASELINE_NEW_GAME",
+      "name": "默认队伍",
+      "slot": 1,
+      "isActive": true
+    }
+  ],
+  "teamMembers": [
+    {
+      "id": 3001,
+      "teamId": 2001,
+      "petId": 1001,
+      "position": 1
+    }
+  ],
+  "inventory": [
+    {
+      "id": 4001,
+      "saveId": "BASELINE_NEW_GAME",
+      "itemId": "ITEM_POTION_SMALL",
+      "quantity": 3
+    },
+    {
+      "id": 4002,
+      "saveId": "BASELINE_NEW_GAME",
+      "itemId": "ITEM_CAPTURE_BALL_NORMAL",
+      "quantity": 5
+    }
+  ],
+  "regionUnlocks": [
+    {
+      "saveId": "BASELINE_NEW_GAME",
+      "regionId": "MAP_START_VILLAGE",
+      "unlockedAt": "2026-08-19T00:00:00"
+    }
+  ]
+}

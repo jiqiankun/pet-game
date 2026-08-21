@@ -36,6 +36,7 @@ frontend/
     ├── assets/         # 静态资源与全局样式
     ├── game/           # Phaser 相关
     │   ├── PhaserGame.ts   # Phaser 游戏实例
+    │   ├── mapSceneData.ts # MapEnterView → Phaser 场景载荷转换
     │   ├── bridge/         # Vue ↔ Phaser 事件桥（GameBridge）
     │   └── scenes/         # BootScene / MapScene
     ├── layouts/        # 页面布局（MainLayout）
@@ -49,7 +50,7 @@ frontend/
 前端主要页面（`views/`）：
 
 - `Home` 首页、`NewGame` 新游戏
-- `Explore` 地图探索、`WorldMap` 大地图
+- `Explore` 地图探索（含缓存的 `WorldRoot`）、`WorldMap` 大地图
 - `Battle` 战斗、`Pet` 宠物详情、`Team` 队伍、`Storage` 仓库
 - `Pokedex` 图鉴、`Boss` Boss、`Inventory` 背包、`Shop` 商店
 - `Quest` 任务、`Achievement` 成就、`Statistics` 统计、`Settings` 设置
@@ -62,7 +63,7 @@ backend/
     ├── java/com/petgame/      # 后端业务代码
     └── resources/
         ├── application.yml    # 应用配置（数据源 / Flyway / 端口）
-        ├── db/migration/      # Flyway 迁移（V1~V10）
+        ├── db/migration/      # Flyway 迁移（V1~V13）
         ├── game-config/       # 游戏内容配置（YAML）
         └── static/            # 前端构建产物（构建时生成）
 ```
@@ -96,7 +97,8 @@ docs/
 ├── README.md                   # 文档总索引
 ├── requirements/               # 需求设计（权威来源）
 │   ├── 宠物精灵游戏第一阶段需求设计文档 V1.0.md
-│   └── 宠物精灵游戏第一阶段UI设计文档 V1.0.md
+│   ├── 宠物精灵游戏第一阶段UI设计文档 V1.0.md
+│   └── 宠物精灵_桌面版世界与UI重构_完整需求文档_V1.0.md
 ├── technical/                  # 技术方案与子系统设计
 │   ├── 宠物精灵游戏第一阶段技术方案说明 V1.0.md
 │   ├── AUTO_BATTLE_DESIGN.md
@@ -107,10 +109,13 @@ docs/
 │   └── PROJECT_STRUCTURE.md    # 本文件
 ├── planning/                   # 开发阶段与规划
 │   ├── 宠物精灵游戏分阶段开发规划 V1.0.md
+│   ├── 宠物精灵_需求变更与桌面版世界UI重构_详细任务规划.md
 │   ├── 前五阶段开发修订计划.md
 │   └── passive-skill-expansion-plan.md
 ├── development/                # 开发规范与状态
 │   ├── DEVELOPMENT_STATUS.md
+│   ├── PHASE0_BASELINE.md
+│   ├── PHASE1_WORLD_CONTEXT.md
 │   ├── FRONTEND_STANDARDS.md
 │   ├── BACKEND_STANDARDS.md
 │   └── TESTING_STANDARDS.md
@@ -129,7 +134,10 @@ docs/
 - `build.sh` / `build.bat`：Linux / Windows 统一构建
 - `start.sh` / `start.bat`：Linux / Windows 启动
 - `dev-hint.bat` 开发模式启动提示
+- `phase0-baseline.ps1`：桌面重构阶段 0 的需求编号、内容数量、前端构建与后端测试基线复验
 - `e2e/` 子目录：`e2e-battle-test.ps1` / `e2e-capture-test.ps1` / `e2e-map-test.ps1` / `e2e-boss-test.ps1` / `e2e-quest-test.ps1` / `e2e-phase10-test.ps1` / `e2e-phase14-test.ps1` 各阶段 E2E 验收脚本
+
+阶段 0 新增的存档兼容测试样本位于 `backend/src/test/resources/save-fixtures/`，覆盖新游戏、中期进度和第一阶段完成三种 `saveVersion=1` 存档；它们只用于测试，不是运行时默认存档。阶段 1 的世界根、Context Stack 与运行态补验记录位于 `docs/development/PHASE1_WORLD_CONTEXT.md`。
 
 ## 6. config-example/（外部配置示例）
 

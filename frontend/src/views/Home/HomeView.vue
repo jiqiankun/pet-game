@@ -8,11 +8,13 @@ import { apiGet } from '../../api/client'
 import type { ApiResponse } from '../../types/api'
 import type { ActiveQuestSummary } from '../../types/quest'
 import { petIconUrl } from '../../game-assets'
+import { useOverlayStore, type OverlayType } from '../../stores/overlay'
 
 const router = useRouter()
 const appStore = useAppStore()
 const gameStore = useGameStore()
 const questStore = useQuestStore()
+const overlayStore = useOverlayStore()
 
 const activeQuest = ref<ActiveQuestSummary | null>(null)
 
@@ -40,6 +42,12 @@ onMounted(async () => {
 
 async function handleSave() {
   await gameStore.manualSave()
+}
+
+/** 从首页进入游戏态后再打开功能 Context，避免把功能页面作为主流程路由。 */
+async function openWorldContext(type: OverlayType) {
+  await router.push('/explore')
+  overlayStore.open(type, undefined, { source: 'ROUTE' })
 }
 </script>
 
@@ -77,7 +85,7 @@ async function handleSave() {
       <div v-if="activeQuest" class="section-card quest-summary">
         <div class="section-header">
           <h3>当前主线</h3>
-          <button class="btn-link" @click="router.push('/quest')">查看全部</button>
+          <button class="btn-link" @click="openWorldContext('QUEST')">查看全部</button>
         </div>
         <div class="quest-summary-content">
           <div class="quest-summary-name">{{ activeQuest.name }}</div>
@@ -114,9 +122,9 @@ async function handleSave() {
       <div class="action-section">
         <button class="btn-primary" @click="router.push('/explore')">继续探索</button>
         <button class="btn-primary" @click="router.push('/battle')">测试战斗</button>
-        <button class="btn-primary" @click="router.push('/pets')">宠物培养</button>
-        <button class="btn-primary" @click="router.push('/team')">队伍编辑</button>
-        <button class="btn-primary" @click="router.push('/inventory')">背包</button>
+        <button class="btn-primary" @click="openWorldContext('PET')">宠物培养</button>
+        <button class="btn-primary" @click="openWorldContext('TEAM')">队伍编辑</button>
+        <button class="btn-primary" @click="openWorldContext('INVENTORY')">背包</button>
         <button class="btn-secondary" @click="handleSave">保存游戏</button>
       </div>
     </div>

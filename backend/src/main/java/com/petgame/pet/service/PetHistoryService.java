@@ -11,7 +11,6 @@ import com.petgame.statistics.service.StatisticsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
@@ -22,7 +21,8 @@ import java.util.Map;
  * 宠物个人履历服务（阶段 11，需求 §113）。
  * <p>
  * 在战斗结算时从战斗事件日志聚合每只玩家宠物的伤害/承伤/治疗/击败数，
- * 并更新 player_pet 履历字段与玩家统计（REQUIRES_NEW，失败不阻断主流程）。
+ * 并更新 player_pet 履历字段与玩家统计。该记录与战斗结算共用同一事务，避免
+ * 在结算已锁定宠物行后以独立事务再次更新同一行。
  * 履历仅作记录展示，不增加属性、不反向影响战斗数值。
  */
 @Service
@@ -45,7 +45,7 @@ public class PetHistoryService {
      * @param ctx        战斗上下文（含事件日志）
      * @param playerWon  玩家是否获胜
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void recordBattleSummary(String saveId, BattleContext ctx, boolean playerWon) {
         try {
             doRecordBattleSummary(saveId, ctx, playerWon);

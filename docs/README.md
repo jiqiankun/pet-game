@@ -2,7 +2,7 @@
 
 本目录是《宠物精灵》项目全部文档的统一索引。根目录 [README.md](../README.md) 负责项目入口与快速导航，本文件负责**完整文档目录**与文档维护约定。
 
-> 文档优先级（来源 [AGENTS.md](../AGENTS.md)）：用户当前明确要求 > 需求/技术文档 > 分阶段开发规划 > 其余内容 > 历史结论。冲突时必须上报确认，禁止自行选择一方并隐式修改需求。
+> 文档优先级（来源 [AGENTS.md](../AGENTS.md)）：用户当前明确要求 > 桌面版世界/UI 重构需求 > 未冲突的第一阶段需求/技术文档 > 当前重构规划 > 其余内容 > 历史结论。阶段 0 已完成既有冲突裁决，新增冲突仍须上报确认。
 
 ---
 
@@ -24,8 +24,9 @@
 
 ## 需求设计（权威来源）
 
+- [宠物精灵桌面版世界与 UI 重构完整需求文档 V1.0](requirements/宠物精灵_桌面版世界与UI重构_完整需求文档_V1.0.md) — 当前桌面重构范围、交互与 R-001～R-205
 - [宠物精灵游戏第一阶段需求设计文档 V1.0](requirements/宠物精灵游戏第一阶段需求设计文档 V1.0.md) — 玩法规则、数值规则、内容规模的唯一依据
-- [宠物精灵游戏第一阶段 UI 设计文档 V1.0](requirements/宠物精灵游戏第一阶段UI设计文档 V1.0.md)
+- [宠物精灵游戏第一阶段 UI 设计文档 V1.0](requirements/宠物精灵游戏第一阶段UI设计文档 V1.0.md) — 历史路由式 UI 实现参考
 
 ## 技术方案
 
@@ -41,6 +42,7 @@
 
 ## 开发规划
 
+- [宠物精灵需求变更与桌面版世界/UI 重构详细任务规划](planning/宠物精灵_需求变更与桌面版世界UI重构_详细任务规划.md) — 当前阶段 0～11 规划
 - [宠物精灵游戏分阶段开发规划 V1.0](planning/宠物精灵游戏分阶段开发规划 V1.0.md) — 开发顺序、阶段范围、验收标准
 - [前五阶段开发修订计划](planning/前五阶段开发修订计划.md)
 - [被动技能体系扩展计划](planning/passive-skill-expansion-plan.md)
@@ -49,6 +51,8 @@
 ## 开发规范与状态
 
 - [开发状态与历史阶段记录](development/DEVELOPMENT_STATUS.md)
+- [桌面重构阶段 0 基线与需求裁决](development/PHASE0_BASELINE.md)
+- [桌面重构阶段 1 世界根与 Context 实施/补验记录](development/PHASE1_WORLD_CONTEXT.md)
 - [前端开发规范](development/FRONTEND_STANDARDS.md)
 - [后端开发规范](development/BACKEND_STANDARDS.md)
 - [测试规约](development/TESTING_STANDARDS.md)

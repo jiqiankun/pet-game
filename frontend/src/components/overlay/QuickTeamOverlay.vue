@@ -105,8 +105,7 @@ async function useItem(itemId: string) {
 
 /** 进入完整队伍编辑（替换快捷队伍浮层）。 */
 function openFullTeam() {
-  overlayStore.close('QUICK_TEAM')
-  overlayStore.open('TEAM')
+  overlayStore.replaceTop('TEAM', undefined, { source: 'CONTEXT' })
 }
 </script>
 
