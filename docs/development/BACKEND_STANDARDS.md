@@ -738,3 +738,12 @@ config/model/SystemRuleConfig.PokedexRuleConfig  # 图鉴配置内部类（嵌�
 - 所有存档表结构变更只新增 Flyway；当前 `saveVersion=1` 的新游戏、主线中段、内容完成三个样本位于 `backend/src/test/resources/save-fixtures`，每次调整存档结构必须做兼容导入回归。
 - 动态世界使用游戏内有限状态，不绑定现实时间；不新增后台定时基础设施、消息队列或缓存系统。
 - 需求裁决、版本边界和迁移顺序以 `docs/development/PHASE0_BASELINE.md` 为准。
+
+### 25.1 世界图谱/玩家知识与世界状态（阶段 2）
+
+- `world` 子包承担世界图谱、玩家知识与世界状态：`WorldGraph`/`WorldGraphBuilder` 从 `maps.yml` 派生拓扑（World→Region→Map→Connection/Gateway/Anchor），`WorldTruthService` 是知识过滤与位置/安全点/状态读写的唯一裁决者，`WorldController` 暴露 `/api/world/**`。
+- `LocationRef`（regionId + mapId + 锚点/地标/对象）为任务、NPC、Boss 与切图提供统一位置引用；旧 raw ID 通过 `LocationRef.fromRaw` 兼容，禁止直接新增杂乱的位置字符串字段。
+- 玩家知识按类型存储（REGION/MAP/CONNECTION/LANDMARK/SHORTCUT），服务端依据 `player_known_location` 过滤图谱响应：隐藏连接未发现不下发、捷径未解锁不下发；`discoverLocation` 只接受图谱中真实存在的节点，拒绝客户端伪造。
+- 位置保存拒绝非法跨图：仅接受当前地图（切图另行流程处理）；服务端必须校验客户端提交的地图/坐标/朝向，不得信任前端。
+- 新增表结构（`player_world_state`、`player_known_location`）只经 Flyway V14 变更；字段映射遵循 camelCase↔snake_case，不手工改表。
+- 配置校验器强制：实测区域必填 `spawnObjectId`、出口必填 `entryObjectId`、普通双向连接必须成对、单向/危险连接必须显式 `oneWay:true`、`initialMapId` 不可指向结构预留区域；`MapTiledConsistencyValidator` 提供 Tiled 对象 ID 契约校验，供阶段 3 内容修复使用。

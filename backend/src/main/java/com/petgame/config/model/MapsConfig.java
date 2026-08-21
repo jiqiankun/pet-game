@@ -42,6 +42,8 @@ public class MapsConfig {
         private String name;
         /** 区域类型：BASE 起始据点 / AREA 主要区域。 */
         private String type;
+        /** 地图角色描述（阶段 2 WorldGraph；描述本图的体验职责，供阶段 3 多图拆分的 Map Design Contract 使用）。 */
+        private String mapRole;
         /** 推荐等级描述（大地图展示，如 3~8）。 */
         private String recommendedLevel;
         /** 敌方数值推荐等级（阶段 13，野外缩放基准）。 */
@@ -99,6 +101,21 @@ public class MapsConfig {
         private String targetMapId;
         /** 到达目标区域后的入口对象 ID（Tiled 对象）。 */
         private String entryObjectId;
+        /**
+         * 连接语义：是否单向 / 危险连接（无法原路返回时必须显式标注，阶段 2 WorldGraph）。
+         * 默认 false = 普通双向，逆向来路由对方地图的对称出口提供。
+         */
+        private boolean oneWay = false;
+        /**
+         * 连接语义：是否隐藏路线（阶段 2）。发现前不出现在普通图谱响应，
+         * 发现后（知识状态）才可见；不与会话解锁的捷径混淆。
+         */
+        private boolean hidden = false;
+        /**
+         * 连接语义：是否捷径（阶段 2）。默认 false；OPEN_SHORTCUT 类型地图变化解锁，
+         * 解锁后写入 PlayerKnowledge(SHORTCUT)，用于阶段 3 起改变 Gateway/碰撞。
+         */
+        private boolean shortcut = false;
     }
 
     /** 营地配置（需求 §75：免费恢复 + 激活后可传送）。 */

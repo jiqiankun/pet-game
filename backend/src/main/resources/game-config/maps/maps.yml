@@ -176,6 +176,7 @@ regions:
         name: 前往远古遗迹
         targetMapId: MAP_AREA_RUINS
         entryObjectId: ENTRY_RUINS_FROM_WATERS
+        oneWay: true
     camps:
       - campId: CAMP_WATERS_1
         name: 湖畔营地
@@ -226,6 +227,7 @@ regions:
         name: 前往远古遗迹
         targetMapId: MAP_AREA_RUINS
         entryObjectId: ENTRY_RUINS_FROM_THUNDER
+        oneWay: true
     camps:
       - campId: CAMP_THUNDER_1
         name: 雷岩营地

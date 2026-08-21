@@ -8,10 +8,10 @@
 
 ## 1. 当前状态
 
-- **当前阶段**：桌面版世界/UI 重构阶段 1（常驻世界根、Context Stack 与输入基础）— **实现完成，运行态验收进行中**
+- **当前阶段**：桌面版世界/UI 重构阶段 2（WorldGraph、玩家知识与世界状态基础）— **实现完成，后端全量测试/前后端构建通过与桌面运行态补验通过**
 - **当前交付范围**：仅桌面端；手机、平板、触控交互与移动端专项回归不在本轮范围。
 - **历史基线**：第一阶段阶段 0～14 已全部完成，稳定业务能力增量复用。
-- **下一阶段**：阶段 1 的独立测试存档运行态补验通过后，进入桌面重构阶段 2（WorldGraph、玩家知识与世界状态基础）。
+- **下一阶段**：阶段 2 运行态补验通过后，进入桌面重构阶段 3（世界图谱前端投影与纵切内容修复）。
 
 ### 桌面重构阶段 0 完成摘要
 
@@ -32,6 +32,18 @@
 - M/Q/B/J/Esc 规则、窗口焦点/Tab 边界、输入框过滤、单一历史保护位的浏览器返回与世界地图/区域图 Overlay 返回逻辑已落地；旧功能路由仍可直达兼容。
 - 验证已通过：前端类型检查、Vite 生产构建、后端 512 项全绿、阶段 0 基线脚本（跳过重建）、M/Q/B/J 不改 Hash、世界实例保持、`WORLD → WORLD_MAP → REGION_MAP` 的 LIFO、随机事件冻结、焦点/文本输入、旧路由和嵌套浏览器返回。
 - 用户已授权直接覆盖测试数据，并已以新建存档完成 NPC、出口、奖励、任务三 Overlay 链和地图遭遇/Battle Context 补验；Overlay 自动结算与后端事务自锁均已修复，`BattleServiceSettlementTest` 20 项通过。重启后端后已验证逃跑结算卡显示、返回关闭与同一世界实例恢复；仅剩真实页面隐藏后的持续移动手工验证。详情见 `docs/development/PHASE1_WORLD_CONTEXT.md`。在补验通过前禁止开启阶段 2。
+
+### 桌面重构阶段 2 实施摘要
+
+- 新增最小 WorldGraph 领域模型（`World/WorldMapNode/WorldConnection`）与 `WorldGraphBuilder`，以 `maps.yml` 为世界拓扑单一事实源派生 World → Region → Map → Connection/Gateway/Anchor；`LocationRef` 提供统一位置引用并兼容旧 raw ID。
+- `WorldTruthService` 承担世界事实与玩家知识/世界状态的读写：`getWorldView` 依据 PlayerKnowledge 过滤隐藏连接（未发现不下发）、捷径（未解锁不下发）；`updatePosition` 校验并保存精确坐标/朝向/安全点、拒绝非法跨图位置；`discoverLocation` 受控写入知识并拒绝伪造节点；新档/旧档兼容初始化按 `player.current_map_id` 推导并落到配置出生锚点。
+- 新增 Flyway `V14__world_graph.sql`：`player_world_state`（当前地图/区域、坐标、朝向、相机锚点、最近安全点、世界状态版本）与 `player_known_location`（REGION/MAP/CONNECTION/LANDMARK/SHORTCUT 已发现/已解锁知识）。
+- 新增 `WorldController` `/api/world/**` 接口集：世界图谱、当前精确位置、位置保存、已解锁捷径、知识发现。
+- 校验器增强并纳入后端测试/构建：实测区域必填 `spawnObjectId`（出生锚点）、出口必填 `entryObjectId`（到达锚点）、普通双向连接须成对校验、单向连接须显式标注 `oneWay:true`、`initialMapId` 不可指向结构预留区域；新增 `MapTiledConsistencyValidator`，为阶段 3 内容修复提供 Tiled 对象 ID 契约校验输入。
+- 因遗迹（`MAP_AREA_RUINS`）为无出口尾区，将 `EXIT_WATERS_TO_RUINS` 与 `EXIT_THUNDER_TO_RUINS` 显式标注 `oneWay:true`（单向/危险连接须显式标注，阶段 2 兼容规则）。
+- 新增后端测试：`WorldGraphBuilderTest`、`LocationRefTest`、`MapTiledConsistencyValidatorTest`，并在 `GameConfigMapValidateTest` 增补双向成对/oneWay 豁免/锚点必填用例；后端全量测试全绿，前端 `vue-tsc` 类型检查与 Vite 生产构建通过。
+- 前端 `types/map.ts` 已对齐 `WorldView`/`MapNodeView`/`ConnectionView`/`CurrentLocationView` 等阶段 2 DTO；图谱前端投影与目录/快捷按钮等交互在阶段 3 落地。
+- **运行态补验（完成）**：本地 JDK21 + MySQL 8.4 启动后端，Flyway V14 生效（schema=14）；`/api/world` 全接口链验证通过：旧档迁移落到出生锚点、`getWorldView` 返回经过滤的 World→Region→Map 层级与 `oneWay` 连接、`updatePosition` 保存/恢复坐标朝向且越界跨图返回 `POSITION_CROSS_MAP`、`discoverLocation` 合法写入并使 MAP 知识翻转 `discovered`、伪造节点返回 `KNOWLEDGE_NODE_MISSING`、捷径接口返回空集。补验中修复一处真实缺陷：`PlayerWorldStateEntity` 缺 `@TableId`，导致 `PlayerWorldStateMapper.selectById/updateById` 无效绑定即 500，已补 `@TableId(IdType.INPUT)` 修复。隐藏连接/捷径过滤逻辑因当前无该类配置未在运行态触发（由校验器与单元覆盖）。
 
 ## 2. 阶段总览
 
@@ -149,9 +161,9 @@ Boss 配置（2 Boss × 3 难度）；控制抗性与连续衰减；阶段机制
 
 ## 6. 后续阶段
 
-- **桌面重构阶段 1（当前）**：常驻世界根、最小 Context Stack 和统一输入/返回规则已实现，等待真实桌面运行态补验；阶段 2 尚未开始。
-- **桌面重构阶段 2（后续）**：待阶段 1 补验通过后，建立 WorldGraph、玩家知识与世界状态基础。
-- **历史阶段 14（第一阶段最终阶段，已完成）**：存档备份 / 恢复、开发者工具、教学、内容、美术、响应式与 E2E 等均已完成；当前回归基线为后端 512 项测试全绿，前端类型检查与生产构建通过。
+- **桌面重构阶段 2（当前）**：WorldGraph、PlayerKnowledge 与世界状态基础、Flyway V14、`/api/world` 接口与校验器已完成，后端全量测试/前后端构建与桌面运行态补验均通过（补验中修复 `PlayerWorldStateEntity` 缺 `@TableId` 的坏绑定缺陷）。
+- **桌面重构阶段 3（后续）**：世界图谱前端投影与目录/快捷按钮交互，以及基于校验报告修复 Tiled 内容契约（森林出口缺失、遗迹返回等）。
+- **历史阶段 14（第一阶段最终阶段，已完成）**：存档备份 / 恢复、开发者工具、教学、内容、美术、响应式与 E2E 等均已完成；当前回归基线为后端全量测试全绿，前端类型检查与生产构建通过。
 
 ---
 

@@ -75,6 +75,7 @@ class BossConfigValidateTest {
         region.setMapFile("map_a.tmx");
         region.setUnlockType("AUTO");
         region.setPlanned(false);
+        region.setSpawnObjectId("SPAWN_MAP_A");
         maps.setRegions(List.of(region));
         return maps;
     }

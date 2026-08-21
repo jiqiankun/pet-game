@@ -1314,6 +1314,9 @@ public class GameConfigValidator {
             if (region.getMapFile() == null || region.getMapFile().isBlank()) {
                 errors.add("region " + region.getId() + " 缺少 mapFile（Tiled 地图资源名）");
             }
+            if (region.getSpawnObjectId() == null || region.getSpawnObjectId().isBlank()) {
+                errors.add("region " + region.getId() + " 缺少 spawnObjectId（WorldGraph 出生锚点）");
+            }
             if (!region.getEncounterGroups().isEmpty()
                     && (region.getRecommendedEnemyLevel() < 1 || region.getMinEnemyLevel() < 1
                     || region.getMinEnemyLevel() > region.getRecommendedEnemyLevel()
@@ -1385,6 +1388,33 @@ public class GameConfigValidator {
                 } else if (target.isPlanned()) {
                     errors.add("出口 " + exit.getExitId() + " 指向结构预留区域（本阶段不可达）: "
                             + exit.getTargetMapId());
+                }
+                if (exit.getEntryObjectId() == null || exit.getEntryObjectId().isBlank()) {
+                    errors.add("出口 " + exit.getExitId() + " 缺少 entryObjectId（到达锚点）");
+                }
+            }
+        }
+
+        // WorldGraph 双向连接必须成对（阶段 2）：非单向出口须能在目标区域找到返回本区域的对称出口。
+        // 单向/危险连接（oneWay=true）豁免；隐藏/捷径连接仍是普通到达，同样要求可往返。
+        for (MapsConfig.RegionConfig region : maps.getRegions()) {
+            if (region.isPlanned()) {
+                continue;
+            }
+            for (MapsConfig.ExitConfig exit : region.getExits()) {
+                if (exit.getExitId() == null || exit.getExitId().isBlank() || exit.isOneWay()) {
+                    continue;
+                }
+                MapsConfig.RegionConfig target = regionIndex.get(exit.getTargetMapId());
+                if (target == null || target.isPlanned()) {
+                    continue;
+                }
+                boolean hasReturn = target.getExits().stream()
+                        .anyMatch(re -> region.getId().equals(re.getTargetMapId()));
+                if (!hasReturn) {
+                    errors.add("连接 " + exit.getExitId() + "（" + region.getId() + " → "
+                            + exit.getTargetMapId() + "）缺少反向出口：目标区域须提供返回 " + region.getId()
+                            + " 的对称出口，或将本连接标注 oneWay=true");
                 }
             }
         }

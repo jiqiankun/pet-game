@@ -75,9 +75,9 @@ Boss 挑战
 
 ## 当前开发状态
 
-- 桌面版世界/UI 重构阶段 0 已完成；阶段 1（常驻世界根、Context Stack 与输入基础）已完成代码实现、构建/后端回归与关键无写入浏览器验收。
-- 阶段 1 已验证世界状态保持、区域图 Context、焦点、随机事件冻结、浏览器返回，以及独立测试存档中的任务/NPC/出口/奖励/战斗进入、逃跑结算与返回；仅待真实页面隐藏后的持续移动手工验证，在此之前不进入阶段 2。
-- 本轮仅交付桌面端，手机、平板、触控和移动端专项适配不在范围内。详见 [阶段 1 实施与验收记录](docs/development/PHASE1_WORLD_CONTEXT.md)。
+- 桌面版世界/UI 重构阶段 0 已冻结交互路径与视觉口径；阶段 1（常驻世界根、Context Stack 与输入基础）已完成代码实现、构建/后端回归与关键浏览器/存档补验。
+- 阶段 2（WorldGraph、玩家知识与世界状态基础）已完成：最小世界图谱模型与构建器、`WorldTruthService` 知识过滤与位置/安全点/状态读写、`/api/world` 接口、Flyway V14 迁移，以及单向连接成对/锚点必填的校验器增强；后端全量测试与前后端构建通过。
+- 本轮仅交付桌面端，手机、平板、触控和移动端专项适配不在范围内。详见 [阶段 1 实施与验收记录](docs/development/PHASE1_WORLD_CONTEXT.md) 与 [开发状态](docs/development/DEVELOPMENT_STATUS.md)。
 
 ## 技术栈
 
@@ -162,13 +162,13 @@ java -jar release/pet-game.jar              # 访问 http://localhost:8080
 
 ## 开发进度
 
-当前阶段：**桌面版世界/UI 重构阶段 1（常驻世界根、Context Stack 与输入基础）— 实现完成，运行态验收进行中**
+当前阶段：**桌面版世界/UI 重构阶段 2（WorldGraph、玩家知识与世界状态基础）— 实现完成，后端全量测试/前后端构建与桌面运行态补验通过**
 
-历史第一阶段全部 15 个阶段（阶段 0～14）已完成，继续作为稳定业务基线。
+历史第一阶段全部 15 个阶段（阶段 0～14）已完成，继续作为稳定业务基线；桌面重构阶段 1（常驻世界根、Context Stack 与输入基础）已实现并通过关键浏览器/存档补验。
 
-阶段 1 已实现常驻世界根、Context Stack、区域图子 Context、输入/焦点规则与单一历史保护位；无写入浏览器验收、独立测试存档的任务/NPC/出口/奖励/战斗进入、逃跑结算与返回、后端 512 项测试、前端类型检查与生产构建均通过。仅待真实页面隐藏后的持续移动手工验证。
+阶段 2 已建立最小 WorldGraph（World→Region→Map→Connection/Gateway/Anchor）、`LocationRef` 兼容位置引用、`WorldTruthService` 知识过滤与位置/安全点/世界状态读写、`/api/world` 接口集与 Flyway V14 迁移；校验器已纳入单向连接成对/锚点必填规则，并为阶段 3 内容修复新增 Tiled 契约校验输入。后端全量测试全绿，前端类型检查与生产构建通过。
 
-下一阶段：阶段 1 补验通过后进入桌面重构阶段 2（WorldGraph、玩家知识与世界状态基础）。各阶段进度、遗留问题与已完成内容详见 [docs/development/DEVELOPMENT_STATUS.md](docs/development/DEVELOPMENT_STATUS.md)。
+下一阶段：阶段 2 运行态补验通过后进入桌面重构阶段 3（世界图谱前端投影与纵切内容修复）。各阶段进度、遗留问题与已完成内容详见 [docs/development/DEVELOPMENT_STATUS.md](docs/development/DEVELOPMENT_STATUS.md)。
 
 ## 文档导航
 

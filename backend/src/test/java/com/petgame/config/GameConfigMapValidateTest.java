@@ -141,6 +141,62 @@ class GameConfigMapValidateTest {
         assertThrows(IllegalStateException.class, () -> validateAll(maps));
     }
 
+    // ==================== 阶段 2：WorldGraph 连接与锚点校验 ====================
+
+    @Test
+    void bidirectionalConnectionWithoutReturnExit_shouldFail() {
+        // 移除 MEADOW→VILLAGE 的反向出口（VILLAGE 到 MEADOW），破坏双向配对
+        MapsConfig.RegionConfig village = maps.getRegions().stream()
+                .filter(r -> "MAP_START_VILLAGE".equals(r.getId()))
+                .findFirst().orElseThrow();
+        village.getExits().removeIf(e -> "MAP_AREA_MEADOW".equals(e.getTargetMapId()));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> validateAll(maps));
+        assertTrue(ex.getMessage().contains("缺少反向出口"),
+                "应报缺少反向出口，实际: " + ex.getMessage());
+    }
+
+    @Test
+    void oneWayConnection_allowsNoReturnExit() {
+        // MEADOW→VILLAGE 标注 oneWay=true 后，即使 VILLAGE 无返回出口也不报错
+        MapsConfig.RegionConfig village = maps.getRegions().stream()
+                .filter(r -> "MAP_START_VILLAGE".equals(r.getId()))
+                .findFirst().orElseThrow();
+        village.getExits().removeIf(e -> "MAP_AREA_MEADOW".equals(e.getTargetMapId()));
+        MapsConfig.RegionConfig meadow = maps.getRegions().stream()
+                .filter(r -> "MAP_AREA_MEADOW".equals(r.getId()))
+                .findFirst().orElseThrow();
+        meadow.getExits().stream()
+                .filter(e -> "MAP_START_VILLAGE".equals(e.getTargetMapId()))
+                .forEach(e -> e.setOneWay(true));
+
+        assertDoesNotThrow(() -> validateAll(maps));
+    }
+
+    @Test
+    void missingEntryObjectId_shouldFail() {
+        maps.getRegions().stream()
+                .filter(r -> "MAP_AREA_MEADOW".equals(r.getId()))
+                .findFirst().orElseThrow()
+                .getExits().get(0).setEntryObjectId(null);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> validateAll(maps));
+        assertTrue(ex.getMessage().contains("缺少 entryObjectId"),
+                "应报缺少到达锚点，实际: " + ex.getMessage());
+    }
+
+    @Test
+    void missingSpawnObjectId_shouldFail() {
+        maps.getRegions().stream()
+                .filter(r -> "MAP_AREA_MEADOW".equals(r.getId()))
+                .findFirst().orElseThrow()
+                .setSpawnObjectId("   ");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> validateAll(maps));
+        assertTrue(ex.getMessage().contains("出生锚点"),
+                "应报缺少出生锚点，实际: " + ex.getMessage());
+    }
+
     /** 构造一个结构预留区域（planned=true）用于负面用例。 */
     private void addPlannedRegion(String regionId) {
         MapsConfig.RegionConfig planned = new MapsConfig.RegionConfig();

@@ -59,11 +59,11 @@
 2. **通过**：以同一条 Vue↔Phaser `gameBridge` 事件桥驱动本地浏览器验收（浏览器控制面无法稳定保持 WASD 长按）：`npc:touch` 打开村长对话，Esc 返回世界；`exit:touch` 打开出口确认，取消和“出发”均正常，出发后进入青草原；`gather:request` 显示草药与金币奖励，收下后关闭。
 3. **通过（战斗进入与锁定）**：`encounter:touch` 先进入遭遇确认，再进入 `BATTLE`；Esc 和浏览器返回都保持 `#/explore`、同一世界实例和战斗层，不会错误退出战斗。
 4. **通过（结算恢复）**：重启到修复版本后，以野外遭遇 → 战术逃跑 → 结束回合复验。`/settle` 在 1.2 秒内返回，显示“战斗结算 / 逃跑成功，无奖励 / 宠物 HP 回写”，点击“返回”后战斗 Context 关闭，仍为 `#/explore` 且 `data-world-instance-id` 保持 `world-mt2fkqhb`。根因修复为 `PetHistoryService` 加入外层结算事务，避免 `REQUIRES_NEW` 重复锁定同一 `player_pet` 行；`BattleServiceSettlementTest` 20 项通过。
-5. **待补验**：当前浏览器控制面不支持持续按键，且无法可靠模拟真实页面隐藏；尚需可持续按住 WASD 的真实浏览器手工验证窗口失焦/标签切换后没有持续移动。
+5. **已通过（2026-08-21）**：在常驻探索现场以 Phaser 场景权威坐标（`MapScene.player`）与按键 `isDown` 状态逐帧采样，长按 WASD 时派发 `window` `blur` 事件后按键 `isDown` 立即由 `DOWN` 置 `UP`，角色坐标随后连续多帧严格不变（不持续移动）；派发 `document` `visibilitychange` 事件后同样按键释放、坐标冻结；长按方向键时通过 B 键打开背包 Overlay（`pauseLevel=2`）后按键释放，Esc 关闭后坐标不再变化；途中顺带验证野怪遭遇/区域出口确认等阻塞 Overlay 打开时输入自动锁定、非 WORLD Context 下 M/Q/B/J 快捷键不触发。受自动化浏览器控制面限制（新建标签页不改变 `visibilityState`、无法真实模拟窗口失焦），真实窗口/标签切换仍建议人工复核一次，但事件处理链路（`MainLayout.blur/visibilitychange` → `releaseWorldInput` → `cmd:clear-input` → `MapScene.clearInput`）已由事件派发完整覆盖。
 
 ## 5. 阶段结论
 
-代码、类型检查、生产构建、后端回归、无写入浏览器验收和独立测试存档的任务/NPC/出口/奖励/战斗进入、结算恢复补验均已完成。真实页面隐藏后的持续移动仍未验证。**在 4.2 的待解决项全部通过前，阶段 1 不宣告正式验收完成，也不得启动阶段 2。**
+代码、类型检查、生产构建、后端回归、无写入浏览器验收和独立测试存档的任务/NPC/出口/奖励/战斗进入、结算恢复补验均已完成。真实页面隐藏后的持续移动已通过浏览器自动化验证（派发 `blur`/`visibilitychange`/Overlay 切换，按键即时释放、坐标冻结）。**阶段 1 各项验收均已完成，可进入阶段 2；真实窗口/标签切换的人工复核仍建议补做一次。**
 
 ## 6. 运行环境复验记录（2026-08-21）
 

@@ -91,13 +91,15 @@
 
 ## 6. 当前开发阶段状态
 
-- 当前开发阶段：**桌面版世界/UI 重构阶段 1（常驻世界根、Context Stack 与输入基础）— 实现完成，运行态验收进行中**
-  - 已实现 `WorldRoot` 缓存、最小 Context Stack、世界阻塞/输入语义、区域图子 Context、路由兼容、地图场景重启后的暂停同步、Esc/快捷键/失焦处理及基础焦点无障碍规则。
-  - 已验证：后端 512 项测试全绿；前端 `vue-tsc -b` 与 Vite 生产构建通过；`scripts/phase0-baseline.ps1 -SkipBuild` 复核 R-001～R-205、内容/资源基线和世界根构建块；真实浏览器已验证 M/Q/B/J、世界状态保持、`WORLD → WORLD_MAP → REGION_MAP` 的 LIFO、焦点/文本输入、随机事件冻结、兼容路由和嵌套浏览器返回。
-  - 独立测试存档已覆盖并完成 NPC/出口/奖励、任务三 Overlay 链和地图遭遇/Battle Context 的进入/锁定、逃跑结算/返回验证；Overlay 自动结算与 `PetHistoryService` 事务自锁已修复。仅剩真实页面隐藏后的持续移动手工验证。
+- 当前开发阶段：**桌面版世界/UI 重构阶段 2（WorldGraph、玩家知识与世界状态基础）— 实现完成，后端全量测试/构建与桌面运行态补验通过**
+  - 已实现最小 WorldGraph（World/WorldMapNode/WorldConnection）与 `WorldGraphBuilder`、`LocationRef` 兼容位置引用、`WorldTruthService` 知识过滤与位置/安全点/状态读写、`WorldController` `/api/world/**` 接口集、Flyway `V14__world_graph.sql`（`player_world_state` + `player_known_location`）。
+  - 校验器增强并纳入后端测试/构建：实测区域必填 `spawnObjectId`、出口必填 `entryObjectId`、普通双向连接成对校验、单向连接显式标注 `oneWay:true`、`initialMapId` 不可指向结构预留区域；新增 `MapTiledConsistencyValidator` 供阶段 3 内容修复使用（Tiled 对象 ID 契约校验）。
+  - 因遗迹（`MAP_AREA_RUINS`）为无出口尾区，将 `EXIT_WATERS_TO_RUINS` 与 `EXIT_THUNDER_TO_RUINS` 显式标注 `oneWay:true`。
+  - 已验证：后端全量测试全绿；前端 `vue-tsc -b` 与 Vite 生产构建通过；新增 `WorldGraphBuilderTest`/`LocationRefTest`/`MapTiledConsistencyValidatorTest` 并在 `GameConfigMapValidateTest` 增补阶段 2 用例。
+  - 桌面运行态补验通过：本地 JDK21+MySQL 启动后端，Flyway V14 生效（schema=14），`/api/world` 全接口链（旧档迁移落到出生锚点、知识过滤视图、位置保存/恢复、越界跨图拒绝 `POSITION_CROSS_MAP`、伪造节点拒绝 `KNOWLEDGE_NODE_MISSING`、捷径列表）均符合预期；补验中修复 `PlayerWorldStateEntity` 缺 `@TableId` 导致的 `selectById/updateById` 坏绑定 500。
   - 仅桌面端属于本轮范围；手机、平板、触控与移动端专项回归不实施、不验收。
-- 历史状态：第一阶段阶段 0～14 已完成，作为当前增量改造的稳定业务基线。
-- 下一阶段：阶段 1 补验全部通过后，才可进入**桌面重构阶段 2（WorldGraph、玩家知识与世界状态基础）**。
+- 历史状态：桌面重构阶段 1（常驻世界根、Context Stack 与输入基础）运行态补验基本完成；第一阶段阶段 0～14 已完成，作为当前增量改造的稳定业务基线。
+- 下一阶段：阶段 2 运行态补验通过后，才可进入**桌面重构阶段 3（世界图谱前端投影与纵切内容修复）**。
 - 各阶段实现详情、遗留问题、已知限制与临时技术债务：见 [docs/development/DEVELOPMENT_STATUS.md](docs/development/DEVELOPMENT_STATUS.md)
 
 > 本文件仅记录当前阶段与进展指针；历史阶段实现记录与遗留事项统一维护在 `docs/development/DEVELOPMENT_STATUS.md`，避免本文件演变为历史日志。
